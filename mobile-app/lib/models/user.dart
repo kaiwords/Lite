@@ -73,6 +73,23 @@ class LitUser {
         isFollowing: (j['isFollowing'] as bool?) ?? false,
         isVerified: (j['isVerified'] as bool?) ?? false,
       );
+
+  /// Maps a raw `public.users` row (snake_case columns, as returned by the
+  /// Supabase client SDK) into a [LitUser]. Distinct from [fromJson], which
+  /// expects the app's own camelCase local-cache format used by
+  /// [LocalStore].
+  factory LitUser.fromSupabaseRow(Map<String, dynamic> row) => LitUser(
+        id: row['id'] as String,
+        username: (row['username'] as String?) ?? '',
+        displayName: (row['display_name'] as String?) ?? '',
+        avatarUrl: row['avatar_url'] as String?,
+        bio: (row['bio'] as String?) ?? '',
+        followersCount: (row['followers_count'] as num?)?.toInt() ?? 0,
+        followingCount: (row['following_count'] as num?)?.toInt() ?? 0,
+        postsCount: (row['posts_count'] as num?)?.toInt() ?? 0,
+        earnings: (row['earnings'] as num?)?.toDouble() ?? 0.0,
+        isVerified: (row['is_verified'] as bool?) ?? false,
+      );
 }
 
 final mockUsers = [

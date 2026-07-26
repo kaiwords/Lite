@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/post.dart';
 import '../services/local_store.dart';
+import '../services/posts_repository.dart';
 
 enum FeedFilter { following, writers }
 
@@ -118,8 +119,37 @@ class PostsNotifier extends StateNotifier<List<Post>> {
     }).toList();
   }
 
-  void addPost(Post post) {
+  /// Prepends [post] locally right away; returns whether the backend insert
+  /// also succeeded so the UI can tell the user when it didn't sync.
+  Future<bool> addPost(Post post) async {
     state = [post, ...state];
+    try {
+      await PostsRepository.insert(post);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Replaces local/mock posts with the current Supabase data once it loads,
+  /// preserving each post's locally-tracked like/favourite flags by id.
+  Future<void> loadFromSupabase() async {
+    try {
+      final remote = await PostsRepository.fetchAll();
+      if (remote.isEmpty) return;
+      final localById = {for (final p in state) p.id: p};
+      state = remote.map((r) {
+        final local = localById[r.id];
+        return local == null
+            ? r
+            : r.copyWith(
+                isLiked: local.isLiked,
+                isFavourited: local.isFavourited,
+              );
+      }).toList();
+    } catch (_) {
+      // Offline or request failed — keep the local/mock posts already shown.
+    }
   }
 
   /// Bumps a post's comment count when a new comment is added.
@@ -144,6 +174,7 @@ final postsNotifierProvider = StateNotifierProvider<PostsNotifier, List<Post>>(
   (ref) {
     final notifier = PostsNotifier(LocalStore.instance.loadPosts() ?? mockPosts);
     notifier.addListener(LocalStore.instance.savePosts, fireImmediately: false);
+    notifier.loadFromSupabase();
     return notifier;
   },
 );

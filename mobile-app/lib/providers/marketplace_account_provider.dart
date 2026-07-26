@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/marketplace.dart';
 import '../services/local_store.dart';
+import '../services/marketplace_repository.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cart
@@ -93,6 +94,19 @@ class PurchasesNotifier extends StateNotifier<List<Purchase>> {
 
   bool contains(String listingId) =>
       state.any((p) => p.listing.id == listingId);
+
+  /// Completes a purchase for [listing] immediately — creates the [Purchase]
+  /// record and adds it to the user's library. This is the single place that
+  /// "buys" a listing: cart checkout, the listing-detail "Buy Now" button,
+  /// and the feed's post-level buy sheet all call this instead of each
+  /// building their own `Purchase`.
+  void buyNow(MarketplaceListing listing) {
+    add(Purchase(
+      listing: listing,
+      purchasedAt: DateTime.now(),
+      orderId: 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}',
+    ));
+  }
 }
 
 final purchasesProvider =
@@ -178,14 +192,34 @@ class MyListingsNotifier extends StateNotifier<List<MarketplaceListing>> {
         mockListings[8], // Between the Lines (Audio)
       ];
 
-  void add(MarketplaceListing listing) => state = [listing, ...state];
+  /// Prepends [listing] locally right away; returns whether the backend
+  /// insert also succeeded so the UI can tell the user when it didn't sync.
+  Future<bool> add(MarketplaceListing listing) async {
+    state = [listing, ...state];
+    try {
+      await MarketplaceRepository.insert(listing);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   void remove(String id) =>
       state = state.where((l) => l.id != id).toList();
 
-  void update(MarketplaceListing updated) => state = [
-        for (final l in state) if (l.id == updated.id) updated else l,
-      ];
+  /// Replaces the matching listing locally right away; returns whether the
+  /// backend update also succeeded.
+  Future<bool> update(MarketplaceListing updated) async {
+    state = [
+      for (final l in state) if (l.id == updated.id) updated else l,
+    ];
+    try {
+      await MarketplaceRepository.update(updated);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 final myListingsProvider =

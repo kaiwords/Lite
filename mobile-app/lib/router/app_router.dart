@@ -1,4 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/signup_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/audio/audio_screen.dart';
 import '../screens/marketplace/marketplace_screen.dart';
@@ -10,17 +16,52 @@ import '../screens/search/search_screen.dart';
 import '../screens/messages/messages_screen.dart';
 import '../screens/messages/conversation_screen.dart';
 import '../screens/marketplace/listing_detail_screen.dart';
-import '../screens/marketplace/marketplace_hub_screen.dart';
 import '../screens/marketplace/mkt_notifications_screen.dart';
 import '../screens/marketplace/mkt_messages_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
 import '../screens/viewer/full_screen_post_viewer.dart';
 import '../screens/reader/book_reader_screen.dart';
 import '../models/book.dart';
+import '../providers/auth_provider.dart';
+import '../services/supabase_service.dart';
+
+/// Bridges the Supabase auth stream into a [Listenable] so GoRouter's
+/// `refreshListenable` re-runs `redirect` on every sign-in/sign-out — without
+/// this, the router would only re-check auth on the next explicit
+/// navigation, leaving a stale screen up until then.
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier() {
+    _sub = SupabaseService.client.auth.onAuthStateChange
+        .listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<AuthState> _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+final _authRefreshNotifier = _AuthRefreshNotifier();
+
+const _authRoutes = {'/login', '/signup'};
 
 final appRouter = GoRouter(
   initialLocation: '/',
+  refreshListenable: _authRefreshNotifier,
+  redirect: (context, state) {
+    final loggedIn = currentAuthSession != null;
+    final onAuthRoute = _authRoutes.contains(state.matchedLocation);
+
+    if (!loggedIn && !onAuthRoute) return '/login';
+    if (loggedIn && onAuthRoute) return '/';
+    return null;
+  },
   routes: [
+    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+    GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
     GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
     GoRoute(
       path: '/audio',
@@ -48,12 +89,11 @@ final appRouter = GoRouter(
     GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
     GoRoute(path: '/messages', builder: (_, _) => const MessagesScreen()),
     GoRoute(
-      path: '/messages/:name',
+      path: '/messages/:id',
       builder: (_, state) => ConversationScreen(
-        peerName: Uri.decodeComponent(state.pathParameters['name'] ?? ''),
+        conversationId: Uri.decodeComponent(state.pathParameters['id'] ?? ''),
       ),
     ),
-    GoRoute(path: '/marketplace/hub', builder: (_, _) => const MarketplaceHubScreen()),
     GoRoute(path: '/marketplace/notifications', builder: (_, _) => const MktNotificationsScreen()),
     GoRoute(path: '/marketplace/messages', builder: (_, _) => const MktMessagesScreen()),
     GoRoute(

@@ -172,4 +172,40 @@ Worked through every item deferred from the prior review, one agent at a time
   `crossAxisAlignment.stretch` inside a `ListView` causing infinite-height
   constraints once a list actually had items)
 
+**Migrate to Supabase: real auth, data-layer repositories, RLS (2026-07-27)**
+- **Real authentication**: new `screens/auth/login_screen.dart` and
+  `signup_screen.dart`, `auth_provider.dart` rewritten around Supabase Auth
+  (email/password), `humanizeAuthError` (`utils/auth_error.dart`) rewrites
+  raw Supabase error strings into readable copy. `app.dart` listens to the
+  Supabase auth-state stream and syncs `currentUserProvider` from the
+  `public.users` row on sign-in/out; `app_router.dart`'s redirect logic
+  bridges the same stream into a `Listenable` to bounce signed-out users to
+  `/login`
+- **LocalStore mocks replaced with Supabase repositories**: new
+  `services/{posts,comments,conversations,follows,marketplace,users}_repository.dart`.
+  `feed_provider.dart`, `comments_provider.dart`, `follow_provider.dart`,
+  `marketplace_provider.dart`, and `marketplace_account_provider.dart` now
+  seed from the local mocks and then call `loadFromSupabase()` to replace
+  them with live data once it arrives, writing through to the matching
+  repository on create/update (failures are currently swallowed rather than
+  surfaced to the user — flagged for a follow-up). `LitUser.fromSupabaseRow`
+  added alongside the existing `fromJson` to map snake_case Postgres rows
+  New `models/conversation.dart` + `providers/conversations_provider.dart`
+  give messaging its own Supabase-backed model instead of local mock threads
+- **Database**: `supabase/migrations/` adds ownership-scoped RLS policies for
+  the marketplace and messaging tables; `.env`-based config
+  (`SUPABASE_URL`/`SUPABASE_ANON_KEY`, see `.env.example`) loaded via
+  `flutter_dotenv` and read by the new `services/supabase_service.dart`
+- **Tests**: added `test/unit/models_test.dart` (`fromSupabaseRow` mapping,
+  JSON round-trips), `test/unit/auth_error_and_book_test.dart`
+  (`humanizeAuthError`), `test/unit/notifiers_test.dart` (provider behavior
+  against the Supabase-backed notifiers, including offline-fallback when
+  `loadFromSupabase` fails), `test/widget/login_screen_test.dart`, plus
+  standalone coverage for the previously-untested `post_paginator.dart` and
+  `rich_text.dart` utilities
+- Deferred (flagged, not fixed): repository write failures in the
+  provider `add`/`update` paths are caught and dropped instead of shown to
+  the user (see `notifiers_test.dart` comment referencing "review finding
+  H6")
+
 Add new entries below, newest first, dated `YYYY-MM-DD`.

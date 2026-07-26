@@ -1,43 +1,39 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/marketplace.dart';
-import '../models/post.dart';
+import '../services/marketplace_repository.dart';
+import 'marketplace_account_provider.dart';
 
-enum MarketplacePriceSort { none, lowToHigh, highToLow }
+/// The shared browsable catalogue, seeded synchronously from [mockListings]
+/// and then refreshed from Supabase once the live data loads.
+class CatalogueNotifier extends StateNotifier<List<MarketplaceListing>> {
+  CatalogueNotifier(super.initial);
 
-final marketplaceListingsProvider = Provider<List<MarketplaceListing>>(
-  (_) => mockListings,
-);
-
-final marketplaceTabProvider = StateProvider<ListingType>(
-  (_) => ListingType.physical,
-);
-
-final marketplaceCategoryFilterProvider =
-    StateProvider<ContentCategory?>((_) => null);
-
-final marketplacePriceSortProvider =
-    StateProvider<MarketplacePriceSort>((_) => MarketplacePriceSort.none);
-
-/// Listings filtered by category + price sort only (NOT by type).
-/// Each tab then further filters by its own [ListingType].
-final filteredListingsProvider = Provider<List<MarketplaceListing>>((ref) {
-  final category = ref.watch(marketplaceCategoryFilterProvider);
-  final priceSort = ref.watch(marketplacePriceSortProvider);
-
-  var listings = mockListings.toList();
-
-  if (category != null) {
-    listings = listings.where((l) => l.contentCategory == category).toList();
+  Future<void> loadFromSupabase() async {
+    try {
+      final remote = await MarketplaceRepository.fetchAll();
+      if (remote.isNotEmpty) state = remote;
+    } catch (_) {
+      // Offline or request failed — keep the mock catalogue already shown.
+    }
   }
+}
 
-  if (priceSort == MarketplacePriceSort.lowToHigh) {
-    listings.sort((a, b) => _parsePrice(a.price).compareTo(_parsePrice(b.price)));
-  } else if (priceSort == MarketplacePriceSort.highToLow) {
-    listings.sort((a, b) => _parsePrice(b.price).compareTo(_parsePrice(a.price)));
-  }
-
-  return listings;
+final catalogueProvider =
+    StateNotifierProvider<CatalogueNotifier, List<MarketplaceListing>>((ref) {
+  final notifier = CatalogueNotifier(mockListings);
+  notifier.loadFromSupabase();
+  return notifier;
 });
 
-double _parsePrice(String price) =>
-    double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+/// The full browsable catalogue: [catalogueProvider] plus any listings the
+/// user has created through the sell flow ([myListingsProvider]) that aren't
+/// already part of it. This is the single source of truth for Browse/Search —
+/// listings created via "My Listings" must show up here too, not just under
+/// the seller's own listings tab.
+final marketplaceListingsProvider = Provider<List<MarketplaceListing>>((ref) {
+  final catalogue = ref.watch(catalogueProvider);
+  final myListings = ref.watch(myListingsProvider);
+  final catalogueIds = catalogue.map((l) => l.id).toSet();
+  final ownOnly = myListings.where((l) => !catalogueIds.contains(l.id));
+  return [...catalogue, ...ownOnly];
+});

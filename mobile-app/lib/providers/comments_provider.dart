@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/comment.dart';
+import '../services/comments_repository.dart';
 import '../services/local_store.dart';
 
 class CommentsNotifier extends StateNotifier<List<Comment>> {
@@ -9,7 +10,17 @@ class CommentsNotifier extends StateNotifier<List<Comment>> {
   /// Default comments seeded on first launch.
   static List<Comment> seed() => List<Comment>.from(mockComments);
 
-  void add(Comment comment) => state = [comment, ...state];
+  /// Prepends [comment] locally right away; returns whether the backend
+  /// insert also succeeded so the UI can tell the user when it didn't sync.
+  Future<bool> add(Comment comment) async {
+    state = [comment, ...state];
+    try {
+      await CommentsRepository.insert(comment);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   void toggleLike(String id) => state = [
         for (final c in state)
@@ -21,6 +32,22 @@ class CommentsNotifier extends StateNotifier<List<Comment>> {
           else
             c,
       ];
+
+  /// Replaces local/mock comments with the current Supabase data once it
+  /// loads, preserving each comment's locally-tracked like flag by id.
+  Future<void> loadFromSupabase() async {
+    try {
+      final remote = await CommentsRepository.fetchAll();
+      if (remote.isEmpty) return;
+      final localById = {for (final c in state) c.id: c};
+      state = remote.map((r) {
+        final local = localById[r.id];
+        return local == null ? r : r.copyWith(isLiked: local.isLiked);
+      }).toList();
+    } catch (_) {
+      // Offline or request failed — keep the local/mock comments already shown.
+    }
+  }
 }
 
 final commentsProvider =
@@ -28,6 +55,7 @@ final commentsProvider =
   final notifier = CommentsNotifier(
       LocalStore.instance.loadComments() ?? CommentsNotifier.seed());
   notifier.addListener(LocalStore.instance.saveComments, fireImmediately: false);
+  notifier.loadFromSupabase();
   return notifier;
 });
 
