@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../models/conversation.dart';
+import '../../models/user.dart';
+import '../../providers/conversations_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/action_sheet.dart';
 
@@ -8,186 +12,35 @@ void _snack(BuildContext context, String msg) =>
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock data
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Message {
-  final String text;
-  final bool fromMe;
-  final DateTime sentAt;
-  final bool isRead;
-
-  const _Message({
-    required this.text,
-    required this.fromMe,
-    required this.sentAt,
-    this.isRead = false,
-  });
+Conversation? _findConversation(List<Conversation> conversations, String id) {
+  for (final c in conversations) {
+    if (c.id == id) return c;
+  }
+  return null;
 }
-
-final _mockThreads = <String, List<_Message>>{
-  'Priya Nair': [
-    _Message(
-      text: 'Hey! Just finished reading "Between the Lines" 😭',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 18)),
-    ),
-    _Message(
-      text: 'The last stanza made me tear up honestly',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 17)),
-    ),
-    _Message(
-      text: 'That means so much, thank you Priya 🙏',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      isRead: true,
-    ),
-    _Message(
-      text:
-          'I wrote it during a really quiet Sunday — everything just poured out',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 14)),
-      isRead: true,
-    ),
-    _Message(
-      text: 'You can really feel that. The pacing is so deliberate',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 12)),
-    ),
-    _Message(
-      text: 'Loved your latest poem! The imagery was stunning.',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 2)),
-    ),
-  ],
-  'Marcus Osei': [
-    _Message(
-      text: 'I\'ve been following your work for months now',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 3)),
-    ),
-    _Message(
-      text:
-          'Your voice is so distinct. The way you use white space is incredible',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 3)),
-    ),
-    _Message(
-      text: 'That\'s incredibly kind, I really appreciate it',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 45)),
-      isRead: true,
-    ),
-    _Message(
-      text: 'Would you want to collaborate on a collection?',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-  ],
-  'Javier Morales': [
-    _Message(
-      text: 'Your comment on my piece yesterday really pushed me',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
-    _Message(
-      text: 'I rewrote the ending three times because of it',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
-    _Message(
-      text: 'That\'s exactly what good feedback should do! So glad it helped',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(hours: 4)),
-      isRead: true,
-    ),
-    _Message(
-      text: 'Thanks for the tip! Means a lot.',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(hours: 3)),
-    ),
-  ],
-  'luna_reads': [
-    _Message(
-      text: 'I listen to your audio readings when I can\'t sleep',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-    ),
-    _Message(
-      text: 'They\'re so calming 🌙',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-    ),
-    _Message(
-      text: 'That\'s such a lovely thing to say ✨',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-      isRead: true,
-    ),
-    _Message(
-      text: 'Your audio reading was so peaceful.',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-  ],
-  'ink_and_fire': [
-    _Message(
-      text: 'My book club is doing a "discover indie writers" month',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 2, hours: 3)),
-    ),
-    _Message(
-      text: 'I nominated your article on grief and syntax',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 2, hours: 3)),
-    ),
-    _Message(
-      text: 'Wow, that\'s honestly humbling. Thank you so much!',
-      fromMe: true,
-      sentAt: DateTime.now().subtract(const Duration(days: 2, hours: 2)),
-      isRead: true,
-    ),
-    _Message(
-      text: 'I shared your article with my book club.',
-      fromMe: false,
-      sentAt: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-  ],
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class ConversationScreen extends StatefulWidget {
-  final String peerName;
-  const ConversationScreen({super.key, required this.peerName});
+/// Shared conversation/chat-thread screen for both the social messaging
+/// stack (`/messages/:id`) and the marketplace messaging stack
+/// (`/marketplace/messages` -> here), so the bubble/input-bar UI only
+/// exists once. Marketplace-originated threads carry a `Conversation.contextLabel`
+/// (the listing title), which renders as a small "About: `listing`" tag under
+/// the peer name and swaps in buyer/seller-specific menu actions.
+class ConversationScreen extends ConsumerStatefulWidget {
+  final String conversationId;
+  const ConversationScreen({super.key, required this.conversationId});
 
   @override
-  State<ConversationScreen> createState() => _ConversationScreenState();
+  ConsumerState<ConversationScreen> createState() =>
+      _ConversationScreenState();
 }
 
-class _ConversationScreenState extends State<ConversationScreen> {
+class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final _textCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  late final List<_Message> _messages;
-
-  @override
-  void initState() {
-    super.initState();
-    _messages = List.from(
-      _mockThreads[widget.peerName] ??
-          [
-            _Message(
-              text: 'Hi there! 👋',
-              fromMe: false,
-              sentAt: DateTime.now().subtract(const Duration(minutes: 5)),
-            ),
-          ],
-    );
-  }
 
   @override
   void dispose() {
@@ -199,10 +52,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void _send() {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      _messages.add(_Message(text: text, fromMe: true, sentAt: DateTime.now()));
-      _textCtrl.clear();
-    });
+    final conversation = ref
+        .read(conversationsProvider.notifier)
+        .find(widget.conversationId);
+    ref.read(conversationsProvider.notifier).sendMessage(
+          widget.conversationId,
+          text: text,
+          peerId: conversation?.peerId ?? widget.conversationId,
+          contextLabel: conversation?.contextLabel,
+        );
+    _textCtrl.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
@@ -219,15 +78,30 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
 
+    final conversation = _findConversation(
+        ref.watch(conversationsProvider), widget.conversationId);
+    final peerName = conversation?.peerName ??
+        findUser(widget.conversationId)?.displayName ??
+        widget.conversationId;
+    final contextLabel = conversation?.contextLabel;
+    final messages = conversation?.messages ??
+        [
+          Message(
+            text: 'Hi there! 👋',
+            fromMe: false,
+            sentAt: DateTime.now().subtract(const Duration(minutes: 5)),
+          ),
+        ];
+
     return Scaffold(
       backgroundColor: bg,
-      appBar: _buildAppBar(context, isDark),
+      appBar: _buildAppBar(context, isDark, peerName, contextLabel),
       body: Column(
         children: [
           Expanded(
             child: _MessageList(
-              messages: _messages,
-              peerName: widget.peerName,
+              messages: messages,
+              peerName: peerName,
               isDark: isDark,
               scrollCtrl: _scrollCtrl,
             ),
@@ -238,9 +112,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, bool isDark) {
-    final initial = widget.peerName.isNotEmpty
-        ? widget.peerName[0].toUpperCase()
+  AppBar _buildAppBar(
+      BuildContext context, bool isDark, String peerName, String? contextLabel) {
+    final initial = peerName.isNotEmpty
+        ? peerName[0].toUpperCase()
         : '?';
 
     return AppBar(
@@ -268,28 +143,51 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.peerName,
-                style: GoogleFonts.lato(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  peerName,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.lato(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              Text(
-                'Active now',
-                style: GoogleFonts.lato(
-                  fontSize: 11,
-                  color: const Color(0xFF5C7A5C),
-                ),
-              ),
-            ],
+                if (contextLabel != null)
+                  Row(
+                    children: [
+                      Icon(Icons.auto_stories_rounded,
+                          size: 11, color: AppColors.accent),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          contextLabel,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.lato(
+                            fontSize: 11,
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    'Active now',
+                    style: GoogleFonts.lato(
+                      fontSize: 11,
+                      color: const Color(0xFF5C7A5C),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -298,25 +196,45 @@ class _ConversationScreenState extends State<ConversationScreen> {
           icon: const Icon(Icons.more_vert_rounded),
           onPressed: () => showActionSheet(
             context,
-            title: widget.peerName,
-            items: [
-              ActionSheetItem(
-                icon: Icons.notifications_off_outlined,
-                label: 'Mute notifications',
-                onTap: () => _snack(context, 'Notifications muted'),
-              ),
-              ActionSheetItem(
-                icon: Icons.push_pin_outlined,
-                label: 'Pin conversation',
-                onTap: () => _snack(context, 'Conversation pinned'),
-              ),
-              ActionSheetItem(
-                icon: Icons.block_rounded,
-                label: 'Block ${widget.peerName}',
-                destructive: true,
-                onTap: () => _snack(context, '${widget.peerName} blocked'),
-              ),
-            ],
+            title: peerName,
+            items: contextLabel != null
+                ? [
+                    ActionSheetItem(
+                      icon: Icons.check_circle_outline_rounded,
+                      label: 'Mark as resolved',
+                      onTap: () => _snack(context, 'Marked as resolved'),
+                    ),
+                    ActionSheetItem(
+                      icon: Icons.auto_stories_rounded,
+                      label: 'View listing',
+                      onTap: () =>
+                          _snack(context, 'Opening $contextLabel…'),
+                    ),
+                    ActionSheetItem(
+                      icon: Icons.block_rounded,
+                      label: 'Block $peerName',
+                      destructive: true,
+                      onTap: () => _snack(context, '$peerName blocked'),
+                    ),
+                  ]
+                : [
+                    ActionSheetItem(
+                      icon: Icons.notifications_off_outlined,
+                      label: 'Mute notifications',
+                      onTap: () => _snack(context, 'Notifications muted'),
+                    ),
+                    ActionSheetItem(
+                      icon: Icons.push_pin_outlined,
+                      label: 'Pin conversation',
+                      onTap: () => _snack(context, 'Conversation pinned'),
+                    ),
+                    ActionSheetItem(
+                      icon: Icons.block_rounded,
+                      label: 'Block $peerName',
+                      destructive: true,
+                      onTap: () => _snack(context, '$peerName blocked'),
+                    ),
+                  ],
           ),
         ),
       ],
@@ -329,7 +247,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MessageList extends StatelessWidget {
-  final List<_Message> messages;
+  final List<Message> messages;
   final String peerName;
   final bool isDark;
   final ScrollController scrollCtrl;
@@ -403,7 +321,7 @@ class _MessageList extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Bubble extends StatelessWidget {
-  final _Message message;
+  final Message message;
   final String peerName;
   final bool isDark;
   final bool showAvatar;

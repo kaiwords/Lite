@@ -1,5 +1,11 @@
 import 'user.dart';
 
+// NOTE: This app has no backend, so there is no real per-post audio to serve.
+// The `audioUrl` values below point at a small rotating set of freely
+// licensed SoundHelix demo tracks (the same URLs commonly used for
+// audio-player development/testing) — they are placeholders, not real
+// narrations of the post content.
+
 enum ContentCategory {
   poem,
   book,
@@ -164,7 +170,7 @@ final mockPosts = [
     commentsCount: 18,
     sharesCount: 42,
     isLiked: true,
-    audioUrl: 'audio/between_the_lines.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     linkedListingId: 'm9', // Audio Book in Marketplace
   ),
   Post(
@@ -178,7 +184,7 @@ final mockPosts = [
     likesCount: 891,
     commentsCount: 67,
     sharesCount: 203,
-    audioUrl: 'audio/why_we_read.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     linkedListingId: 'm10', // Audio Book in Marketplace
   ),
   Post(
@@ -194,7 +200,7 @@ final mockPosts = [
     sharesCount: 512,
     isLiked: true,
     isFavourited: true,
-    audioUrl: 'audio/my_wifi_password.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
   ),
   Post(
     id: 'p4',
@@ -207,7 +213,7 @@ final mockPosts = [
     likesCount: 567,
     commentsCount: 33,
     sharesCount: 88,
-    audioUrl: 'audio/morning_without_you.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     linkedListingId: 'm12', // Audio Book in Marketplace
   ),
   Post(
@@ -253,6 +259,6 @@ final mockPosts = [
     likesCount: 723,
     commentsCount: 45,
     sharesCount: 134,
-    audioUrl: 'audio/on_solitude.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
   ),
 ];

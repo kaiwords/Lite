@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/local_store.dart';
+import '../services/users_repository.dart';
 import '../theme/app_theme.dart';
 
 /// Opens the editable-profile bottom sheet (display name / username / bio).
@@ -46,7 +47,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final u = ref.read(currentUserProvider);
     if (u == null) return;
     final name = _name.text.trim();
@@ -71,6 +72,16 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
       content: Text('Profile updated'),
       behavior: SnackBarBehavior.floating,
     ));
+    // Push the edit to the user's Supabase row; the local save above already
+    // succeeded, so a failure here only means it didn't sync.
+    try {
+      await UsersRepository.updateProfile(updated);
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text("Saved locally — couldn't sync to server"),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   TextField _field(TextEditingController c, String label, bool isDark,
@@ -143,7 +154,10 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
               const SizedBox(height: 20),
               FilledButton(
                 style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+                    backgroundColor: isDark
+                        ? AppColors.darkAccentOnFill
+                        : AppColors.accentOnFill,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),

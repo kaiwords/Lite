@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/post.dart';
-import '../../models/user.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 
@@ -235,7 +235,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     if (result != null) setState(() => _tags = result);
   }
 
-  void _publish() {
+  Future<void> _publish() async {
     if (_titleController.text.trim().isEmpty || _contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -245,9 +245,19 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       );
       return;
     }
+    final author = ref.read(currentUserProvider);
+    if (author == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You need a profile to publish'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final newPost = Post(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      author: mockUsers[0],
+      author: author,
       title: _titleController.text.trim(),
       content: _contentController.text.trim(),
       category: _selectedCategory,
@@ -257,14 +267,25 @@ class _PostScreenState extends ConsumerState<PostScreen> {
           : null,
       coverImageUrl: _coverFileName,
     );
-    ref.read(postsNotifierProvider.notifier).addPost(newPost);
+    // Capture the (root) messenger before popping so the sync-failure snack
+    // can still be shown after this screen is gone.
+    final messenger = ScaffoldMessenger.of(context);
+    final synced = ref.read(postsNotifierProvider.notifier).addPost(newPost);
     context.pop();
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(_hasAudio ? 'Audio posted! 🎙️' : 'Post published! ✨'),
         behavior: SnackBarBehavior.floating,
       ),
     );
+    if (!await synced) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Saved locally — couldn't sync to server"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -287,7 +308,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                // accentOnFill (darker than accent) + explicit white
+                // foreground keeps this at WCAG AA contrast in both themes.
+                backgroundColor:
+                    isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               ),
@@ -718,7 +743,11 @@ class _TagsDialogState extends State<_TagsDialog> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+          style: FilledButton.styleFrom(
+            backgroundColor:
+                isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+            foregroundColor: Colors.white,
+          ),
           onPressed: _save,
           child: const Text('Save'),
         ),

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../models/conversation.dart';
 import '../../models/user.dart';
+import '../../providers/conversations_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/action_sheet.dart';
 
@@ -15,66 +18,22 @@ void _showNewMessage(BuildContext context) {
           icon: Icons.person_outline_rounded,
           label: u.displayName,
           onTap: () =>
-              context.push('/messages/${Uri.encodeComponent(u.displayName)}'),
+              context.push('/messages/${Uri.encodeComponent(u.id)}'),
         ),
     ],
   );
 }
 
-class _Conversation {
-  final String name;
-  final String lastMessage;
-  final String time;
-  final bool hasUnread;
-  final int unreadCount;
-
-  const _Conversation({
-    required this.name,
-    required this.lastMessage,
-    required this.time,
-    this.hasUnread = false,
-    this.unreadCount = 0,
-  });
-}
-
-const _conversations = [
-  _Conversation(
-    name: 'Priya Nair',
-    lastMessage: 'Loved your latest poem! The imagery was stunning.',
-    time: '2m',
-    hasUnread: true,
-    unreadCount: 2,
-  ),
-  _Conversation(
-    name: 'Marcus Osei',
-    lastMessage: 'Would you want to collaborate on a collection?',
-    time: '1h',
-    hasUnread: true,
-    unreadCount: 1,
-  ),
-  _Conversation(
-    name: 'Javier Morales',
-    lastMessage: 'Thanks for the tip! Means a lot.',
-    time: '3h',
-  ),
-  _Conversation(
-    name: 'luna_reads',
-    lastMessage: 'Your audio reading was so peaceful.',
-    time: 'Yesterday',
-  ),
-  _Conversation(
-    name: 'ink_and_fire',
-    lastMessage: 'I shared your article with my book club.',
-    time: '2d',
-  ),
-];
-
-class MessagesScreen extends StatelessWidget {
+class MessagesScreen extends ConsumerWidget {
   const MessagesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final conversations = ref
+        .watch(conversationsProvider)
+        .where((c) => c.contextLabel == null)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -94,14 +53,14 @@ class MessagesScreen extends StatelessWidget {
           _SearchBar(isDark: isDark),
           Expanded(
             child: ListView.separated(
-              itemCount: _conversations.length,
+              itemCount: conversations.length,
               separatorBuilder: (_, _) => Divider(
                 height: 1,
                 indent: 72,
                 color: isDark ? AppColors.darkDivider : AppColors.divider,
               ),
-              itemBuilder: (_, i) => _ConversationTile(
-                conversation: _conversations[i],
+              itemBuilder: (_, i) => ConversationTile(
+                conversation: conversations[i],
                 isDark: isDark,
               ),
             ),
@@ -109,7 +68,8 @@ class MessagesScreen extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.accent,
+        backgroundColor:
+            isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
         onPressed: () => _showNewMessage(context),
         child: const Icon(Icons.edit_rounded, color: Colors.white),
       ),
@@ -153,19 +113,32 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-class _ConversationTile extends StatelessWidget {
-  final _Conversation conversation;
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversation tile — shared by MessagesScreen (social) and MktMessagesScreen
+// (marketplace) so the two entry points don't each reimplement their own row.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ConversationTile extends StatelessWidget {
+  final Conversation conversation;
   final bool isDark;
-  const _ConversationTile({required this.conversation, required this.isDark});
+  const ConversationTile({
+    super.key,
+    required this.conversation,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final name = conversation.peerName;
+    final last = conversation.lastMessage;
+    final time = last != null ? formatConversationTime(last.sentAt) : '';
+    final hasUnread = conversation.hasUnread;
 
     return InkWell(
-      onTap: () => context.push(
-          '/messages/${Uri.encodeComponent(conversation.name)}'),
+      onTap: () => context
+          .push('/messages/${Uri.encodeComponent(conversation.id)}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -177,7 +150,7 @@ class _ConversationTile extends StatelessWidget {
                   backgroundColor:
                       isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
                   child: Text(
-                    conversation.name[0].toUpperCase(),
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -185,7 +158,7 @@ class _ConversationTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (conversation.hasUnread)
+                if (hasUnread)
                   Positioned(
                     right: 0,
                     bottom: 0,
@@ -212,36 +185,63 @@ class _ConversationTile extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        conversation.name,
-                        style: GoogleFonts.lato(
-                          fontSize: 15,
-                          fontWeight: conversation.hasUnread ? FontWeight.w700 : FontWeight.w500,
-                          color: textColor,
+                      Expanded(
+                        child: Text(
+                          name,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.lato(
+                            fontSize: 15,
+                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            color: textColor,
+                          ),
                         ),
                       ),
                       Text(
-                        conversation.time,
+                        time,
                         style: GoogleFonts.lato(
                           fontSize: 12,
-                          color: conversation.hasUnread ? AppColors.accent : mutedColor,
-                          fontWeight: conversation.hasUnread ? FontWeight.w600 : FontWeight.w400,
+                          color: hasUnread ? AppColors.accent : mutedColor,
+                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
+                  if (conversation.contextLabel != null) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.auto_stories_rounded,
+                            size: 11, color: AppColors.accent),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            conversation.contextLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.lato(
+                              fontSize: 11,
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 3),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          conversation.lastMessage,
+                          last == null
+                              ? ''
+                              : '${last.fromMe ? 'You: ' : ''}${last.text}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.lato(
                             fontSize: 13,
-                            color: conversation.hasUnread ? textColor : mutedColor,
-                            fontWeight: conversation.hasUnread ? FontWeight.w500 : FontWeight.w400,
+                            color: hasUnread ? textColor : mutedColor,
+                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
                           ),
                         ),
                       ),

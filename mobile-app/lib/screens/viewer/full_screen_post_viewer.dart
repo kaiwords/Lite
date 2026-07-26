@@ -16,6 +16,7 @@ import '../../widgets/comments_sheet.dart';
 import '../../widgets/feed_filter_row.dart';
 import '../../widgets/marketplace_badge.dart';
 import '../../widgets/share_sheet.dart';
+import '../../widgets/tip_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen — owns focus-mode state and the vertical post PageView
@@ -128,7 +129,9 @@ class _BackRow extends StatelessWidget {
         IconButton(
           icon: Icon(
             Icons.arrow_back_rounded,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
           onPressed: () => context.pop(),
         ),
@@ -158,10 +161,9 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'No posts in this category',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: Colors.grey),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
           ),
         ],
       ),
@@ -250,55 +252,65 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Running header (title + category + badge)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(26, 16, 26, 8),
-                  child: _PostHeader(
-                    post: widget.post,
-                    isDark: widget.isDark,
-                    focusMode: widget.focusMode,
+                // Running header (title + category + badge). On short
+                // screens (e.g. iPhone SE) the top/bottom chrome around this
+                // page can leave very little vertical room — capping the
+                // header's height and letting it scroll internally means a
+                // long title/badge combination degrades to a short scroll
+                // instead of hard-overflowing past the paginated body below.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 140),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(26, 16, 26, 8),
+                    child: _PostHeader(
+                      post: widget.post,
+                      isDark: widget.isDark,
+                      focusMode: widget.focusMode,
+                    ),
                   ),
                 ),
 
                 // Paged body — measured so overflow flows to the next page
                 Expanded(
-                  child: LayoutBuilder(builder: (context, constraints) {
-                    final size = Size(
-                      constraints.maxWidth - 52, // 26 padding each side
-                      constraints.maxHeight - 36, // 20 top + 16 bottom
-                    );
-                    if (_bodySize != size) {
-                      if (_bodySize == null) {
-                        // First layout → paginate immediately.
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) _applyPages(size);
-                        });
-                      } else {
-                        // Size is animating (focus toggle / chrome collapse) →
-                        // debounce so we only re-paginate once it settles.
-                        _pendingSize = size;
-                        _reflowTimer?.cancel();
-                        _reflowTimer = Timer(
-                          const Duration(milliseconds: 300),
-                          () {
-                            if (mounted) _applyPages(_pendingSize!);
-                          },
-                        );
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = Size(
+                        constraints.maxWidth - 52, // 26 padding each side
+                        constraints.maxHeight - 36, // 20 top + 16 bottom
+                      );
+                      if (_bodySize != size) {
+                        if (_bodySize == null) {
+                          // First layout → paginate immediately.
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _applyPages(size);
+                          });
+                        } else {
+                          // Size is animating (focus toggle / chrome collapse) →
+                          // debounce so we only re-paginate once it settles.
+                          _pendingSize = size;
+                          _reflowTimer?.cancel();
+                          _reflowTimer = Timer(
+                            const Duration(milliseconds: 300),
+                            () {
+                              if (mounted) _applyPages(_pendingSize!);
+                            },
+                          );
+                        }
                       }
-                    }
-                    if (_pages.isEmpty) return const SizedBox.shrink();
-                    return PageView.builder(
-                      controller: _hController,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _pages.length,
-                      onPageChanged: (i) => setState(() => _pageIndex = i),
-                      itemBuilder: (_, i) => _BodyPage(
-                        text: _pages[i],
-                        isPoetic: _isPoetic,
-                        isDark: widget.isDark,
-                      ),
-                    );
-                  }),
+                      if (_pages.isEmpty) return const SizedBox.shrink();
+                      return PageView.builder(
+                        controller: _hController,
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _pages.length,
+                        onPageChanged: (i) => setState(() => _pageIndex = i),
+                        itemBuilder: (_, i) => _BodyPage(
+                          text: _pages[i],
+                          isPoetic: _isPoetic,
+                          isDark: widget.isDark,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -343,8 +355,9 @@ class _PostHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Column(
@@ -382,6 +395,8 @@ class _PostHeader extends StatelessWidget {
         ],
         Text(
           post.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.playfairDisplay(
             fontSize: 24,
             fontWeight: FontWeight.w700,
@@ -415,8 +430,9 @@ class _BodyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bodyColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final bodyColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     final bodyStyle = isPoetic
         ? GoogleFonts.lora(
             fontSize: 18,
@@ -424,11 +440,7 @@ class _BodyPage extends StatelessWidget {
             height: 2.0,
             color: bodyColor,
           )
-        : GoogleFonts.lora(
-            fontSize: 16,
-            height: 1.85,
-            color: bodyColor,
-          );
+        : GoogleFonts.lora(fontSize: 16, height: 1.85, color: bodyColor);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(26, 20, 26, 16),
@@ -453,13 +465,18 @@ class _PageDots extends StatelessWidget {
   final int current;
   final int total;
   final bool isDark;
-  const _PageDots(
-      {required this.current, required this.total, required this.isDark});
+  const _PageDots({
+    required this.current,
+    required this.total,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final inactiveColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final inactiveColor = isDark
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -493,8 +510,7 @@ class _PostFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final borderColor =
-        isDark ? AppColors.darkDivider : AppColors.divider;
+    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Container(
@@ -529,8 +545,7 @@ class _EngagementBar extends ConsumerWidget {
   final bool isDark;
   const _EngagementBar({required this.post, required this.isDark});
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -565,9 +580,8 @@ class _EngagementBar extends ConsumerWidget {
               : Icons.bookmark_border_rounded,
           label: '',
           color: post.isFavourited ? AppColors.bookmark : muted,
-          onTap: () => ref
-              .read(postsNotifierProvider.notifier)
-              .toggleFavourite(post.id),
+          onTap: () =>
+              ref.read(postsNotifierProvider.notifier).toggleFavourite(post.id),
         ),
       ],
     );
@@ -579,32 +593,43 @@ class _Btn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _Btn(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  const _Btn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 22, color: color),
-            if (label.isNotEmpty) ...[
-              const SizedBox(width: 5),
-              Text(label,
-                  style: GoogleFonts.lato(
+      // Minimum 44x44 tappable area (accessibility touch target guidance)
+      // even though the icon itself stays visually compact.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 22, color: color),
+                if (label.isNotEmpty) ...[
+                  const SizedBox(width: 5),
+                  Text(
+                    label,
+                    style: GoogleFonts.lato(
                       fontSize: 13,
                       color: color,
-                      fontWeight: FontWeight.w500)),
-            ],
-          ],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -622,8 +647,9 @@ class _AuthorRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final followed = ref.watch(followNotifierProvider);
     final isFollowing = followed.contains(post.author.id);
-    final nameColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final nameColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Padding(
@@ -637,11 +663,14 @@ class _AuthorRow extends ConsumerWidget {
                 ? AppColors.darkSurfaceVariant
                 : AppColors.surfaceVariant,
             child: Text(
-              post.author.displayName[0].toUpperCase(),
+              post.author.displayName.isEmpty
+                  ? '?'
+                  : post.author.displayName[0].toUpperCase(),
               style: GoogleFonts.playfairDisplay(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accent,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -658,15 +687,19 @@ class _AuthorRow extends ConsumerWidget {
                         post.author.displayName,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.lato(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: nameColor),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: nameColor,
+                        ),
                       ),
                     ),
                     if (post.author.isVerified) ...[
                       const SizedBox(width: 3),
-                      Icon(Icons.verified_rounded,
-                          size: 12, color: AppColors.accent),
+                      Icon(
+                        Icons.verified_rounded,
+                        size: 12,
+                        color: AppColors.accent,
+                      ),
                     ],
                   ],
                 ),
@@ -682,11 +715,16 @@ class _AuthorRow extends ConsumerWidget {
           if (!isFollowing) ...[
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () =>
-                  ref.read(followNotifierProvider.notifier).follow(post.author.id),
+              // Returned sync result deliberately ignored: the follow applies
+              // locally either way; a failed backend write is non-fatal.
+              onTap: () => ref
+                  .read(followNotifierProvider.notifier)
+                  .follow(post.author.id),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: isDark
@@ -698,9 +736,10 @@ class _AuthorRow extends ConsumerWidget {
                 child: Text(
                   'Follow',
                   style: GoogleFonts.lato(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: nameColor),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: nameColor,
+                  ),
                 ),
               ),
             ),
@@ -710,134 +749,28 @@ class _AuthorRow extends ConsumerWidget {
           // Support / Tip
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _showTip(context),
+            onTap: () =>
+                TipSheet.show(context, authorName: post.author.displayName),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.accent,
+                // accentOnFill (not accent) keeps the white label at WCAG AA
+                // contrast; also now threads isDark like the rest of this row.
+                color: isDark
+                    ? AppColors.darkAccentOnFill
+                    : AppColors.accentOnFill,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 'Support',
                 style: GoogleFonts.lato(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTip(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _TipSheet(authorName: post.author.displayName),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tip sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TipSheet extends StatefulWidget {
-  final String authorName;
-  const _TipSheet({required this.authorName});
-
-  @override
-  State<_TipSheet> createState() => _TipSheetState();
-}
-
-class _TipSheetState extends State<_TipSheet> {
-  int _amount = 2;
-  static const _amounts = [1, 2, 5, 10, 20];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Support ${widget.authorName}',
-              style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text('Send a tip to show your appreciation',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _amounts.map((amt) {
-              final sel = amt == _amount;
-              return GestureDetector(
-                onTap: () => setState(() => _amount = amt),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 58,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: sel ? AppColors.accent : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text('\$$amt',
-                        style: GoogleFonts.lato(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: sel
-                                ? Colors.white
-                                : AppColors.textSecondary)),
-                  ),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
               ),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Tip of \$$_amount sent! ✨'),
-                  behavior: SnackBarBehavior.floating,
-                ));
-              },
-              child: Text('Send \$$_amount tip',
-                  style: GoogleFonts.lato(
-                      fontWeight: FontWeight.w700, fontSize: 15)),
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );

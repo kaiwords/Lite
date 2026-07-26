@@ -6,11 +6,13 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/marketplace.dart';
 import '../models/post.dart';
+import '../providers/audio_provider.dart';
 import '../providers/feed_provider.dart';
 import '../theme/app_theme.dart';
 import 'audio_marketplace_badge.dart';
 import 'comments_sheet.dart';
 import 'share_sheet.dart';
+import 'tip_sheet.dart';
 
 class AudioPostCard extends ConsumerWidget {
   final Post post;
@@ -99,7 +101,7 @@ class AudioPostCard extends ConsumerWidget {
           ),
 
           // ── Mini audio player ───────────────────────────────────────────
-          _MiniPlayer(isDark: isDark),
+          _MiniPlayer(post: post, isDark: isDark),
 
           Divider(height: 1, color: borderColor),
 
@@ -121,7 +123,9 @@ class AudioPostCard extends ConsumerWidget {
                         ? AppColors.darkSurfaceVariant
                         : AppColors.surfaceVariant,
                     child: Text(
-                      post.author.displayName[0].toUpperCase(),
+                      post.author.displayName.isEmpty
+                          ? '?'
+                          : post.author.displayName[0].toUpperCase(),
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -170,7 +174,8 @@ class AudioPostCard extends ConsumerWidget {
                 ),
                 // Support button
                 GestureDetector(
-                  onTap: () => _showTip(context, post.author.displayName),
+                  onTap: () =>
+                      TipSheet.show(context, authorName: post.author.displayName),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
@@ -202,41 +207,69 @@ class AudioPostCard extends ConsumerWidget {
     );
   }
 
-  void _showTip(BuildContext context, String authorName) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _TipSheet(authorName: authorName),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mini audio player (static UI — progress + play controls)
+// Mini audio player — bound to the shared [audioPlayerProvider] so tapping
+// play here, on the dedicated Audio tab, or in the audiobook player all
+// control the same single, real player instance.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MiniPlayer extends StatelessWidget {
+class _MiniPlayer extends ConsumerWidget {
+  final Post post;
   final bool isDark;
-  const _MiniPlayer({required this.isDark});
+  const _MiniPlayer({required this.post, required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(audioPlayerProvider);
+    final isCurrent = player.trackId == post.id;
+    final isPlaying = isCurrent && player.isPlaying;
+    final isLoading = isCurrent && player.isLoading;
+    final progress = isCurrent ? player.progress : 0.0;
+    final position = isCurrent ? player.position : Duration.zero;
+    final duration = isCurrent ? player.duration : Duration.zero;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    void handleTap() {
+      final notifier = ref.read(audioPlayerProvider.notifier);
+      if (isCurrent) {
+        notifier.toggle();
+      } else {
+        notifier.playSingle(AudioTrack.fromPost(post));
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Row(
         children: [
           // Play button
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: handleTap,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : Icon(
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
             ),
-            child: const Icon(Icons.play_arrow_rounded,
-                color: Colors.white, size: 22),
           ),
           const SizedBox(width: 10),
           // Progress bar
@@ -255,25 +288,29 @@ class _MiniPlayer extends StatelessWidget {
                         isDark ? AppColors.darkDivider : AppColors.divider,
                     thumbColor: AppColors.accent,
                   ),
-                  child: Slider(value: 0.0, onChanged: (_) {}),
+                  child: Slider(
+                    value: progress.clamp(0.0, 1.0),
+                    onChanged: isCurrent
+                        ? (v) => ref
+                            .read(audioPlayerProvider.notifier)
+                            .seekFraction(v)
+                        : null,
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('0:00',
-                          style: GoogleFonts.lato(
-                              fontSize: 10,
-                              color: isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.textMuted)),
-                      Text('–:––',
-                          style: GoogleFonts.lato(
-                              fontSize: 10,
-                              color: isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.textMuted)),
+                      Text(formatAudioTime(position),
+                          style:
+                              GoogleFonts.lato(fontSize: 10, color: mutedColor)),
+                      Text(
+                          duration > Duration.zero
+                              ? formatAudioTime(duration)
+                              : '–:––',
+                          style:
+                              GoogleFonts.lato(fontSize: 10, color: mutedColor)),
                     ],
                   ),
                 ),
@@ -358,128 +395,37 @@ class _Btn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: color),
-            if (label.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Text(label,
-                  style: GoogleFonts.lato(
-                      fontSize: 13,
-                      color: color,
-                      fontWeight: FontWeight.w500)),
-            ],
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        // Minimum 44x44 tappable area (accessibility touch target guidance)
+        // even though the icon itself stays visually compact.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(label,
+                        style: GoogleFonts.lato(
+                            fontSize: 13,
+                            color: color,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tip sheet (reused from post_card.dart pattern)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TipSheet extends StatefulWidget {
-  final String authorName;
-  const _TipSheet({required this.authorName});
-
-  @override
-  State<_TipSheet> createState() => _TipSheetState();
-}
-
-class _TipSheetState extends State<_TipSheet> {
-  int _selectedAmount = 2;
-  static const _amounts = [1, 2, 5, 10, 20];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Support ${widget.authorName}',
-              style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text('Send a tip to show your appreciation',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _amounts.map((amt) {
-              final sel = amt == _selectedAmount;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedAmount = amt),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 58,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: sel ? AppColors.accent : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text('\$$amt',
-                        style: GoogleFonts.lato(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: sel
-                                ? Colors.white
-                                : AppColors.textSecondary)),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Tip of \$$_selectedAmount sent! ✨'),
-                  behavior: SnackBarBehavior.floating,
-                ));
-              },
-              child: Text('Send \$$_selectedAmount tip',
-                  style: GoogleFonts.lato(
-                      fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}

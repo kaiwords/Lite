@@ -24,18 +24,22 @@ class FeedFilterRow extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                _FilterTab(
-                  label: 'Following',
-                  isSelected: selected == FeedFilter.following,
-                  onTap: () => ref.read(feedFilterProvider.notifier).state =
-                      FeedFilter.following,
+                Expanded(
+                  child: _FilterTab(
+                    label: 'Following',
+                    isSelected: selected == FeedFilter.following,
+                    onTap: () => ref.read(feedFilterProvider.notifier).state =
+                        FeedFilter.following,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _FilterTab(
-                  label: 'Writers',
-                  isSelected: selected == FeedFilter.writers,
-                  onTap: () => ref.read(feedFilterProvider.notifier).state =
-                      FeedFilter.writers,
+                Expanded(
+                  child: _FilterTab(
+                    label: 'Writers',
+                    isSelected: selected == FeedFilter.writers,
+                    onTap: () => ref.read(feedFilterProvider.notifier).state =
+                        FeedFilter.writers,
+                  ),
                 ),
               ],
             ),
@@ -47,7 +51,6 @@ class FeedFilterRow extends ConsumerWidget {
     );
   }
 }
-
 
 class _FilterTab extends StatelessWidget {
   final String label;
@@ -64,7 +67,9 @@ class _FilterTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final inactiveColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final inactiveColor = isDark
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
 
     return GestureDetector(
       onTap: onTap,
@@ -73,12 +78,17 @@ class _FilterTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant)
+              ? (isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.surfaceVariant)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.lato(
             fontSize: 14,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -89,4 +99,3 @@ class _FilterTab extends StatelessWidget {
     );
   }
 }
-

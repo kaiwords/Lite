@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../utils/marketplace_lookup.dart';
+import 'listing_buy_sheet.dart';
 
 /// Pill shown on a feed post when the writer has a linked Marketplace listing.
-/// Tapping opens the listing detail page directly.
-class MarketplaceBadge extends StatelessWidget {
+/// Tapping opens a "buy now" sheet (falling back to the full listing page if
+/// the listing can't be resolved) so a reader can purchase without leaving
+/// the feed.
+class MarketplaceBadge extends ConsumerWidget {
   final String listingId;
   final bool isDark;
 
@@ -16,10 +21,17 @@ class MarketplaceBadge extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => context.push('/marketplace/listing/$listingId'),
+      onTap: () {
+        final listing = findListingById(ref, listingId);
+        if (listing != null) {
+          showListingBuySheet(context, listing);
+        } else {
+          context.push('/marketplace/listing/$listingId');
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -39,12 +51,16 @@ class MarketplaceBadge extends StatelessWidget {
               color: isDark ? AppColors.darkAccent : AppColors.accent,
             ),
             const SizedBox(width: 5),
-            Text(
-              'Available in Marketplace',
-              style: GoogleFonts.lato(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isDark ? AppColors.darkAccent : AppColors.accent,
+            Flexible(
+              child: Text(
+                'Available in Marketplace',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.lato(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.darkAccent : AppColors.accent,
+                ),
               ),
             ),
           ],

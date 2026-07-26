@@ -38,6 +38,24 @@ class LocalStore {
   static const _kFollows = 'follows';
   static const _kVisibleCategories = 'visible_categories';
 
+  /// Wipes every persisted key except the theme preference. Called on logout
+  /// so the next signed-in account doesn't inherit this one's cached posts,
+  /// cart, purchases, listings, comments, profile, or follows.
+  Future<void> clearAll() async {
+    for (final key in [
+      _kPosts,
+      _kCart,
+      _kPurchases,
+      _kMyListings,
+      _kComments,
+      _kCurrentUser,
+      _kFollows,
+      _kVisibleCategories,
+    ]) {
+      await _prefs.remove(key);
+    }
+  }
+
   // ── Generic helpers ────────────────────────────────────────────────────────
   List<Map<String, dynamic>>? _readList(String key) {
     final raw = _prefs.getString(key);

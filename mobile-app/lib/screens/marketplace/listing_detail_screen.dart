@@ -3,16 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/book.dart';
 import '../../models/marketplace.dart';
 import '../../models/post.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/follow_provider.dart';
 import '../../providers/marketplace_account_provider.dart';
+import '../../providers/marketplace_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/marketplace_lookup.dart';
 import '../../utils/post_paginator.dart';
 import '../../widgets/share_sheet.dart';
 import '../audio/audiobook_player_screen.dart';
+import '../reader/book_reader_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock reviews
@@ -27,18 +31,30 @@ class _Review {
 }
 
 const _mockReviews = [
-  _Review('luna_reads', 5.0,
-      'Absolutely stunning. Read it in one sitting and cried twice. The prose is unlike anything I\'ve encountered this year.',
-      2),
-  _Review('ink_and_fire', 4.0,
-      'Beautifully written, though the pacing drags slightly in the middle. The final third more than makes up for it.',
-      8),
-  _Review('priya_quill', 5.0,
-      'This is the kind of book that makes you want to write. Finished it and immediately started from page one again.',
-      14),
-  _Review('sarah_bookclub', 4.5,
-      'Our book club picked this and it sparked the best discussion we\'ve had in years. Highly recommended for group reads.',
-      21),
+  _Review(
+    'luna_reads',
+    5.0,
+    'Absolutely stunning. Read it in one sitting and cried twice. The prose is unlike anything I\'ve encountered this year.',
+    2,
+  ),
+  _Review(
+    'ink_and_fire',
+    4.0,
+    'Beautifully written, though the pacing drags slightly in the middle. The final third more than makes up for it.',
+    8,
+  ),
+  _Review(
+    'priya_quill',
+    5.0,
+    'This is the kind of book that makes you want to write. Finished it and immediately started from page one again.',
+    14,
+  ),
+  _Review(
+    'sarah_bookclub',
+    4.5,
+    'Our book club picked this and it sparked the best discussion we\'ve had in years. Highly recommended for group reads.',
+    21,
+  ),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,15 +69,13 @@ class ListingDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final myListings = ref.watch(myListingsProvider);
     final purchases = ref.watch(purchasesProvider);
+    // Watched (not just read) so this screen rebuilds — and stops 404ing —
+    // once the live Supabase catalogue loads.
+    final catalogue = ref.watch(marketplaceListingsProvider);
 
-    // Resolve across the catalogue, the user's own listings, and purchases so
-    // user-created listings open correctly (not just the seeded catalogue).
-    final listing = mockListings.where((l) => l.id == listingId).firstOrNull ??
-        myListings.where((l) => l.id == listingId).firstOrNull ??
-        purchases
-            .map((p) => p.listing)
-            .where((l) => l.id == listingId)
-            .firstOrNull;
+    // Resolve across the full browsable catalogue (seeded + user-created +
+    // Supabase-loaded listings) and the user's purchase history.
+    final listing = findListingById(ref, listingId);
 
     if (listing == null) {
       return Scaffold(
@@ -75,37 +89,55 @@ class ListingDetailScreen extends ConsumerWidget {
     final owned = purchases.any((p) => p.listing.id == listing.id);
     final isMine = myListings.any((l) => l.id == listing.id);
     final canAccess = owned || isMine;
-    final byAuthor = mockListings
+    final byAuthor = catalogue
         .where((l) => l.authorName == listing.authorName && l.id != listing.id)
         .toList();
 
     void openRead() {
+      if (listing.ebookChapters.isNotEmpty) {
+        // Chapter-built books get proper chapter navigation by reusing the
+        // same paginated reader as the curated catalogue's Book/BookPage model.
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BookReaderScreen(book: _bookFromListing(listing)),
+          ),
+        );
+        return;
+      }
       final content = listing.ebookContent;
       if (content != null && content.isNotEmpty) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) =>
-              _EbookReadScreen(title: listing.title, content: content),
-        ));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                _EbookReadScreen(title: listing.title, content: content),
+          ),
+        );
       } else if (listing.pdfFileName != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Opening ${listing.pdfFileName}…'),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening ${listing.pdfFileName}…'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
 
     void openListen() {
       if (listing.audioVolumes.isNotEmpty) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => AudiobookPlayerScreen(listing: listing),
-        ));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AudiobookPlayerScreen(listing: listing),
+          ),
+        );
       } else if (listing.linkedPostId != null) {
         context.push('/audio', extra: listing.linkedPostId);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Audio playback is coming soon.'),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Audio playback is coming soon.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
 
@@ -117,8 +149,9 @@ class ListingDetailScreen extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: 220,
             pinned: true,
-            backgroundColor:
-                isDark ? AppColors.darkBackground : AppColors.background,
+            backgroundColor: isDark
+                ? AppColors.darkBackground
+                : AppColors.background,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_rounded),
               onPressed: () => context.pop(),
@@ -147,20 +180,22 @@ class ListingDetailScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Type + category badges
-                  Row(children: [
-                    _Badge(
-                      label: listing.type.label,
-                      color: listing.type.badgeColor,
-                    ),
-                    if (listing.contentCategory != null) ...[
-                      const SizedBox(width: 8),
+                  Row(
+                    children: [
                       _Badge(
-                        label:
-                            '${listing.contentCategory!.emoji} ${listing.contentCategory!.label}',
-                        color: AppColors.accent,
+                        label: listing.type.label,
+                        color: listing.type.badgeColor,
                       ),
+                      if (listing.contentCategory != null) ...[
+                        const SizedBox(width: 8),
+                        _Badge(
+                          label:
+                              '${listing.contentCategory!.emoji} ${listing.contentCategory!.label}',
+                          color: AppColors.accent,
+                        ),
+                      ],
                     ],
-                  ]),
+                  ),
                   const SizedBox(height: 12),
 
                   // Title
@@ -178,55 +213,64 @@ class ListingDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
 
                   // Author
-                  Row(children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          final userId = _authorId(listing.authorName);
-                          if (userId != null) context.push('/user/$userId');
-                        },
-                        child: Row(children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark
-                                ? AppColors.darkSurfaceVariant
-                                : AppColors.surfaceVariant,
-                            child: Text(
-                              listing.authorName[0],
-                              style: GoogleFonts.playfairDisplay(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.accent),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              listing.authorName,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.lato(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.textSecondary,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            final userId = _authorId(listing.authorName);
+                            if (userId != null) context.push('/user/$userId');
+                          },
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.surfaceVariant,
+                                child: Text(
+                                  listing.authorName.isEmpty
+                                      ? '?'
+                                      : listing.authorName[0].toUpperCase(),
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.accent,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  listing.authorName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.lato(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 16,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.textMuted,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.chevron_right_rounded,
-                              size: 16,
-                              color: isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.textMuted),
-                        ]),
+                        ),
                       ),
-                    ),
-                    _AuthorFollowChip(
-                      authorName: listing.authorName,
-                      isDark: isDark,
-                    ),
-                  ]),
+                      _AuthorFollowChip(
+                        authorName: listing.authorName,
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
 
                   // Rating row
@@ -247,12 +291,15 @@ class ListingDetailScreen extends ConsumerWidget {
 
                   // Divider
                   Divider(
-                      color: isDark ? AppColors.darkDivider : AppColors.divider),
+                    color: isDark ? AppColors.darkDivider : AppColors.divider,
+                  ),
                   const SizedBox(height: 20),
 
                   // About
-                  Text('About this book',
-                      style: Theme.of(context).textTheme.headlineSmall),
+                  Text(
+                    'About this book',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 10),
                   if (listing.description.isNotEmpty)
                     Text(
@@ -269,32 +316,44 @@ class ListingDetailScreen extends ConsumerWidget {
 
                   // Contents — what the author uploaded / wrote
                   if (_hasUploadedContent(listing)) ...[
-                    Text('Contents',
-                        style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      'Contents',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 10),
                     _ContentInfo(listing: listing, isDark: isDark),
                     const SizedBox(height: 28),
                   ],
 
                   // Rating breakdown
-                  Text('Ratings & Reviews',
-                      style: Theme.of(context).textTheme.headlineSmall),
+                  Text(
+                    'Ratings & Reviews',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 12),
                   _RatingBreakdown(listing: listing, isDark: isDark),
                   const SizedBox(height: 16),
 
                   // Reviews
                   ..._mockReviews.map(
-                      (r) => _ReviewCard(review: r, isDark: isDark)),
+                    (r) => _ReviewCard(review: r, isDark: isDark),
+                  ),
                   const SizedBox(height: 28),
 
                   // More by author
                   if (byAuthor.isNotEmpty) ...[
-                    Text('More by ${listing.authorName}',
-                        style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      'More by ${listing.authorName}',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
-                      height: 160,
+                      // A couple of extra pixels of headroom beyond the
+                      // card's nominal content height (cover + 2-line title
+                      // + price) — the two-line title was landing right at
+                      // the edge of the old 160px budget and overflowing by
+                      // a few pixels depending on font metrics.
+                      height: 172,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: byAuthor.length,
@@ -318,11 +377,11 @@ class ListingDetailScreen extends ConsumerWidget {
 
   /// Maps known author names to user IDs for profile navigation.
   String? _authorId(String name) => const {
-        'Eleanor Voss': 'u1',
-        'Marcus Osei': 'u2',
-        'Priya Nair': 'u3',
-        'Javier Morales': 'u4',
-      }[name];
+    'Eleanor Voss': 'u1',
+    'Marcus Osei': 'u2',
+    'Priya Nair': 'u3',
+    'Javier Morales': 'u4',
+  }[name];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -352,7 +411,7 @@ class _CoverHero extends StatelessWidget {
           Positioned.fill(
             child: Center(
               child: Text(
-                listing.title[0],
+                listing.title.isEmpty ? '?' : listing.title[0],
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 160,
                   fontWeight: FontWeight.w900,
@@ -410,38 +469,45 @@ class _RatingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    return Row(children: [
-      // Stars
-      Row(
-        children: List.generate(5, (i) {
-          final full = i < listing.rating.floor();
-          final half =
-              !full && i < listing.rating && (listing.rating - i) >= 0.5;
-          return Icon(
-            full
-                ? Icons.star_rounded
-                : half
-                    ? Icons.star_half_rounded
-                    : Icons.star_border_rounded,
-            size: 20,
-            color: const Color(0xFFF4C430),
-          );
-        }),
-      ),
-      const SizedBox(width: 8),
-      Text(
-        listing.rating.toStringAsFixed(1),
-        style: GoogleFonts.lato(
+    return Row(
+      children: [
+        // Stars
+        Row(
+          children: List.generate(5, (i) {
+            final full = i < listing.rating.floor();
+            final half =
+                !full && i < listing.rating && (listing.rating - i) >= 0.5;
+            return Icon(
+              full
+                  ? Icons.star_rounded
+                  : half
+                  ? Icons.star_half_rounded
+                  : Icons.star_border_rounded,
+              size: 20,
+              color: const Color(0xFFF4C430),
+            );
+          }),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          listing.rating.toStringAsFixed(1),
+          style: GoogleFonts.lato(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
-      ),
-      const SizedBox(width: 4),
-      Text(
-        '(${listing.reviewCount} reviews)',
-        style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
-      ),
-    ]);
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            '(${listing.reviewCount} reviews)',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -471,92 +537,189 @@ class _PriceCartRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Owned (purchased) or authored → Read / Listen instead of Add to Cart.
     if (canAccess) {
-      final showRead = listing.type == ListingType.ebook &&
-          ((listing.ebookContent?.isNotEmpty ?? false) ||
-              listing.pdfFileName != null);
-      final showListen = listing.type == ListingType.audio &&
-          (listing.audioVolumes.isNotEmpty || listing.linkedPostId != null);
+      final isEbook = listing.type == ListingType.ebook;
+      final isAudio = listing.type == ListingType.audio;
+      final readAvailable =
+          (listing.ebookContent?.isNotEmpty ?? false) ||
+          listing.ebookChapters.isNotEmpty ||
+          listing.pdfFileName != null;
+      final listenAvailable =
+          listing.audioVolumes.isNotEmpty || listing.linkedPostId != null;
 
-      return Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.check_circle_rounded,
-                size: 16, color: AppColors.accent),
-            const SizedBox(width: 6),
-            Text(accessLabel,
-                style: GoogleFonts.lato(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.accent)),
-          ]),
-        ),
-        const Spacer(),
-        if (showRead)
-          _PrimaryAction(
-              label: 'Read', icon: Icons.menu_book_rounded, onTap: onRead)
-        else if (showListen)
-          _PrimaryAction(
-              label: 'Listen', icon: Icons.headphones_rounded, onTap: onListen),
-      ]);
-    }
+      Widget? action;
+      if (isEbook) {
+        action = _PrimaryAction(
+          label: 'Read',
+          icon: Icons.menu_book_rounded,
+          onTap: onRead,
+          isDark: isDark,
+          // Content isn't actually wired up yet for this listing — show a
+          // visibly muted "Soon" button instead of one that looks fully
+          // functional but silently does nothing useful.
+          comingSoon: !readAvailable,
+        );
+      } else if (isAudio) {
+        action = _PrimaryAction(
+          label: 'Listen',
+          icon: Icons.headphones_rounded,
+          onTap: onListen,
+          isDark: isDark,
+          comingSoon: !listenAvailable,
+        );
+      }
 
-    return Row(children: [
-      Text(
-        listing.price,
-        style: GoogleFonts.lato(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          color: AppColors.accent,
-        ),
-      ),
-      const Spacer(),
-      // Add to cart / remove
-      GestureDetector(
-        onTap: () {
-          if (inCart) {
-            ref.read(cartProvider.notifier).remove(listing.id);
-          } else {
-            ref.read(cartProvider.notifier).add(listing);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('"${listing.title}" added to cart'),
-              behavior: SnackBarBehavior.floating,
-            ));
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(
-            color: inCart ? Colors.transparent : AppColors.accent,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: AppColors.accent, width: 1.5),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(
-              inCart
-                  ? Icons.check_rounded
-                  : Icons.shopping_cart_outlined,
-              size: 18,
-              color: inCart ? AppColors.accent : Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              inCart ? 'In Cart' : 'Add to Cart',
-              style: GoogleFonts.lato(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: inCart ? AppColors.accent : Colors.white,
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: AppColors.accent,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      accessLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ]),
+          ),
+          if (action != null) Flexible(flex: 3, child: action),
+        ],
+      );
+    }
+
+    // accentOnFill (darker than accent) keeps the white label at WCAG AA
+    // contrast for the solid "Add to Cart" / "Buy Now" fills.
+    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
+    final outline = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    void buyNow() {
+      ref.read(purchasesProvider.notifier).buyNow(listing);
+      // The listing is now owned — no need for it to linger in the cart too.
+      if (inCart) ref.read(cartProvider.notifier).remove(listing.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${listing.title}" purchased! Check your Library.'),
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    ]);
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          listing.price,
+          style: GoogleFonts.lato(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.accent,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            // Add to cart / remove
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (inCart) {
+                    ref.read(cartProvider.notifier).remove(listing.id);
+                  } else {
+                    ref.read(cartProvider.notifier).add(listing);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('"${listing.title}" added to cart'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: inCart ? Colors.transparent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: outline, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        inCart
+                            ? Icons.check_rounded
+                            : Icons.shopping_cart_outlined,
+                        size: 18,
+                        color: outline,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          inCart ? 'In Cart' : 'Add to Cart',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.lato(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: outline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Buy Now — completes the purchase immediately, no cart required.
+            Expanded(
+              child: GestureDetector(
+                onTap: buyNow,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: fill,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: Text(
+                    'Buy Now',
+                    style: GoogleFonts.lato(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -564,28 +727,72 @@ class _PrimaryAction extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-  const _PrimaryAction(
-      {required this.label, required this.icon, required this.onTap});
+  final bool isDark;
+  final bool comingSoon;
+  const _PrimaryAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+    this.comingSoon = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
+    final mutedBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final mutedFg = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.accent,
+          color: comingSoon ? mutedBg : fill,
           borderRadius: BorderRadius.circular(28),
+          border: comingSoon ? Border.all(color: borderColor) : null,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 18, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(label,
-              style: GoogleFonts.lato(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: comingSoon ? mutedFg : Colors.white),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.lato(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white)),
-        ]),
+                  color: comingSoon ? mutedFg : Colors.white,
+                ),
+              ),
+            ),
+            if (comingSoon) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: borderColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'SOON',
+                  style: GoogleFonts.lato(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: mutedFg,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -598,7 +805,35 @@ class _PrimaryAction extends StatelessWidget {
 bool _hasUploadedContent(MarketplaceListing l) =>
     l.pdfFileName != null ||
     (l.ebookContent?.isNotEmpty ?? false) ||
+    l.ebookChapters.isNotEmpty ||
     l.audioVolumes.isNotEmpty;
+
+/// Converts a chapter-built listing into a transient [Book] so it can be read
+/// with [BookReaderScreen]'s proper chapter navigation/pagination instead of
+/// building a separate reading UI just for marketplace listings.
+Book _bookFromListing(MarketplaceListing listing) {
+  final coverColor = listing.genre?.colors.first ?? listing.type.badgeColor;
+  return Book(
+    id: listing.id,
+    title: listing.title,
+    authorName: listing.authorName,
+    coverColor: coverColor,
+    coverTextColor: Colors.white,
+    pages: [
+      const BookPage(type: BookPageType.cover),
+      BookPage(
+        type: BookPageType.titlePage,
+        content: '${listing.title}\n\n${listing.authorName}',
+      ),
+      for (final chapter in listing.ebookChapters)
+        BookPage(
+          type: BookPageType.chapter,
+          chapterTitle: chapter.title,
+          content: chapter.content,
+        ),
+    ],
+  );
+}
 
 class _ContentInfo extends StatelessWidget {
   final MarketplaceListing listing;
@@ -616,32 +851,55 @@ class _ContentInfo extends StatelessWidget {
     final rows = <Widget>[];
 
     if (listing.pdfFileName != null) {
-      rows.add(_ContentRow(
-        icon: Icons.picture_as_pdf_rounded,
-        iconColor: const Color(0xFFC0392B),
-        title: 'PDF document',
-        subtitle: listing.pdfFileName!,
-        isDark: isDark,
-      ));
+      rows.add(
+        _ContentRow(
+          icon: Icons.picture_as_pdf_rounded,
+          iconColor: const Color(0xFFC0392B),
+          title: 'PDF document',
+          subtitle: listing.pdfFileName!,
+          isDark: isDark,
+        ),
+      );
     }
-    if (listing.ebookContent?.isNotEmpty ?? false) {
+    if (listing.ebookChapters.isNotEmpty) {
+      // Chapters take precedence over the legacy flat blob — one row per
+      // chapter, mirroring the audio-volume rows below.
+      for (var i = 0; i < listing.ebookChapters.length; i++) {
+        final chapter = listing.ebookChapters[i];
+        final wc = _wordCount(chapter.content);
+        rows.add(
+          _ContentRow(
+            icon: Icons.menu_book_rounded,
+            iconColor: ListingType.ebook.badgeColor,
+            title: chapter.title.isEmpty ? 'Chapter ${i + 1}' : chapter.title,
+            subtitle: '$wc ${wc == 1 ? 'word' : 'words'}',
+            isDark: isDark,
+          ),
+        );
+      }
+    } else if (listing.ebookContent?.isNotEmpty ?? false) {
       final wc = _wordCount(listing.ebookContent!);
-      rows.add(_ContentRow(
-        icon: Icons.menu_book_rounded,
-        iconColor: ListingType.ebook.badgeColor,
-        title: 'Readable e-book',
-        subtitle: '$wc ${wc == 1 ? 'word' : 'words'}',
-        isDark: isDark,
-      ));
+      rows.add(
+        _ContentRow(
+          icon: Icons.menu_book_rounded,
+          iconColor: ListingType.ebook.badgeColor,
+          title: 'Readable e-book',
+          subtitle: '$wc ${wc == 1 ? 'word' : 'words'}',
+          isDark: isDark,
+        ),
+      );
     }
     for (var i = 0; i < listing.audioVolumes.length; i++) {
-      rows.add(_ContentRow(
-        icon: Icons.audiotrack_rounded,
-        iconColor: ListingType.audio.badgeColor,
-        title: 'Volume ${i + 1}',
-        subtitle: listing.audioVolumes[i],
-        isDark: isDark,
-      ));
+      final volume = listing.audioVolumes[i];
+      rows.add(
+        _ContentRow(
+          icon: Icons.audiotrack_rounded,
+          iconColor: ListingType.audio.badgeColor,
+          title: volume.title.isEmpty ? 'Volume ${i + 1}' : volume.title,
+          subtitle: volume.fileName,
+          isDark: isDark,
+        ),
+      );
     }
 
     return Column(
@@ -673,8 +931,12 @@ class _ContentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Container(
@@ -684,34 +946,41 @@ class _ContentRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
       ),
-      child: Row(children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(9),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 18, color: iconColor),
           ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
                   style: GoogleFonts.lato(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
-              Text(subtitle,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                Text(
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor)),
-            ],
+                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                ),
+              ],
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -831,16 +1100,20 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
     }
     if (line.startsWith('> ')) {
       final q = base.copyWith(fontStyle: FontStyle.italic, color: muted);
-      return TextSpan(children: [
-        TextSpan(text: '  ', style: q),
-        ..._parseInline(line.substring(2), q),
-      ]);
+      return TextSpan(
+        children: [
+          TextSpan(text: '  ', style: q),
+          ..._parseInline(line.substring(2), q),
+        ],
+      );
     }
     if (line.startsWith('- ')) {
-      return TextSpan(children: [
-        TextSpan(text: '•  ', style: base),
-        ..._parseInline(line.substring(2), base),
-      ]);
+      return TextSpan(
+        children: [
+          TextSpan(text: '•  ', style: base),
+          ..._parseInline(line.substring(2), base),
+        ],
+      );
     }
     return TextSpan(children: _parseInline(line, base));
   }
@@ -861,8 +1134,9 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
-    final textColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final base = _baseStyle.copyWith(color: textColor);
@@ -870,41 +1144,47 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: Text(widget.title,
-            style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          widget.title,
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: LayoutBuilder(builder: (context, constraints) {
-              final contentSize = Size(
-                constraints.maxWidth - _hPad * 2,
-                constraints.maxHeight - _vPad * 2,
-              );
-              if (_size != contentSize &&
-                  contentSize.width > 0 &&
-                  contentSize.height > 0) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _paginate(contentSize);
-                });
-              }
-              if (_pages.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return PageView.builder(
-                controller: _controller,
-                itemCount: _pages.length,
-                onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: _hPad, vertical: _vPad),
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: _pageBody(_pages[i], base, muted),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final contentSize = Size(
+                  constraints.maxWidth - _hPad * 2,
+                  constraints.maxHeight - _vPad * 2,
+                );
+                if (_size != contentSize &&
+                    contentSize.width > 0 &&
+                    contentSize.height > 0) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _paginate(contentSize);
+                  });
+                }
+                if (_pages.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return PageView.builder(
+                  controller: _controller,
+                  itemCount: _pages.length,
+                  onPageChanged: (i) => setState(() => _index = i),
+                  itemBuilder: (context, i) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: _hPad,
+                      vertical: _vPad,
+                    ),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: _pageBody(_pages[i], base, muted),
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              },
+            ),
           ),
           if (_pages.length > 1) _footer(divColor, muted, textColor),
         ],
@@ -944,7 +1224,10 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
               Text(
                 'Page ${_index + 1} of $total',
                 style: GoogleFonts.lato(
-                    fontSize: 13, color: muted, fontWeight: FontWeight.w600),
+                  fontSize: 13,
+                  color: muted,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               IconButton(
                 onPressed: _index < total - 1 ? () => _go(1) : null,
@@ -983,76 +1266,102 @@ class _RatingBreakdown extends StatelessWidget {
     final trackColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Big score
-      Column(children: [
-        Text(
-          listing.rating.toStringAsFixed(1),
-          style: GoogleFonts.lato(
-              fontSize: 48,
-              fontWeight: FontWeight.w700,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
-        ),
-        Row(
-          children: List.generate(
-            5,
-            (i) => Icon(
-              i < listing.rating.round()
-                  ? Icons.star_rounded
-                  : Icons.star_border_rounded,
-              size: 14,
-              color: const Color(0xFFF4C430),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Big score
+        Column(
+          children: [
+            Text(
+              listing.rating.toStringAsFixed(1),
+              style: GoogleFonts.lato(
+                fontSize: 48,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
             ),
-          ),
+            Row(
+              children: List.generate(
+                5,
+                (i) => Icon(
+                  i < listing.rating.round()
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  size: 14,
+                  color: const Color(0xFFF4C430),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${listing.reviewCount}',
+              style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text('${listing.reviewCount}',
-            style: GoogleFonts.lato(fontSize: 11, color: mutedColor)),
-      ]),
-      const SizedBox(width: 20),
+        const SizedBox(width: 20),
 
-      // Bars
-      Expanded(
-        child: Column(
-          children: dist.map((entry) {
-            final stars = entry.$1;
-            final frac = entry.$2;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(children: [
-                Text('$stars',
-                    style: GoogleFonts.lato(
+        // Bars
+        Expanded(
+          child: Column(
+            children: dist.map((entry) {
+              final stars = entry.$1;
+              final frac = entry.$2;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Text(
+                      '$stars',
+                      style: GoogleFonts.lato(
                         fontSize: 11,
                         color: mutedColor,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(width: 4),
-                const Icon(Icons.star_rounded,
-                    size: 10, color: Color(0xFFF4C430)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: frac,
-                      minHeight: 7,
-                      backgroundColor: trackColor,
-                      valueColor: AlwaysStoppedAnimation(
-                          frac > 0.4 ? AppColors.accent : trackColor.withValues(alpha: 0.5)),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 10,
+                      color: Color(0xFFF4C430),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: frac,
+                          minHeight: 7,
+                          backgroundColor: trackColor,
+                          valueColor: AlwaysStoppedAnimation(
+                            frac > 0.4
+                                ? AppColors.accent
+                                : trackColor.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 32,
+                      child: Text(
+                        '${(frac * listing.reviewCount).round()}',
+                        style: GoogleFonts.lato(
+                          fontSize: 11,
+                          color: mutedColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 32,
-                  child: Text('${(frac * listing.reviewCount).round()}',
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor)),
-                ),
-              ]),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -1068,8 +1377,12 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Container(
@@ -1080,53 +1393,72 @@ class _ReviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: isDark
-                ? AppColors.darkSurfaceVariant
-                : AppColors.surfaceVariant,
-            child: Text(review.reviewer[0].toUpperCase(),
-                style: GoogleFonts.playfairDisplay(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.surfaceVariant,
+                child: Text(
+                  review.reviewer[0].toUpperCase(),
+                  style: GoogleFonts.playfairDisplay(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.accent)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(review.reviewer,
-                  style: GoogleFonts.lato(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
-              Text('${review.daysAgo}d ago',
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor)),
-            ]),
-          ),
-          Row(
-            children: List.generate(
-              5,
-              (i) => Icon(
-                i < review.rating ? Icons.star_rounded : Icons.star_border_rounded,
-                size: 13,
-                color: const Color(0xFFF4C430),
+                    color: AppColors.accent,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.reviewer,
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    Text(
+                      '${review.daysAgo}d ago',
+                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: List.generate(
+                  5,
+                  (i) => Icon(
+                    i < review.rating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    size: 13,
+                    color: const Color(0xFFF4C430),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 10),
-        Text(
-          review.body,
-          style: GoogleFonts.lora(
+          const SizedBox(height: 10),
+          Text(
+            review.body,
+            style: GoogleFonts.lora(
               fontSize: 13,
               height: 1.65,
               color: isDark
                   ? AppColors.darkTextSecondary
-                  : AppColors.textSecondary),
-        ),
-      ]),
+                  : AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1143,8 +1475,12 @@ class _AuthorListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return GestureDetector(
@@ -1156,48 +1492,58 @@ class _AuthorListingCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: borderColor),
         ),
-        child: Column(children: [
-          // Cover
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(14)),
-            child: Container(
-              height: 90,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    listing.type.badgeColor.withValues(alpha: 0.8),
-                    listing.type.badgeColor.withValues(alpha: 0.3),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+        child: Column(
+          children: [
+            // Cover
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
               ),
-              child: Icon(listing.type.icon, size: 32, color: Colors.white),
+              child: Container(
+                height: 90,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      listing.type.badgeColor.withValues(alpha: 0.8),
+                      listing.type.badgeColor.withValues(alpha: 0.3),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Icon(listing.type.icon, size: 32, color: Colors.white),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(listing.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: titleColor)),
+                  Text(
+                    listing.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(listing.price,
-                      style: GoogleFonts.lato(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: mutedColor)),
-                ]),
-          ),
-        ]),
+                  Text(
+                    listing.price,
+                    style: GoogleFonts.lato(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: mutedColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1220,11 +1566,14 @@ class _Badge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(label,
-          style: GoogleFonts.lato(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color)),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -1251,6 +1600,8 @@ class _AuthorFollowChip extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         final notifier = ref.read(followNotifierProvider.notifier);
+        // Returned sync result deliberately ignored: follows apply locally
+        // either way and a failed backend write is non-fatal here.
         if (isFollowing) {
           notifier.unfollow(author.id);
         } else {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -103,7 +104,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           context.push('/viewer/$i');
                         }
                       },
-                    );
+                    )
+                        // Subtle fade+slide-in as cards enter — staggered by
+                        // position (capped so it never feels sluggish on a
+                        // long feed) rather than by global index.
+                        .animate()
+                        .fadeIn(
+                          duration: 280.ms,
+                          delay: 45.ms * (i % 6),
+                        )
+                        .slideY(
+                          begin: 0.06,
+                          end: 0,
+                          duration: 280.ms,
+                          curve: Curves.easeOut,
+                        );
                   },
                   childCount: posts.length,
                 ),

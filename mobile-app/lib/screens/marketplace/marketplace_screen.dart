@@ -5,11 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
+import '../../providers/marketplace_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/marketplace_listing_card.dart';
-import 'marketplace_hub_screen.dart';
+import 'cart_tab.dart';
+import 'library_tab.dart';
+import 'my_listings_tab.dart';
+import 'sales_tab.dart';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Marketplace landing — section tiles only.
@@ -25,22 +29,24 @@ class MarketplaceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     final cart = ref.watch(cartProvider);
     final purchases = ref.watch(purchasesProvider);
     final myListings = ref.watch(myListingsProvider);
     final sales = ref.watch(salesProvider);
+    final allListings = ref.watch(marketplaceListingsProvider);
 
-    void open(Widget screen) => Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => screen));
+    void open(Widget screen) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
     final sections = [
       _SectionTileData(
         label: 'Books',
-        subtitle: '${mockListings.length} titles to explore',
+        subtitle: '${allListings.length} titles to explore',
         icon: Icons.auto_stories_rounded,
         color: const Color(0xFF6B4EAA),
         onTap: () => open(const _BooksSectionScreen()),
@@ -87,12 +93,15 @@ class MarketplaceScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: Text('Marketplace',
-            style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          'Marketplace',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.search_rounded),
-              onPressed: () => context.push('/search')),
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () => context.push('/search'),
+          ),
           _MktNotifButton(isDark: isDark),
           _MktMessageButton(isDark: isDark),
         ],
@@ -103,24 +112,37 @@ class MarketplaceScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('What would you like to do?',
-                style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: textColor)),
+            Text(
+              'What would you like to do?',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Browse books, manage your cart, library, listings and sales',
-                style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
+            Text(
+              'Browse books, manage your cart, library, listings and sales',
+              style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+            ),
             const SizedBox(height: 20),
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.45,
-                children: sections
-                    .map((s) => _SectionTile(data: s, isDark: isDark))
-                    .toList(),
+              // A fixed `mainAxisExtent` (rather than `childAspectRatio`)
+              // keeps each tile's height constant regardless of screen
+              // width — with an aspect ratio, tiles get shorter as the
+              // screen narrows even though their content (icon + label +
+              // subtitle + "View") doesn't, which overflowed on narrow
+              // phones.
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  mainAxisExtent: 168,
+                ),
+                itemCount: sections.length,
+                itemBuilder: (_, i) =>
+                    _SectionTile(data: sections[i], isDark: isDark),
               ),
             ),
           ],
@@ -160,10 +182,12 @@ class _SectionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor =
-        isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return GestureDetector(
@@ -186,7 +210,8 @@ class _SectionTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: data.color,
                   borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(18)),
+                    top: Radius.circular(18),
+                  ),
                 ),
               ),
             ),
@@ -197,53 +222,83 @@ class _SectionTile extends StatelessWidget {
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: data.color,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(data.badge!,
-                      style: GoogleFonts.lato(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white)),
+                  child: Text(
+                    data.badge!,
+                    style: GoogleFonts.lato(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
 
             // Content
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: data.color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(data.icon, size: 22, color: data.color),
+                    child: Icon(data.icon, size: 19, color: data.color),
                   ),
-                  const Spacer(),
-                  Text(data.label,
-                      style: GoogleFonts.lato(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: textColor)),
-                  const SizedBox(height: 3),
-                  Text(data.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          GoogleFonts.lato(fontSize: 11, color: mutedColor)),
                   const SizedBox(height: 10),
-                  Text('View →',
-                      style: GoogleFonts.lato(
+                  Text(
+                    data.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.lato(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    data.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  ),
+                  const SizedBox(height: 8),
+                  // A plain Icon (rather than a "→" glyph in the string)
+                  // avoids depending on the active font having that glyph —
+                  // a missing glyph can render as a much taller fallback
+                  // box and blow out this tile's tight fixed height.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View',
+                        style: GoogleFonts.lato(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: data.color)),
+                          color: data.color,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 12,
+                        color: data.color,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -266,8 +321,11 @@ class _BooksSectionScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-          title: Text('Books',
-              style: Theme.of(context).appBarTheme.titleTextStyle)),
+        title: Text(
+          'Books',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
+      ),
       body: _BooksBody(isDark: isDark),
     );
   }
@@ -279,11 +337,11 @@ class _CartSectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title: Text('Cart',
-                style: Theme.of(context).appBarTheme.titleTextStyle)),
-        body: CartTab(isDark: isDark),
-      );
+    appBar: AppBar(
+      title: Text('Cart', style: Theme.of(context).appBarTheme.titleTextStyle),
+    ),
+    body: CartTab(isDark: isDark),
+  );
 }
 
 class _LibrarySectionScreen extends StatelessWidget {
@@ -292,11 +350,14 @@ class _LibrarySectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title: Text('My Library',
-                style: Theme.of(context).appBarTheme.titleTextStyle)),
-        body: LibraryTab(isDark: isDark),
-      );
+    appBar: AppBar(
+      title: Text(
+        'My Library',
+        style: Theme.of(context).appBarTheme.titleTextStyle,
+      ),
+    ),
+    body: LibraryTab(isDark: isDark),
+  );
 }
 
 class _MyListingsSectionScreen extends StatelessWidget {
@@ -305,11 +366,14 @@ class _MyListingsSectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title: Text('My Listings',
-                style: Theme.of(context).appBarTheme.titleTextStyle)),
-        body: MyListingsTab(isDark: isDark),
-      );
+    appBar: AppBar(
+      title: Text(
+        'My Listings',
+        style: Theme.of(context).appBarTheme.titleTextStyle,
+      ),
+    ),
+    body: MyListingsTab(isDark: isDark),
+  );
 }
 
 class _SalesSectionScreen extends StatelessWidget {
@@ -318,11 +382,11 @@ class _SalesSectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title: Text('Sales',
-                style: Theme.of(context).appBarTheme.titleTextStyle)),
-        body: SalesTab(isDark: isDark),
-      );
+    appBar: AppBar(
+      title: Text('Sales', style: Theme.of(context).appBarTheme.titleTextStyle),
+    ),
+    body: SalesTab(isDark: isDark),
+  );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -342,9 +406,9 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
   ListingType? _format; // null = all formats
 
   // Genres that have at least one listing
-  List<Genre> get _availableGenres {
+  List<Genre> _availableGenres(List<MarketplaceListing> allListings) {
     final seen = <Genre>{};
-    for (final l in mockListings) {
+    for (final l in allListings) {
       if (l.genre != null) seen.add(l.genre!);
     }
     return Genre.values.where(seen.contains).toList();
@@ -356,8 +420,9 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final allPosts = ref.watch(postsNotifierProvider);
+    final allListings = ref.watch(marketplaceListingsProvider);
 
-    final listings = mockListings.where((l) {
+    final listings = allListings.where((l) {
       if (_genre != null && l.genre != _genre) return false;
       if (_format != null && l.type != _format) return false;
       return true;
@@ -365,86 +430,95 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
 
     final hasFilter = _genre != null || _format != null;
 
-    return Column(children: [
-      const SizedBox(height: 10),
-      // ── Sort / filter by genre ──────────────────────────────────────────
-      _GenreFilterRow(
-        genres: _availableGenres,
-        selected: _genre,
-        isDark: isDark,
-        onChanged: (g) => setState(() => _genre = g),
-      ),
-      const SizedBox(height: 8),
-      // ── Filter by format ────────────────────────────────────────────────
-      _FormatFilterRow(
-        selected: _format,
-        isDark: isDark,
-        onChanged: (t) => setState(() => _format = t),
-      ),
-      const SizedBox(height: 6),
-      // ── Result count + clear ────────────────────────────────────────────
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-        child: Row(children: [
-          Text(
-            '${listings.length} ${listings.length == 1 ? 'title' : 'titles'}',
-            style: GoogleFonts.lato(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: mutedColor),
-          ),
-          const Spacer(),
-          if (hasFilter)
-            GestureDetector(
-              onTap: () => setState(() {
-                _genre = null;
-                _format = null;
-              }),
-              child: Text('Clear',
-                  style: GoogleFonts.lato(
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        // ── Sort / filter by genre ──────────────────────────────────────────
+        _GenreFilterRow(
+          genres: _availableGenres(allListings),
+          selected: _genre,
+          isDark: isDark,
+          onChanged: (g) => setState(() => _genre = g),
+        ),
+        const SizedBox(height: 8),
+        // ── Filter by format ────────────────────────────────────────────────
+        _FormatFilterRow(
+          selected: _format,
+          isDark: isDark,
+          onChanged: (t) => setState(() => _format = t),
+        ),
+        const SizedBox(height: 6),
+        // ── Result count + clear ────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+          child: Row(
+            children: [
+              Text(
+                '${listings.length} ${listings.length == 1 ? 'title' : 'titles'}',
+                style: GoogleFonts.lato(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: mutedColor,
+                ),
+              ),
+              const Spacer(),
+              if (hasFilter)
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _genre = null;
+                    _format = null;
+                  }),
+                  child: Text(
+                    'Clear',
+                    style: GoogleFonts.lato(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.accent)),
-            ),
-        ]),
-      ),
-      Divider(height: 1, color: divColor),
-      Expanded(
-        child: listings.isEmpty
-            ? _EmptyBooks(
-                isDark: isDark,
-                onClear: () => setState(() {
-                  _genre = null;
-                  _format = null;
-                }),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.only(top: 4, bottom: 24),
-                itemCount: listings.length,
-                itemBuilder: (context, i) {
-                  final listing = listings[i];
-                  VoidCallback? onViewPost;
-                  if (listing.linkedPostId != null) {
-                    if (listing.type == ListingType.audio) {
-                      onViewPost = () =>
-                          context.push('/audio', extra: listing.linkedPostId);
-                    } else {
-                      final idx = allPosts
-                          .indexWhere((p) => p.id == listing.linkedPostId);
-                      if (idx >= 0) {
-                        onViewPost = () => context.push('/viewer/$idx');
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: divColor),
+        Expanded(
+          child: listings.isEmpty
+              ? _EmptyBooks(
+                  isDark: isDark,
+                  onClear: () => setState(() {
+                    _genre = null;
+                    _format = null;
+                  }),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 4, bottom: 24),
+                  itemCount: listings.length,
+                  itemBuilder: (context, i) {
+                    final listing = listings[i];
+                    VoidCallback? onViewPost;
+                    if (listing.linkedPostId != null) {
+                      if (listing.type == ListingType.audio) {
+                        onViewPost = () =>
+                            context.push('/audio', extra: listing.linkedPostId);
+                      } else {
+                        final idx = allPosts.indexWhere(
+                          (p) => p.id == listing.linkedPostId,
+                        );
+                        if (idx >= 0) {
+                          onViewPost = () => context.push('/viewer/$idx');
+                        }
                       }
                     }
-                  }
-                  return MarketplaceListingCard(
-                    listing: listing,
-                    isDark: isDark,
-                    onViewPost: onViewPost,
-                  );
-                },
-              ),
-      ),
-    ]);
+                    return MarketplaceListingCard(
+                      listing: listing,
+                      isDark: isDark,
+                      onViewPost: onViewPost,
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }
 
@@ -481,14 +555,16 @@ class _GenreFilterRow extends StatelessWidget {
             isDark: isDark,
             onTap: () => onChanged(null),
           ),
-          ...genres.map((g) => _FmtChip(
-                label: g.label,
-                emoji: g.emoji,
-                color: g.colors[0],
-                selected: selected == g,
-                isDark: isDark,
-                onTap: () => onChanged(selected == g ? null : g),
-              )),
+          ...genres.map(
+            (g) => _FmtChip(
+              label: g.label,
+              emoji: g.emoji,
+              color: g.colors[0],
+              selected: selected == g,
+              isDark: isDark,
+              onTap: () => onChanged(selected == g ? null : g),
+            ),
+          ),
         ],
       ),
     );
@@ -526,14 +602,16 @@ class _FormatFilterRow extends StatelessWidget {
             isDark: isDark,
             onTap: () => onChanged(null),
           ),
-          ...ListingType.values.map((t) => _FmtChip(
-                label: t.label,
-                icon: t.icon,
-                color: t.badgeColor,
-                selected: selected == t,
-                isDark: isDark,
-                onTap: () => onChanged(selected == t ? null : t),
-              )),
+          ...ListingType.values.map(
+            (t) => _FmtChip(
+              label: t.label,
+              icon: t.icon,
+              color: t.badgeColor,
+              selected: selected == t,
+              isDark: isDark,
+              onTap: () => onChanged(selected == t ? null : t),
+            ),
+          ),
         ],
       ),
     );
@@ -571,23 +649,30 @@ class _FmtChip extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color:
-                selected ? color.withValues(alpha: 0.15) : Colors.transparent,
+            color: selected
+                ? color.withValues(alpha: 0.15)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: selected ? color : borderColor),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (emoji != null)
-              Text(emoji!, style: const TextStyle(fontSize: 12))
-            else if (icon != null)
-              Icon(icon, size: 13, color: selected ? color : mutedColor),
-            const SizedBox(width: 5),
-            Text(label,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (emoji != null)
+                Text(emoji!, style: const TextStyle(fontSize: 12))
+              else if (icon != null)
+                Icon(icon, size: 13, color: selected ? color : mutedColor),
+              const SizedBox(width: 5),
+              Text(
+                label,
                 style: GoogleFonts.lato(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? color : mutedColor)),
-          ]),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? color : mutedColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -607,29 +692,38 @@ class _EmptyBooks extends StatelessWidget {
   Widget build(BuildContext context) {
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search_off_rounded, size: 52, color: mutedColor),
-        const SizedBox(height: 12),
-        Text('No titles match',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search_off_rounded, size: 52, color: mutedColor),
+          const SizedBox(height: 12),
+          Text(
+            'No titles match',
             style: GoogleFonts.playfairDisplay(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary)),
-        const SizedBox(height: 6),
-        Text('Try a different genre or format',
-            style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: onClear,
-          child: Text('Show all',
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Try a different genre or format',
+            style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: onClear,
+            child: Text(
+              'Show all',
               style: GoogleFonts.lato(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent)),
-        ),
-      ]),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accent,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -648,30 +742,42 @@ class _MktNotifButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(clipBehavior: Clip.none, children: [
-      IconButton(
-        icon: const Icon(Icons.notifications_outlined),
-        onPressed: () => context.push('/marketplace/notifications'),
-      ),
-      if (_unreadNotifCount > 0)
-        Positioned(
-          top: 6,
-          right: 6,
-          child: Container(
-            width: 16,
-            height: 16,
-            decoration: const BoxDecoration(
-                color: AppColors.accent, shape: BoxShape.circle),
-            child: Center(
-              child: Text('$_unreadNotifCount',
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () => context.push('/marketplace/notifications'),
+        ),
+        if (_unreadNotifCount > 0)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                // accentOnFill (darker than accent) keeps the white count
+                // at WCAG AA contrast.
+                color: isDark
+                    ? AppColors.darkAccentOnFill
+                    : AppColors.accentOnFill,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$_unreadNotifCount',
                   style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -681,30 +787,37 @@ class _MktMessageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(clipBehavior: Clip.none, children: [
-      IconButton(
-        icon: const Icon(Icons.chat_bubble_outline_rounded),
-        onPressed: () => context.push('/marketplace/messages'),
-      ),
-      if (_unreadMsgCount > 0)
-        Positioned(
-          top: 6,
-          right: 6,
-          child: Container(
-            width: 16,
-            height: 16,
-            decoration: const BoxDecoration(
-                color: Color(0xFF5C7A5C), shape: BoxShape.circle),
-            child: Center(
-              child: Text('$_unreadMsgCount',
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline_rounded),
+          onPressed: () => context.push('/marketplace/messages'),
+        ),
+        if (_unreadMsgCount > 0)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: const BoxDecoration(
+                color: Color(0xFF5C7A5C),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$_unreadMsgCount',
                   style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-    ]);
+      ],
+    );
   }
 }
-

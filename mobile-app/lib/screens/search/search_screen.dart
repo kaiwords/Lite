@@ -33,11 +33,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final results = _query.isEmpty
         ? <Post>[]
         : allPosts
-            .where((p) =>
-                p.title.toLowerCase().contains(_query.toLowerCase()) ||
-                p.content.toLowerCase().contains(_query.toLowerCase()) ||
-                p.author.displayName.toLowerCase().contains(_query.toLowerCase()))
-            .toList();
+              .where(
+                (p) =>
+                    p.title.toLowerCase().contains(_query.toLowerCase()) ||
+                    p.content.toLowerCase().contains(_query.toLowerCase()) ||
+                    p.author.displayName.toLowerCase().contains(
+                      _query.toLowerCase(),
+                    ),
+              )
+              .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -78,22 +82,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: _query.isEmpty
           ? _SearchSuggestions(isDark: isDark)
           : results.isEmpty
-              ? _NoResults(query: _query)
-              : ListView(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      child: Text(
-                        '${results.length} result${results.length == 1 ? '' : 's'}',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                            ),
-                      ),
+          ? _NoResults(query: _query)
+          : ListView(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    '${results.length} result${results.length == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.textMuted,
                     ),
-                    ...results.map((p) => PostCard(post: p)),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
+                ...results.map((p) => PostCard(post: p)),
+                const SizedBox(height: 16),
+              ],
+            ),
     );
   }
 }
@@ -103,14 +109,23 @@ class _SearchSuggestions extends ConsumerWidget {
   const _SearchSuggestions({required this.isDark});
 
   static const _trending = [
-    'Poems', 'Dark fiction', 'Haiku', 'Personal essays',
-    'Short stories', 'Love poems', 'Satire',
+    'Poems',
+    'Dark fiction',
+    'Haiku',
+    'Personal essays',
+    'Short stories',
+    'Love poems',
+    'Satire',
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final chipBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final chipBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
     final followed = ref.watch(followNotifierProvider);
 
     return ListView(
@@ -122,19 +137,29 @@ class _SearchSuggestions extends ConsumerWidget {
           spacing: 8,
           runSpacing: 8,
           children: _trending
-              .map((t) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: chipBg,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(t,
-                        style: GoogleFonts.lato(fontSize: 13, color: textColor)),
-                  ))
+              .map(
+                (t) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: chipBg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    t,
+                    style: GoogleFonts.lato(fontSize: 13, color: textColor),
+                  ),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 24),
-        Text('Writers to follow', style: Theme.of(context).textTheme.headlineSmall),
+        Text(
+          'Writers to follow',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         const SizedBox(height: 12),
         ...mockUsers.map((u) {
           final isFollowing = followed.contains(u.id);
@@ -148,9 +173,13 @@ class _SearchSuggestions extends ConsumerWidget {
                     radius: 20,
                     backgroundColor: chipBg,
                     child: Text(
-                      u.displayName[0].toUpperCase(),
+                      u.displayName.isEmpty
+                          ? '?'
+                          : u.displayName[0].toUpperCase(),
                       style: GoogleFonts.playfairDisplay(
-                          fontWeight: FontWeight.w700, color: AppColors.accent),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -158,31 +187,51 @@ class _SearchSuggestions extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [
-                          Text(u.displayName,
-                              style: GoogleFonts.lato(
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                u.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.lato(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: textColor)),
-                          if (u.isVerified) ...[
-                            const SizedBox(width: 4),
-                            Icon(Icons.verified_rounded,
-                                size: 13, color: AppColors.accent),
+                                  color: textColor,
+                                ),
+                              ),
+                            ),
+                            if (u.isVerified) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.verified_rounded,
+                                size: 13,
+                                color: AppColors.accent,
+                              ),
+                            ],
                           ],
-                        ]),
-                        Text('@${u.username}',
-                            style: GoogleFonts.lato(
-                                fontSize: 12,
-                                color: isDark
-                                    ? AppColors.darkTextMuted
-                                    : AppColors.textMuted)),
+                        ),
+                        Text(
+                          '@${u.username}',
+                          style: GoogleFonts.lato(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.textMuted,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   GestureDetector(
                     onTap: () {
+                      // Returned sync result deliberately ignored: follows
+                      // apply locally either way; a failed backend write is
+                      // non-fatal.
                       if (isFollowing) {
-                        ref.read(followNotifierProvider.notifier).unfollow(u.id);
+                        ref
+                            .read(followNotifierProvider.notifier)
+                            .unfollow(u.id);
                       } else {
                         ref.read(followNotifierProvider.notifier).follow(u.id);
                       }
@@ -190,13 +239,19 @@ class _SearchSuggestions extends ConsumerWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: isFollowing ? Colors.transparent : AppColors.accent,
+                        color: isFollowing
+                            ? Colors.transparent
+                            : AppColors.accent,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isFollowing
-                              ? (isDark ? AppColors.darkDivider : AppColors.divider)
+                              ? (isDark
+                                    ? AppColors.darkDivider
+                                    : AppColors.divider)
                               : AppColors.accent,
                         ),
                       ),
@@ -207,8 +262,8 @@ class _SearchSuggestions extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: isFollowing
                               ? (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary)
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.textSecondary)
                               : Colors.white,
                         ),
                       ),
@@ -236,9 +291,19 @@ class _NoResults extends StatelessWidget {
         children: [
           const Icon(Icons.search_off_rounded, size: 56, color: Colors.grey),
           const SizedBox(height: 12),
-          Text('No results for "$query"', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey)),
+          Text(
+            'No results for "$query"',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
+          ),
           const SizedBox(height: 6),
-          Text('Try different keywords', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          Text(
+            'Try different keywords',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
         ],
       ),
     );

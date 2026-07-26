@@ -10,6 +10,11 @@ class AppColors {
   static const Color primaryLight = Color(0xFF8B4513);
   static const Color accent = Color(0xFFC8864A);
   static const Color accentSoft = Color(0xFFE8C49A);
+  // Darkened variant of `accent` for solid-fill buttons/pills with white
+  // text — `accent` itself is ~3:1 against white and fails WCAG AA (4.5:1)
+  // for normal-size text. Use this instead of `accent` whenever accent is a
+  // solid background color behind white text/icons.
+  static const Color accentOnFill = Color(0xFF9C6330);
   static const Color textPrimary = Color(0xFF1A1008);
   static const Color textSecondary = Color(0xFF6B5744);
   static const Color textMuted = Color(0xFFA8957F);
@@ -24,6 +29,10 @@ class AppColors {
   static const Color darkSurfaceVariant = Color(0xFF261C10);
   static const Color darkPrimary = Color(0xFFE8C49A);
   static const Color darkAccent = Color(0xFFC8864A);
+  // Same rationale as [accentOnFill]: the tip/underlying accent hue is
+  // identical in dark mode, so solid-fill + white-text contexts need the
+  // same darkened value regardless of theme.
+  static const Color darkAccentOnFill = Color(0xFF9C6330);
   static const Color darkTextPrimary = Color(0xFFF5EDE0);
   static const Color darkTextSecondary = Color(0xFFB8A08A);
   static const Color darkTextMuted = Color(0xFF7A6855);

@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/comments_sheet.dart';
 import '../../widgets/share_sheet.dart';
+import '../../widgets/tip_sheet.dart';
 
 const _kAudioPageSize = 6;
 
@@ -60,7 +61,8 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
     ).length;
     if (_visibleCount < total) {
       setState(
-          () => _visibleCount = (_visibleCount + _kAudioPageSize).clamp(0, total));
+        () => _visibleCount = (_visibleCount + _kAudioPageSize).clamp(0, total),
+      );
     }
   }
 
@@ -79,7 +81,9 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
 
   void _playFrom(Post post, List<Post> audioPosts) {
     final idx = audioPosts.indexWhere((p) => p.id == post.id);
-    ref.read(audioPlayerProvider.notifier).playQueue(
+    ref
+        .read(audioPlayerProvider.notifier)
+        .playQueue(
           audioPosts.map(AudioTrack.fromPost).toList(),
           startIndex: idx < 0 ? 0 : idx,
         );
@@ -119,7 +123,8 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
     // The featured player follows the actively-playing track while it belongs
     // to this list (so auto-advance keeps the right card on top); otherwise it
     // falls back to the last user pick, then the first post.
-    final activeId = (playingId != null && audioPosts.any((p) => p.id == playingId))
+    final activeId =
+        (playingId != null && audioPosts.any((p) => p.id == playingId))
         ? playingId
         : _featuredId;
     final featured = audioPosts.isEmpty
@@ -141,11 +146,15 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Audio', style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          'Audio',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.search_rounded),
-              onPressed: () => context.push('/search')),
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () => context.push('/search'),
+          ),
         ],
       ),
       bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 1),
@@ -181,14 +190,18 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
                       if (rest.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                          child: Text('More Audio',
-                              style: Theme.of(context).textTheme.headlineSmall),
+                          child: Text(
+                            'More Audio',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
                         ),
-                        ...visibleRest.map((p) => _AudioListItem(
-                              post: p,
-                              isDark: isDark,
-                              onSelect: () => _selectFeatured(p, audioPosts),
-                            )),
+                        ...visibleRest.map(
+                          (p) => _AudioListItem(
+                            post: p,
+                            isDark: isDark,
+                            onSelect: () => _selectFeatured(p, audioPosts),
+                          ),
+                        ),
                       ],
 
                       if (hasMore)
@@ -219,10 +232,12 @@ class _AudioCategoryBar extends ConsumerWidget {
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
     final dividerColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final inactiveColor =
-        isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final activeBg =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final inactiveColor = isDark
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
+    final activeBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
 
     return Container(
       color: bg,
@@ -231,31 +246,34 @@ class _AudioCategoryBar extends ConsumerWidget {
         children: [
           // ── Following / Narrators ──────────────────────────────────────
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(children: [
-              _AudioFilterTab(
-                label: 'Following',
-                isSelected: selectedFilter == AudioFilter.following,
-                activeColor: activeColor,
-                activeBg: activeBg,
-                inactiveColor: inactiveColor,
-                onTap: () => ref
-                    .read(audioFilterProvider.notifier)
-                    .state = AudioFilter.following,
-              ),
-              const SizedBox(width: 8),
-              _AudioFilterTab(
-                label: 'Narrators',
-                isSelected: selectedFilter == AudioFilter.narrators,
-                activeColor: activeColor,
-                activeBg: activeBg,
-                inactiveColor: inactiveColor,
-                onTap: () => ref
-                    .read(audioFilterProvider.notifier)
-                    .state = AudioFilter.narrators,
-              ),
-            ]),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _AudioFilterTab(
+                    label: 'Following',
+                    isSelected: selectedFilter == AudioFilter.following,
+                    activeColor: activeColor,
+                    activeBg: activeBg,
+                    inactiveColor: inactiveColor,
+                    onTap: () => ref.read(audioFilterProvider.notifier).state =
+                        AudioFilter.following,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _AudioFilterTab(
+                    label: 'Narrators',
+                    isSelected: selectedFilter == AudioFilter.narrators,
+                    activeColor: activeColor,
+                    activeBg: activeBg,
+                    inactiveColor: inactiveColor,
+                    onTap: () => ref.read(audioFilterProvider.notifier).state =
+                        AudioFilter.narrators,
+                  ),
+                ),
+              ],
+            ),
           ),
 
           // ── Category chips ─────────────────────────────────────────────
@@ -268,38 +286,40 @@ class _AudioCategoryBar extends ConsumerWidget {
                 final isSel = cat == selectedCategory;
                 return Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 7),
+                    horizontal: 4,
+                    vertical: 7,
+                  ),
                   child: GestureDetector(
-                    onTap: () => ref
-                        .read(audioCategoryProvider.notifier)
-                        .state = cat,
+                    onTap: () =>
+                        ref.read(audioCategoryProvider.notifier).state = cat,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 5),
+                        horizontal: 14,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: isSel
                             ? (isDark
-                                ? AppColors.darkPrimary
-                                : AppColors.primary)
+                                  ? AppColors.darkPrimary
+                                  : AppColors.primary)
                             : (isDark
-                                ? AppColors.darkSurfaceVariant
-                                : AppColors.surfaceVariant),
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.surfaceVariant),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         cat.label,
                         style: GoogleFonts.lato(
                           fontSize: 12,
-                          fontWeight:
-                              isSel ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                           color: isSel
                               ? (isDark
-                                  ? AppColors.darkBackground
-                                  : Colors.white)
+                                    ? AppColors.darkBackground
+                                    : Colors.white)
                               : (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary),
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.textSecondary),
                         ),
                       ),
                     ),
@@ -338,18 +358,19 @@ class _AudioFilterTab extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? activeBg : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.lato(
             fontSize: 14,
-            fontWeight:
-                isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected ? activeColor : inactiveColor,
           ),
         ),
@@ -374,7 +395,9 @@ class _MiniPlayer extends ConsumerWidget {
     final isPlaying = player.isPlaying;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Container(
@@ -396,11 +419,12 @@ class _MiniPlayer extends ConsumerWidget {
                   ),
                   child: Center(
                     child: Text(
-                      post.title[0].toUpperCase(),
+                      post.title.isEmpty ? '?' : post.title[0].toUpperCase(),
                       style: GoogleFonts.playfairDisplay(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.accent),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
                 ),
@@ -415,13 +439,17 @@ class _MiniPlayer extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.lato(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: titleColor),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: titleColor,
+                        ),
                       ),
                       Text(
                         post.author.displayName,
-                        style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                        style: GoogleFonts.lato(
+                          fontSize: 11,
+                          color: mutedColor,
+                        ),
                       ),
                     ],
                   ),
@@ -442,13 +470,16 @@ class _MiniPlayer extends ConsumerWidget {
                     width: 36,
                     height: 36,
                     decoration: const BoxDecoration(
-                        color: AppColors.accent, shape: BoxShape.circle),
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(
-                        isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 20),
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -475,15 +506,17 @@ class _FeaturedPlayer extends ConsumerStatefulWidget {
   final Post post;
   final bool isDark;
   final VoidCallback onPlay; // start playing this post (as part of the queue)
-  const _FeaturedPlayer(
-      {required this.post, required this.isDark, required this.onPlay});
+  const _FeaturedPlayer({
+    required this.post,
+    required this.isDark,
+    required this.onPlay,
+  });
 
   @override
   ConsumerState<_FeaturedPlayer> createState() => _FeaturedPlayerState();
 }
 
 class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
-
   void _togglePlay() {
     final player = ref.read(audioPlayerProvider);
     if (player.trackId == widget.post.id) {
@@ -498,10 +531,12 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
     final player = ref.watch(audioPlayerProvider);
     final isCurrent = player.trackId == widget.post.id;
     final isPlaying = isCurrent && player.isPlaying;
+    final isLoading = isCurrent && player.isLoading;
+    final error = isCurrent ? player.error : null;
     final progress = isCurrent ? player.progress : 0.0;
     final position = isCurrent ? player.position : Duration.zero;
-    final duration =
-        isCurrent ? player.duration : audioDurationFor(widget.post.id);
+    // Duration isn't known until this track has actually loaded.
+    final duration = isCurrent ? player.duration : Duration.zero;
 
     final livePost = ref
         .watch(postsNotifierProvider)
@@ -511,10 +546,13 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
     final cardH = screenH * 0.58;
 
     final isDark = widget.isDark;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final secondaryColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final secondaryColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return Container(
       height: cardH,
@@ -532,24 +570,39 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
           color: isDark ? AppColors.darkDivider : AppColors.divider,
         ),
       ),
-      child: Padding(
+      // The card has a fixed height (`cardH` above), but its content's
+      // natural height doesn't scale down with it — on short phones (iPhone
+      // SE and similar) the fixed-size waveform/controls/engagement row no
+      // longer fit. Scrolling here means the card degrades gracefully
+      // instead of hard-overflowing on those screens, while looking
+      // unchanged on taller ones where everything already fits.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Category + Now Playing pill ───────────────────────────
-            Row(children: [
-              _Pill(
-                label: '${widget.post.category.emoji} ${widget.post.category.label}',
-                isDark: isDark,
-              ),
-              if (isPlaying) ...[
-                const SizedBox(width: 8),
-                _Pill(label: '▶ Now Playing', isDark: isDark, accent: true),
+            Row(
+              children: [
+                _Pill(
+                  label:
+                      '${widget.post.category.emoji} ${widget.post.category.label}',
+                  isDark: isDark,
+                ),
+                if (isLoading) ...[
+                  const SizedBox(width: 8),
+                  _Pill(label: 'Loading…', isDark: isDark, accent: true),
+                ] else if (isPlaying) ...[
+                  const SizedBox(width: 8),
+                  _Pill(label: '▶ Now Playing', isDark: isDark, accent: true),
+                ] else if (error != null) ...[
+                  const SizedBox(width: 8),
+                  _Pill(label: 'Playback failed', isDark: isDark),
+                ],
               ],
-            ]),
+            ),
 
-            const Spacer(),
+            const SizedBox(height: 14),
 
             // ── Waveform visual ───────────────────────────────────────
             _AnimatedWaveform(isPlaying: isPlaying, progress: progress),
@@ -562,31 +615,43 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.playfairDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: titleColor),
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: titleColor,
+              ),
             ),
             const SizedBox(height: 3),
             GestureDetector(
               onTap: () => context.push('/user/${widget.post.author.id}'),
-              child: Row(children: [
-                Text(
-                  widget.post.author.displayName,
-                  style: GoogleFonts.lato(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: secondaryColor),
-                ),
-                if (widget.post.author.isVerified) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.verified_rounded, size: 12, color: AppColors.accent),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.post.author.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ),
+                  if (widget.post.author.isVerified) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 12,
+                      color: AppColors.accent,
+                    ),
+                  ],
+                  const SizedBox(width: 6),
+                  Text(
+                    '· ${timeago.format(widget.post.createdAt)}',
+                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  ),
                 ],
-                const SizedBox(width: 6),
-                Text(
-                  '· ${timeago.format(widget.post.createdAt)}',
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                ),
-              ]),
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -598,15 +663,16 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                 activeTrackColor: AppColors.accent,
-                inactiveTrackColor:
-                    isDark ? AppColors.darkDivider : AppColors.divider,
+                inactiveTrackColor: isDark
+                    ? AppColors.darkDivider
+                    : AppColors.divider,
                 thumbColor: AppColors.accent,
               ),
               child: Slider(
                 value: progress.clamp(0.0, 1.0),
                 onChanged: isCurrent
                     ? (v) =>
-                        ref.read(audioPlayerProvider.notifier).seekFraction(v)
+                          ref.read(audioPlayerProvider.notifier).seekFraction(v)
                     : (v) {
                         widget.onPlay();
                         ref.read(audioPlayerProvider.notifier).seekFraction(v);
@@ -616,60 +682,77 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(formatAudioTime(position),
-                        style: GoogleFonts.lato(fontSize: 10, color: mutedColor)),
-                    Text(formatAudioTime(duration),
-                        style: GoogleFonts.lato(fontSize: 10, color: mutedColor)),
-                  ]),
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    formatAudioTime(position),
+                    style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+                  ),
+                  Text(
+                    duration > Duration.zero
+                        ? formatAudioTime(duration)
+                        : '--:--',
+                    style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 4),
 
             // ── Playback controls ─────────────────────────────────────
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              IconButton(
-                icon: const Icon(Icons.skip_previous_rounded),
-                iconSize: 26,
-                color: secondaryColor,
-                onPressed: () =>
-                    ref.read(audioPlayerProvider.notifier).previous(),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: _togglePlay,
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: const BoxDecoration(
-                      color: AppColors.accent, shape: BoxShape.circle),
-                  child: Icon(
-                    isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 28,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.skip_previous_rounded),
+                  iconSize: 26,
+                  color: secondaryColor,
+                  onPressed: () =>
+                      ref.read(audioPlayerProvider.notifier).previous(),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: _togglePlay,
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(15),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : Icon(
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.skip_next_rounded),
-                iconSize: 26,
-                color: secondaryColor,
-                onPressed: () => ref.read(audioPlayerProvider.notifier).next(),
-              ),
-            ]),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.skip_next_rounded),
+                  iconSize: 26,
+                  color: secondaryColor,
+                  onPressed: () =>
+                      ref.read(audioPlayerProvider.notifier).next(),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 12),
 
             // ── Engagement row ────────────────────────────────────────
-            _EngagementRow(
-              post: livePost,
-              isDark: isDark,
-              enabled: isPlaying,
-            ),
+            _EngagementRow(post: livePost, isDark: isDark, enabled: isPlaying),
           ],
         ),
       ),
@@ -685,11 +768,13 @@ class _EngagementRow extends ConsumerWidget {
   final Post post;
   final bool isDark;
   final bool enabled;
-  const _EngagementRow(
-      {required this.post, required this.isDark, required this.enabled});
+  const _EngagementRow({
+    required this.post,
+    required this.isDark,
+    required this.enabled,
+  });
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -706,81 +791,91 @@ class _EngagementRow extends ConsumerWidget {
       return post.isFavourited ? AppColors.bookmark : muted;
     }
 
-    return Row(children: [
-      _EngBtn(
-        icon: post.isLiked
-            ? Icons.favorite_rounded
-            : Icons.favorite_border_rounded,
-        label: _fmt(post.likesCount),
-        color: likeColor(),
-        enabled: enabled,
-        onTap: () =>
-            ref.read(postsNotifierProvider.notifier).toggleLike(post.id),
-      ),
-      _EngBtn(
-        icon: Icons.chat_bubble_outline_rounded,
-        label: _fmt(post.commentsCount),
-        color: enabled ? muted : dimmed,
-        enabled: enabled,
-        onTap: () => showCommentsSheet(context, post.id),
-      ),
-      _EngBtn(
-        icon: Icons.share_outlined,
-        label: _fmt(post.sharesCount),
-        color: enabled ? muted : dimmed,
-        enabled: enabled,
-        onTap: () => sharePost(context, ref, post),
-      ),
-      const Spacer(),
-      _EngBtn(
-        icon: post.isFavourited
-            ? Icons.bookmark_rounded
-            : Icons.bookmark_border_rounded,
-        label: '',
-        color: bookmarkColor(),
-        enabled: enabled,
-        onTap: () =>
-            ref.read(postsNotifierProvider.notifier).toggleFavourite(post.id),
-      ),
-      const SizedBox(width: 4),
-      // Support — only tappable when playing
-      GestureDetector(
-        onTap: enabled ? () => _showTip(context, post.author.displayName) : null,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: enabled ? 1.0 : 0.3,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.darkSurfaceVariant
-                  : AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? AppColors.darkAccent : AppColors.accent,
-              ),
-            ),
-            child: Text(
-              'Support',
-              style: GoogleFonts.lato(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkAccent : AppColors.accent,
+    // Like/Comment/Share + Spacer + Bookmark/Support don't all fit at once
+    // on narrow phones once counts + the "Support" pill are accounted for
+    // (this row lives in cards with extra side padding — the featured
+    // player and audio list items — leaving less room than a full-width
+    // post card). Scrolling horizontally keeps every action reachable
+    // instead of hard-overflowing.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _EngBtn(
+            icon: post.isLiked
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
+            label: _fmt(post.likesCount),
+            color: likeColor(),
+            enabled: enabled,
+            onTap: () =>
+                ref.read(postsNotifierProvider.notifier).toggleLike(post.id),
+          ),
+          _EngBtn(
+            icon: Icons.chat_bubble_outline_rounded,
+            label: _fmt(post.commentsCount),
+            color: enabled ? muted : dimmed,
+            enabled: enabled,
+            onTap: () => showCommentsSheet(context, post.id),
+          ),
+          _EngBtn(
+            icon: Icons.share_outlined,
+            label: _fmt(post.sharesCount),
+            color: enabled ? muted : dimmed,
+            enabled: enabled,
+            onTap: () => sharePost(context, ref, post),
+          ),
+          const SizedBox(width: 16),
+          _EngBtn(
+            icon: post.isFavourited
+                ? Icons.bookmark_rounded
+                : Icons.bookmark_border_rounded,
+            label: '',
+            color: bookmarkColor(),
+            enabled: enabled,
+            onTap: () => ref
+                .read(postsNotifierProvider.notifier)
+                .toggleFavourite(post.id),
+          ),
+          const SizedBox(width: 4),
+          // Support — only tappable when playing
+          GestureDetector(
+            onTap: enabled
+                ? () => TipSheet.show(
+                    context,
+                    authorName: post.author.displayName,
+                  )
+                : null,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: enabled ? 1.0 : 0.3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkAccent : AppColors.accent,
+                  ),
+                ),
+                child: Text(
+                  'Support',
+                  style: GoogleFonts.lato(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.darkAccent : AppColors.accent,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
-    ]);
-  }
-
-  void _showTip(BuildContext context, String name) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _TipSheet(authorName: name),
     );
   }
 }
@@ -801,22 +896,38 @@ class _EngBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: enabled ? onTap : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 20, color: color),
-          if (label.isNotEmpty) ...[
-            const SizedBox(width: 4),
-            Text(label,
-                style: GoogleFonts.lato(
-                    fontSize: 13,
-                    color: color,
-                    fontWeight: FontWeight.w500)),
-          ],
-        ]),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: enabled ? onTap : null,
+        // Minimum 44x44 tappable area (accessibility touch target guidance)
+        // even though the icon itself stays visually compact.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        color: color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -841,11 +952,16 @@ class _AudioListItem extends ConsumerWidget {
     final player = ref.watch(audioPlayerProvider);
     final isPlaying = player.trackId == post.id && player.isPlaying;
     final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final secondaryColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final secondaryColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     final livePost = ref
         .watch(postsNotifierProvider)
@@ -854,133 +970,158 @@ class _AudioListItem extends ConsumerWidget {
     return GestureDetector(
       onTap: onSelect,
       child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPlaying ? AppColors.accent : borderColor,
-          width: isPlaying ? 1.5 : 1,
+        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isPlaying ? AppColors.accent : borderColor,
+            width: isPlaying ? 1.5 : 1,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Thumbnail
-            GestureDetector(
-              onTap: onSelect,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isDark
-                            ? [const Color(0xFF2A1A0A), AppColors.darkSurfaceVariant]
-                            : [AppColors.accentSoft, AppColors.surfaceVariant],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Thumbnail
+              GestureDetector(
+                onTap: onSelect,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF2A1A0A),
+                                  AppColors.darkSurfaceVariant,
+                                ]
+                              : [
+                                  AppColors.accentSoft,
+                                  AppColors.surfaceVariant,
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        post.title[0].toUpperCase(),
-                        style: GoogleFonts.playfairDisplay(
+                      child: Center(
+                        child: Text(
+                          post.title.isEmpty
+                              ? '?'
+                              : post.title[0].toUpperCase(),
+                          style: GoogleFonts.playfairDisplay(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.accent),
+                            color: AppColors.accent,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
-                        '${post.category.emoji} ${post.category.label}',
-                        style: GoogleFonts.lato(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.accent),
+                      child: Icon(
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 26,
                       ),
                     ),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(
-                    post.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${post.category.emoji} ${post.category.label}',
+                            style: GoogleFonts.lato(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      post.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.playfairDisplay(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: titleColor),
-                  ),
-                  const SizedBox(height: 2),
-                  GestureDetector(
-                    onTap: () => context.push('/user/${post.author.id}'),
-                    child: Text(
-                      post.author.displayName,
-                      style: GoogleFonts.lato(
+                        color: titleColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    GestureDetector(
+                      onTap: () => context.push('/user/${post.author.id}'),
+                      child: Text(
+                        post.author.displayName,
+                        style: GoogleFonts.lato(
                           fontSize: 12,
                           color: secondaryColor,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (isPlaying) ...[
-                    _AnimatedBars(
-                      isPlaying: true,
-                      color: AppColors.accent,
-                      barWidth: 3,
-                      maxHeight: 16,
-                      count: 5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 6),
-                    _EngagementRow(
-                        post: livePost, isDark: isDark, enabled: true),
-                  ] else
-                    Text(
-                      '▶ Tap to play',
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                    ),
-                ],
+                    if (isPlaying) ...[
+                      _AnimatedBars(
+                        isPlaying: true,
+                        color: AppColors.accent,
+                        barWidth: 3,
+                        maxHeight: 16,
+                        count: 5,
+                      ),
+                      const SizedBox(height: 6),
+                      _EngagementRow(
+                        post: livePost,
+                        isDark: isDark,
+                        enabled: true,
+                      ),
+                    ] else
+                      Text(
+                        '▶ Tap to play',
+                        style: GoogleFonts.lato(
+                          fontSize: 11,
+                          color: mutedColor,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -1005,11 +1146,14 @@ class _Pill extends StatelessWidget {
             : AppColors.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(label,
-          style: GoogleFonts.lato(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.accent)),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: AppColors.accent,
+        ),
+      ),
     );
   }
 }
@@ -1030,16 +1174,20 @@ class _LoadMoreButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             decoration: BoxDecoration(
               border: Border.all(
-                  color: isDark ? AppColors.darkDivider : AppColors.divider),
+                color: isDark ? AppColors.darkDivider : AppColors.divider,
+              ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text('Load more',
-                style: GoogleFonts.lato(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.textSecondary)),
+            child: Text(
+              'Load more',
+              style: GoogleFonts.lato(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+            ),
           ),
         ),
       ),
@@ -1051,121 +1199,31 @@ class _EmptyState extends StatelessWidget {
   final bool isDark;
   final bool filtered;
   final String label;
-  const _EmptyState(
-      {required this.isDark, required this.filtered, required this.label});
+  const _EmptyState({
+    required this.isDark,
+    required this.filtered,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.headphones_rounded,
-            size: 56,
-            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-        const SizedBox(height: 12),
-        Text(
-          filtered ? 'No audio posts in "$label"' : 'No audio posts yet',
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tip sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TipSheet extends StatefulWidget {
-  final String authorName;
-  const _TipSheet({required this.authorName});
-
-  @override
-  State<_TipSheet> createState() => _TipSheetState();
-}
-
-class _TipSheetState extends State<_TipSheet> {
-  int _amount = 2;
-  static const _amounts = [1, 2, 5, 10, 20];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2)),
+          Icon(
+            Icons.headphones_rounded,
+            size: 56,
+            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            filtered ? 'No audio posts in "$label"' : 'No audio posts yet',
+            style: GoogleFonts.lato(
+              fontSize: 14,
+              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
             ),
           ),
-          const SizedBox(height: 20),
-          Text('Support ${widget.authorName}',
-              style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text('Send a tip to show your appreciation',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _amounts.map((amt) {
-              final sel = amt == _amount;
-              return GestureDetector(
-                onTap: () => setState(() => _amount = amt),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 58,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: sel ? AppColors.accent : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text('\$$amt',
-                        style: GoogleFonts.lato(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: sel ? Colors.white : AppColors.textSecondary)),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Tip of \$$_amount sent! ✨'),
-                  behavior: SnackBarBehavior.floating,
-                ));
-              },
-              child: Text('Send \$$_amount tip',
-                  style:
-                      GoogleFonts.lato(fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-          ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -1277,10 +1335,46 @@ class _AnimatedWaveformState extends State<_AnimatedWaveform>
     with SingleTickerProviderStateMixin {
   // Fixed shape profile — heights are normalised 0..1
   static const _shape = [
-    0.30, 0.55, 0.85, 0.50, 0.70, 1.00, 0.40, 0.80, 0.60, 0.30,
-    0.90, 0.50, 0.70, 0.40, 1.00, 0.60, 0.30, 0.80, 0.50, 0.70,
-    0.90, 0.40, 0.60, 1.00, 0.30, 0.70, 0.50, 0.80, 0.40, 0.60,
-    0.90, 0.30, 0.70, 1.00, 0.50, 0.80, 0.40, 0.60, 0.30, 0.90,
+    0.30,
+    0.55,
+    0.85,
+    0.50,
+    0.70,
+    1.00,
+    0.40,
+    0.80,
+    0.60,
+    0.30,
+    0.90,
+    0.50,
+    0.70,
+    0.40,
+    1.00,
+    0.60,
+    0.30,
+    0.80,
+    0.50,
+    0.70,
+    0.90,
+    0.40,
+    0.60,
+    1.00,
+    0.30,
+    0.70,
+    0.50,
+    0.80,
+    0.40,
+    0.60,
+    0.90,
+    0.30,
+    0.70,
+    1.00,
+    0.50,
+    0.80,
+    0.40,
+    0.60,
+    0.30,
+    0.90,
   ];
 
   late final AnimationController _ctrl;

@@ -12,6 +12,7 @@ import '../utils/rich_text.dart';
 import 'comments_sheet.dart';
 import 'marketplace_badge.dart';
 import 'share_sheet.dart';
+import 'tip_sheet.dart';
 
 class PostCard extends ConsumerWidget {
   final Post post;
@@ -231,23 +232,33 @@ class _EngagementButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: color),
-            if (label.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.lato(fontSize: 13, color: color, fontWeight: FontWeight.w500),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        // Minimum 44x44 tappable area (accessibility touch target guidance)
+        // even though the icon itself stays visually compact.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: GoogleFonts.lato(fontSize: 13, color: color, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
@@ -313,22 +324,42 @@ class _AuthorRow extends ConsumerWidget {
               ),
             ),
           ),
-          if (!isSelf) ...[
-            _FollowPill(
-              isFollowing: isFollowing,
-              isDark: isDark,
-              onTap: () {
-                final notifier = ref.read(followNotifierProvider.notifier);
-                if (isFollowing) {
-                  notifier.unfollow(post.author.id);
-                } else {
-                  notifier.follow(post.author.id);
-                }
-              },
+          // The action buttons shrink as a group when the row is too tight
+          // (narrow screens / wide fonts) instead of overflowing it. The
+          // generous flex keeps them at natural size whenever they fit.
+          Flexible(
+            flex: 3,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isSelf) ...[
+                    _FollowPill(
+                      isFollowing: isFollowing,
+                      isDark: isDark,
+                      onTap: () {
+                        final notifier =
+                            ref.read(followNotifierProvider.notifier);
+                        // Returned sync result deliberately ignored: follows
+                        // apply locally either way; a failed backend write is
+                        // non-fatal.
+                        if (isFollowing) {
+                          notifier.unfollow(post.author.id);
+                        } else {
+                          notifier.follow(post.author.id);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  _SupportButton(
+                      isDark: isDark, authorName: post.author.displayName),
+                ],
+              ),
             ),
-            const SizedBox(width: 8),
-          ],
-          _SupportButton(isDark: isDark),
+          ),
         ],
       ),
     );
@@ -348,15 +379,18 @@ class _FollowPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isDark ? AppColors.darkAccent : AppColors.accent;
+    // Solid fill uses the darker accentOnFill token so the white label keeps
+    // WCAG AA contrast (plain `accent` is only ~3:1 against white).
+    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isFollowing ? Colors.transparent : accent,
+          color: isFollowing ? Colors.transparent : fill,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accent, width: 1),
+          border: Border.all(color: isFollowing ? accent : fill, width: 1),
         ),
         child: Text(
           isFollowing ? 'Following' : 'Follow',
@@ -395,12 +429,13 @@ class _Avatar extends StatelessWidget {
 
 class _SupportButton extends StatelessWidget {
   final bool isDark;
-  const _SupportButton({required this.isDark});
+  final String authorName;
+  const _SupportButton({required this.isDark, required this.authorName});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showTipSheet(context, isDark),
+      onTap: () => TipSheet.show(context, authorName: authorName),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -419,114 +454,6 @@ class _SupportButton extends StatelessWidget {
             color: isDark ? AppColors.darkAccent : AppColors.accent,
           ),
         ),
-      ),
-    );
-  }
-
-  void _showTipSheet(BuildContext context, bool isDark) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const _TipSheet(),
-    );
-  }
-}
-
-class _TipSheet extends StatefulWidget {
-  const _TipSheet();
-  @override
-  State<_TipSheet> createState() => _TipSheetState();
-}
-
-class _TipSheetState extends State<_TipSheet> {
-  int _selectedAmount = 2;
-
-  @override
-  Widget build(BuildContext context) {
-    final amounts = [1, 2, 5, 10, 20];
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24, right: 24, top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Support this writer', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text(
-            'Send a tip to show your appreciation',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: amounts.map((amt) {
-              final selected = amt == _selectedAmount;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedAmount = amt),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 58,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.accent : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '\$$amt',
-                      style: GoogleFonts.lato(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: selected ? Colors.white : AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Tip of \$$_selectedAmount sent! ✨'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              child: Text(
-                'Send \$$_selectedAmount tip',
-                style: GoogleFonts.lato(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
       ),
     );
   }

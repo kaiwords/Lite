@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/auth_provider.dart';
-import '../../providers/settings_provider.dart';
+import '../../providers/comments_provider.dart';
+import '../../providers/feed_provider.dart';
+import '../../providers/follow_provider.dart';
+import '../../providers/marketplace_account_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/local_store.dart';
+import '../../services/supabase_service.dart';
+import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/edit_profile_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -27,7 +32,6 @@ class SettingsScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
       ),
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 4),
       body: ListView(
         children: [
           // ── Account ───────────────────────────────────────────────────
@@ -51,77 +55,18 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _showChangeEmail(context),
           ),
           _Tile(
-            icon: Icons.lock_outline_rounded,
-            label: 'Change Password',
+            icon: Icons.logout_rounded,
+            label: 'Log Out',
             isDark: isDark,
-            onTap: () => _showChangePassword(context),
+            onTap: () => _showLogOutConfirm(context, ref),
           ),
 
           // ── Appearance ────────────────────────────────────────────────
           _SectionHeader(label: 'Appearance', isDark: isDark),
           _ThemeTile(isDark: isDark),
-          _FontSizeTile(isDark: isDark),
-
-          // ── Notifications ─────────────────────────────────────────────
-          _SectionHeader(label: 'Notifications', isDark: isDark),
-          _SwitchTile(
-            icon: Icons.notifications_outlined,
-            label: 'Push Notifications',
-            provider: notifPushProvider,
-            isDark: isDark,
-          ),
-          _SwitchTile(
-            icon: Icons.person_add_alt_1_outlined,
-            label: 'New Followers',
-            provider: notifFollowsProvider,
-            isDark: isDark,
-          ),
-          _SwitchTile(
-            icon: Icons.favorite_border_rounded,
-            label: 'Likes & Reactions',
-            provider: notifLikesProvider,
-            isDark: isDark,
-          ),
-          _SwitchTile(
-            icon: Icons.chat_bubble_outline_rounded,
-            label: 'Comments',
-            provider: notifCommentsProvider,
-            isDark: isDark,
-          ),
-          _SwitchTile(
-            icon: Icons.volunteer_activism_outlined,
-            label: 'Tips Received',
-            provider: notifTipsProvider,
-            isDark: isDark,
-          ),
-
-          // ── Privacy ───────────────────────────────────────────────────
-          _SectionHeader(label: 'Privacy', isDark: isDark),
-          _SwitchTile(
-            icon: Icons.lock_person_outlined,
-            label: 'Private Account',
-            subtitle: 'Only approved followers can see your posts',
-            provider: privateAccountProvider,
-            isDark: isDark,
-          ),
-          _DmPermissionTile(isDark: isDark),
 
           // ── Creator Tools ─────────────────────────────────────────────
           _SectionHeader(label: 'Creator', isDark: isDark),
-          _SwitchTile(
-            icon: Icons.volunteer_activism_rounded,
-            label: 'Enable Tips',
-            subtitle: 'Let readers support you directly',
-            provider: tipsEnabledProvider,
-            isDark: isDark,
-          ),
-          _SwitchTile(
-            icon: Icons.account_balance_outlined,
-            label: 'Auto Payout',
-            subtitle: 'Automatically withdraw earnings monthly',
-            provider: autoPayoutProvider,
-            isDark: isDark,
-          ),
           _Tile(
             icon: Icons.storefront_outlined,
             label: 'Manage Marketplace Listings',
@@ -156,10 +101,6 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _openInfo(context, 'Privacy Policy', _privacyText),
           ),
           _VersionTile(isDark: isDark),
-
-          // ── Sign Out ──────────────────────────────────────────────────
-          const SizedBox(height: 8),
-          _SignOutButton(isDark: isDark),
           const SizedBox(height: 32),
         ],
       ),
@@ -189,14 +130,20 @@ void _showChangeUsername(BuildContext context, WidgetRef ref) {
       initial: current?.username ?? '',
       prefix: '@',
       validate: (v) => v.trim().isEmpty ? 'Username can\'t be empty' : null,
-      onSave: (v) {
+      onSave: (v) async {
         final user = ref.read(currentUserProvider);
-        if (user != null) {
-          final updated = user.copyWith(username: v.trim());
-          ref.read(currentUserProvider.notifier).state = updated;
-          LocalStore.instance.saveCurrentUser(updated);
-        }
+        if (user == null) return;
+        final updated = user.copyWith(username: v.trim());
+        ref.read(currentUserProvider.notifier).state = updated;
+        LocalStore.instance.saveCurrentUser(updated);
         _snack(context, 'Username updated to @${v.trim()}');
+        try {
+          await UsersRepository.updateProfile(updated);
+        } catch (_) {
+          if (context.mounted) {
+            _snack(context, "Saved locally — couldn't sync to server");
+          }
+        }
       },
     ),
   );
@@ -218,15 +165,69 @@ void _showChangeEmail(BuildContext context) {
         }
         return null;
       },
-      onSave: (v) => _snack(context, 'Verification sent to ${v.trim()}'),
+      onSave: (v) async {
+        final email = v.trim();
+        try {
+          await SupabaseService.client.auth
+              .updateUser(UserAttributes(email: email));
+          if (context.mounted) {
+            _snack(context, 'Verification sent to $email');
+          }
+        } on AuthException catch (e) {
+          if (context.mounted) {
+            _snack(context, 'Couldn\'t update email: ${e.message}');
+          }
+        } catch (_) {
+          if (context.mounted) {
+            _snack(context, 'Couldn\'t update email. Please try again.');
+          }
+        }
+      },
     ),
   );
 }
 
-void _showChangePassword(BuildContext context) {
+void _showLogOutConfirm(BuildContext context, WidgetRef ref) {
   showDialog(
     context: context,
-    builder: (_) => const _ChangePasswordDialog(),
+    builder: (dialogContext) => AlertDialog(
+      title: Text('Log Out',
+          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
+      content: Text(
+        'Are you sure you want to log out?',
+        style: GoogleFonts.lato(fontSize: 14),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AppColors.like),
+          onPressed: () async {
+            Navigator.pop(dialogContext);
+            // Wipe this account's locally-persisted data (posts, cart,
+            // purchases, listings, comments, profile, follows — everything
+            // except the theme) so the next sign-in starts clean…
+            await LocalStore.instance.clearAll();
+            // …and drop the in-memory copies those providers already hold.
+            // `currentUserProvider` itself is nulled by the SIGNED_OUT auth
+            // event listener in app.dart.
+            ref.invalidate(postsNotifierProvider);
+            ref.invalidate(commentsProvider);
+            ref.invalidate(cartProvider);
+            ref.invalidate(purchasesProvider);
+            ref.invalidate(myListingsProvider);
+            ref.invalidate(followNotifierProvider);
+            ref.invalidate(visibleCategoriesProvider);
+            // The router's auth-driven redirect (see app_router.dart) takes
+            // it from here and bounces to `/login` once the session clears.
+            await SupabaseService.client.auth.signOut();
+          },
+          child: const Text('Log Out'),
+        ),
+      ],
+    ),
   );
 }
 
@@ -323,61 +324,6 @@ class _Tile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Switch tile (Riverpod-backed)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SwitchTile extends ConsumerWidget {
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final StateProvider<bool> provider;
-  final bool isDark;
-
-  const _SwitchTile({
-    required this.icon,
-    required this.label,
-    required this.provider,
-    required this.isDark,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final value = ref.watch(provider);
-    final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, size: 18, color: iconColor),
-      ),
-      title: Text(label,
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor)),
-      subtitle: subtitle != null
-          ? Text(subtitle!,
-              style: GoogleFonts.lato(fontSize: 11, color: subColor))
-          : null,
-      trailing: Switch(
-        value: value,
-        onChanged: (v) => ref.read(provider.notifier).state = v,
-        activeThumbColor: AppColors.accent,
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Theme tile — light / dark / system
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -468,141 +414,6 @@ class _ThemeSegmentedControl extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Font size tile
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _FontSizeTile extends ConsumerWidget {
-  final bool isDark;
-  const _FontSizeTile({required this.isDark});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final size = ref.watch(fontSizeProvider);
-    final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-
-    final label = switch (size) {
-      FontSizePref.small => 'Small',
-      FontSizePref.medium => 'Medium',
-      FontSizePref.large => 'Large',
-    };
-
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(Icons.format_size_rounded, size: 18, color: iconColor),
-      ),
-      title: Text('Font Size',
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor)),
-      subtitle: Text(label,
-          style: GoogleFonts.lato(fontSize: 11, color: subColor)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: FontSizePref.values.map((s) {
-          final active = size == s;
-          return GestureDetector(
-            onTap: () => ref.read(fontSizeProvider.notifier).state = s,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 34,
-              height: 34,
-              margin: const EdgeInsets.only(left: 4),
-              decoration: BoxDecoration(
-                color: active
-                    ? AppColors.accent
-                    : (isDark
-                        ? AppColors.darkSurfaceVariant
-                        : AppColors.surfaceVariant),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  switch (s) {
-                    FontSizePref.small => 'S',
-                    FontSizePref.medium => 'M',
-                    FontSizePref.large => 'L',
-                  },
-                  style: GoogleFonts.lato(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: active
-                        ? Colors.white
-                        : (isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DM permission tile
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _DmPermissionTile extends ConsumerWidget {
-  final bool isDark;
-  const _DmPermissionTile({required this.isDark});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final perm = ref.watch(dmPermissionProvider);
-    final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(Icons.mail_lock_outlined, size: 18, color: iconColor),
-      ),
-      title: Text('Who Can Message Me',
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor)),
-      trailing: DropdownButton<DmPermission>(
-        value: perm,
-        underline: const SizedBox.shrink(),
-        isDense: true,
-        style: GoogleFonts.lato(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-        items: const [
-          DropdownMenuItem(value: DmPermission.everyone, child: Text('Everyone')),
-          DropdownMenuItem(value: DmPermission.following, child: Text('Following')),
-          DropdownMenuItem(value: DmPermission.nobody, child: Text('Nobody')),
-        ],
-        onChanged: (v) {
-          if (v != null) ref.read(dmPermissionProvider.notifier).state = v;
-        },
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Version tile
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -635,62 +446,6 @@ class _VersionTile extends StatelessWidget {
           style: GoogleFonts.lato(
               fontSize: 13,
               color: isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sign-out button
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SignOutButton extends StatelessWidget {
-  final bool isDark;
-  const _SignOutButton({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: OutlinedButton.icon(
-        onPressed: () => showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text('Sign Out',
-                style: GoogleFonts.playfairDisplay(
-                    fontWeight: FontWeight.w700)),
-            content: const Text('Are you sure you want to sign out?'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel')),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.like),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Signed out'),
-                    behavior: SnackBarBehavior.floating,
-                  ));
-                },
-                child: const Text('Sign Out'),
-              ),
-            ],
-          ),
-        ),
-        icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.like),
-        label: Text('Sign Out',
-            style: GoogleFonts.lato(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.like)),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: AppColors.like.withValues(alpha: 0.5)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      ),
     );
   }
 }
@@ -808,86 +563,13 @@ class _InputDialogState extends State<_InputDialog> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+          style: FilledButton.styleFrom(
+            backgroundColor:
+                isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+            foregroundColor: Colors.white,
+          ),
           onPressed: _submit,
           child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Change password dialog
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ChangePasswordDialog extends StatefulWidget {
-  const _ChangePasswordDialog();
-
-  @override
-  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
-}
-
-class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
-  final _new = TextEditingController();
-  final _confirm = TextEditingController();
-  String? _error;
-
-  @override
-  void dispose() {
-    _new.dispose();
-    _confirm.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (_new.text.length < 6) {
-      setState(() => _error = 'Use at least 6 characters');
-      return;
-    }
-    if (_new.text != _confirm.text) {
-      setState(() => _error = 'Passwords don\'t match');
-      return;
-    }
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.pop(context);
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Password updated'),
-      behavior: SnackBarBehavior.floating,
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return AlertDialog(
-      title: Text('Change Password',
-          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _styledField(
-              controller: _new,
-              label: 'New password',
-              isDark: isDark,
-              obscure: true),
-          const SizedBox(height: 12),
-          _styledField(
-              controller: _confirm,
-              label: 'Confirm password',
-              isDark: isDark,
-              obscure: true,
-              errorText: _error),
-        ],
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
-          onPressed: _submit,
-          child: const Text('Update'),
         ),
       ],
     );
@@ -934,7 +616,7 @@ const _helpText =
     'Browse books, manage your cart, library, and listings from the Marketplace tab. '
     'Owned books open in the reader; audiobooks open in the player.\n\n'
     'Account\n'
-    'Edit your profile, manage notifications, and switch themes from Settings.\n\n'
+    'Edit your profile, username, and email, and switch themes from Settings.\n\n'
     'Still stuck? Use "Report a Bug" to send us the details.';
 
 const _termsText =
@@ -949,9 +631,7 @@ const _termsText =
 
 const _privacyText =
     'Privacy Policy\n\n'
-    'We store your preferences and content on this device so the app works between '
-    'sessions. Nothing is uploaded to a server in this build.\n\n'
-    'You control who can message you and whether your account is private from the '
-    'Privacy section in Settings.\n\n'
-    'You can clear all locally stored data at any time by signing out.\n\n'
+    'Your account, posts, comments, and other content are securely stored with our '
+    'backend provider (Supabase) so they sync across sessions and devices. Some '
+    'local preferences, like your theme choice, are kept only on this device.\n\n'
     'This is a demo application; this policy is illustrative.';

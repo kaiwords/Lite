@@ -74,11 +74,11 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
     final pageLabel = _labels[_currentIndex];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF0F0A06) : const Color(0xFFFAF7F2),
+        backgroundColor: isDark
+            ? const Color(0xFF0F0A06)
+            : const Color(0xFFFAF7F2),
         body: GestureDetector(
           onTap: _toggleBars,
           behavior: HitTestBehavior.opaque,
@@ -97,7 +97,8 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeInOut,
                 top: _barsVisible ? 0 : -100,
-                left: 0, right: 0,
+                left: 0,
+                right: 0,
                 child: _TopBar(
                   title: widget.book.title,
                   isDark: isDark,
@@ -110,7 +111,8 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeInOut,
                 bottom: _barsVisible ? 0 : -100,
-                left: 0, right: 0,
+                left: 0,
+                right: 0,
                 child: _BottomBar(
                   currentIndex: _currentIndex,
                   total: total,
@@ -165,7 +167,11 @@ class _TopBar extends StatelessWidget {
   final bool isDark;
   final VoidCallback onBack;
 
-  const _TopBar({required this.title, required this.isDark, required this.onBack});
+  const _TopBar({
+    required this.title,
+    required this.isDark,
+    required this.onBack,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +239,12 @@ class _BottomBar extends StatelessWidget {
 
     return Container(
       color: bg,
-      padding: EdgeInsets.only(left: 20, right: 20, top: 10, bottom: bottom + 10),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 10,
+        bottom: bottom + 10,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -244,7 +255,9 @@ class _BottomBar extends StatelessWidget {
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
               activeTrackColor: accent,
-              inactiveTrackColor: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
+              inactiveTrackColor: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.surfaceVariant,
               thumbColor: accent,
               overlayColor: accent.withValues(alpha: 0.2),
             ),
@@ -258,16 +271,22 @@ class _BottomBar extends StatelessWidget {
 
           // Page label row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Section name
-              Text(
-                _sectionLabel(pages[currentIndex]),
-                style: GoogleFonts.lato(fontSize: 11, color: muted),
+              // Section name — chapter titles are user-authored (via the
+              // sell-flow chapter editor) and unbounded in length, so this
+              // must ellipsize instead of forcing the row to overflow.
+              Expanded(
+                child: Text(
+                  _sectionLabel(pages[currentIndex]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.lato(fontSize: 11, color: muted),
+                ),
               ),
 
               // Page number
-              if (pageLabel != null)
+              if (pageLabel != null) ...[
+                const SizedBox(width: 8),
                 Text(
                   pageLabel!,
                   style: GoogleFonts.lato(
@@ -279,8 +298,10 @@ class _BottomBar extends StatelessWidget {
                         : FontStyle.normal,
                   ),
                 ),
+              ],
 
               // Chapter count indicator
+              const SizedBox(width: 8),
               Text(
                 '${currentIndex + 1} / $total',
                 style: GoogleFonts.lato(fontSize: 11, color: muted),
@@ -295,13 +316,13 @@ class _BottomBar extends StatelessWidget {
   bool _isRoman(String s) => RegExp(r'^[ivxlcdm]+$').hasMatch(s);
 
   String _sectionLabel(BookPage page) => switch (page.type) {
-    BookPageType.cover       => 'Cover',
-    BookPageType.titlePage   => 'Title Page',
+    BookPageType.cover => 'Cover',
+    BookPageType.titlePage => 'Title Page',
     BookPageType.introduction => 'Introduction',
-    BookPageType.chapter     => page.chapterTitle ?? 'Chapter',
-    BookPageType.glossary    => 'Glossary',
-    BookPageType.references  => 'References',
-    BookPageType.backCover   => 'Back Cover',
+    BookPageType.chapter => page.chapterTitle ?? 'Chapter',
+    BookPageType.glossary => 'Glossary',
+    BookPageType.references => 'References',
+    BookPageType.backCover => 'Back Cover',
   };
 }
 
@@ -382,8 +403,11 @@ class _CoverPage extends StatelessWidget {
               // Swipe hint
               Column(
                 children: [
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14, color: book.coverTextColor.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: book.coverTextColor.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'swipe to open',
@@ -564,11 +588,7 @@ class _ChapterPage extends StatelessWidget {
             const SizedBox(height: 28),
             Text(
               content,
-              style: GoogleFonts.lora(
-                fontSize: 16,
-                color: body,
-                height: 1.85,
-              ),
+              style: GoogleFonts.lora(fontSize: 16, color: body, height: 1.85),
             ),
           ],
         ),

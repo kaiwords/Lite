@@ -48,12 +48,15 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    ref.read(commentsProvider.notifier).add(Comment(
+    // Capture the (root) messenger up front — the sheet may be dismissed
+    // before the backend write settles.
+    final messenger = ScaffoldMessenger.of(context);
+    final synced = ref.read(commentsProvider.notifier).add(Comment(
           id: 'c${DateTime.now().microsecondsSinceEpoch}',
           postId: widget.postId,
           author: user,
@@ -63,6 +66,14 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     ref.read(postsNotifierProvider.notifier).addComment(widget.postId);
     _controller.clear();
     _focus.unfocus();
+    if (!await synced) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Saved locally — couldn't sync to server"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override

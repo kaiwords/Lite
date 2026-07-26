@@ -98,6 +98,38 @@ extension ListingTypeExt on ListingType {
       };
 }
 
+/// A single chapter of a chapter-built e-book (see [MarketplaceListing.ebookChapters]).
+class EbookChapter {
+  final String title;
+  final String content;
+
+  const EbookChapter({required this.title, required this.content});
+
+  Map<String, dynamic> toJson() => {'title': title, 'content': content};
+
+  factory EbookChapter.fromJson(Map<String, dynamic> j) => EbookChapter(
+        title: (j['title'] as String?) ?? '',
+        content: (j['content'] as String?) ?? '',
+      );
+}
+
+/// A single track/volume of an audiobook, with a seller-chosen [title]
+/// (e.g. "Chapter 1" or "Track 2: The Storm") alongside the uploaded
+/// [fileName]. See [MarketplaceListing.audioVolumes].
+class AudioVolume {
+  final String title;
+  final String fileName;
+
+  const AudioVolume({required this.title, required this.fileName});
+
+  Map<String, dynamic> toJson() => {'title': title, 'fileName': fileName};
+
+  factory AudioVolume.fromJson(Map<String, dynamic> j) => AudioVolume(
+        title: (j['title'] as String?) ?? '',
+        fileName: (j['fileName'] as String?) ?? '',
+      );
+}
+
 class MarketplaceListing {
   final String id;
   final String title;
@@ -116,9 +148,16 @@ class MarketplaceListing {
   final String? pdfFileName;
   final String? ebookContent;
 
+  // Chapter-built e-book (set when the author writes the book online as
+  // named chapters instead of one flat blob). When non-empty, this takes
+  // precedence over [ebookContent] for the reading experience; [ebookContent]
+  // is retained only for legacy single-blob listings.
+  final List<EbookChapter> ebookChapters;
+
   // Audio book source (set when listing an Audio book): one uploaded audio file
-  // per volume. A single-volume audiobook has one entry; multi-volume has more.
-  final List<String> audioVolumes;
+  // per volume, each with a seller-chosen title. A single-volume audiobook has
+  // one entry; multi-volume has more.
+  final List<AudioVolume> audioVolumes;
 
   const MarketplaceListing({
     required this.id,
@@ -134,6 +173,7 @@ class MarketplaceListing {
     this.description = '',
     this.pdfFileName,
     this.ebookContent,
+    this.ebookChapters = const [],
     this.audioVolumes = const [],
   });
 
@@ -151,7 +191,8 @@ class MarketplaceListing {
         'description': description,
         'pdfFileName': pdfFileName,
         'ebookContent': ebookContent,
-        'audioVolumes': audioVolumes,
+        'ebookChapters': ebookChapters.map((c) => c.toJson()).toList(),
+        'audioVolumes': audioVolumes.map((v) => v.toJson()).toList(),
       };
 
   factory MarketplaceListing.fromJson(Map<String, dynamic> j) =>
@@ -179,9 +220,29 @@ class MarketplaceListing {
         description: (j['description'] as String?) ?? '',
         pdfFileName: j['pdfFileName'] as String?,
         ebookContent: j['ebookContent'] as String?,
-        audioVolumes:
-            (j['audioVolumes'] as List?)?.cast<String>() ?? const [],
+        ebookChapters: (j['ebookChapters'] as List?)
+                ?.map((e) => EbookChapter.fromJson((e as Map).cast<String, dynamic>()))
+                .toList() ??
+            const [],
+        // Backward-compatible: older locally-saved data serialized volumes as
+        // a plain List<String> of filenames. Migrate those to AudioVolume
+        // entries with a sensible default title ("Volume 1", "Volume 2", …).
+        audioVolumes: _parseAudioVolumes(j['audioVolumes']),
       );
+
+  static List<AudioVolume> _parseAudioVolumes(dynamic raw) {
+    if (raw is! List) return const [];
+    final result = <AudioVolume>[];
+    for (var i = 0; i < raw.length; i++) {
+      final e = raw[i];
+      if (e is String) {
+        result.add(AudioVolume(title: 'Volume ${i + 1}', fileName: e));
+      } else if (e is Map) {
+        result.add(AudioVolume.fromJson(e.cast<String, dynamic>()));
+      }
+    }
+    return result;
+  }
 }
 
 final mockListings = const [

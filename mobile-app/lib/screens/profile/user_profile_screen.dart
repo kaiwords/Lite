@@ -7,6 +7,7 @@ import '../../models/post.dart';
 import '../../models/user.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/follow_provider.dart';
+import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/audio_post_card.dart';
 import '../../widgets/post_card.dart';
@@ -14,6 +15,11 @@ import '../../widgets/post_card.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen — shown when tapping another user's name/avatar
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Fallback lookup for `/user/:userId` ids that aren't seeded mock users —
+/// e.g. real accounts whose posts were loaded from Supabase.
+final _remoteUserProvider = FutureProvider.family<LitUser?, String>(
+    (ref, id) => UsersRepository.fetchById(id));
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -41,16 +47,32 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user =
+    // Seeded mock users resolve synchronously; anything else is fetched from
+    // the `users` table so profiles of real accounts don't 404.
+    final mockUser =
         mockUsers.where((u) => u.id == widget.userId).firstOrNull;
+    if (mockUser != null) return _profile(context, mockUser);
 
-    if (user == null) {
-      return Scaffold(
+    final remote = ref.watch(_remoteUserProvider(widget.userId));
+    return remote.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => Scaffold(
         appBar: AppBar(title: const Text('Profile')),
         body: const Center(child: Text('User not found')),
-      );
-    }
+      ),
+      data: (user) => user == null
+          ? Scaffold(
+              appBar: AppBar(title: const Text('Profile')),
+              body: const Center(child: Text('User not found')),
+            )
+          : _profile(context, user),
+    );
+  }
 
+  Widget _profile(BuildContext context, LitUser user) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final allPosts = ref.watch(postsNotifierProvider);
     final userPosts = allPosts.where((p) => p.author.id == user.id).toList();
@@ -152,7 +174,9 @@ class _UserHeader extends ConsumerWidget {
                 ),
                 child: Center(
                   child: Text(
-                    user.displayName[0].toUpperCase(),
+                    user.displayName.isEmpty
+                        ? '?'
+                        : user.displayName[0].toUpperCase(),
                     style: GoogleFonts.playfairDisplay(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
@@ -331,6 +355,8 @@ class _FollowButtons extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(children: [
         Expanded(
+          // Returned sync results deliberately ignored below: follows apply
+          // locally either way; a failed backend write is non-fatal.
           child: isFollowing
               ? OutlinedButton.icon(
                   onPressed: () => ref
@@ -354,7 +380,10 @@ class _FollowButtons extends ConsumerWidget {
                       style: GoogleFonts.lato(
                           fontSize: 13, fontWeight: FontWeight.w600)),
                   style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: isDark
+                          ? AppColors.darkAccentOnFill
+                          : AppColors.accentOnFill,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: shape),
                 ),
@@ -363,7 +392,7 @@ class _FollowButtons extends ConsumerWidget {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => context
-                .push('/messages/${Uri.encodeComponent(user.displayName)}'),
+                .push('/messages/${Uri.encodeComponent(user.id)}'),
             icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
             label: Text('Message',
                 style: GoogleFonts.lato(

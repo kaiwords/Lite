@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../utils/marketplace_lookup.dart';
+import 'listing_buy_sheet.dart';
+
 /// Pill shown on an audio post when a linked Audio Book listing exists.
-/// Uses headphone styling distinct from the general MarketplaceBadge.
-class AudioMarketplaceBadge extends StatelessWidget {
+/// Uses headphone styling distinct from the general MarketplaceBadge. Tapping
+/// opens a "buy now" sheet (falling back to the marketplace tab if the
+/// listing can't be resolved) so a listener can purchase without leaving
+/// the feed.
+class AudioMarketplaceBadge extends ConsumerWidget {
   final String listingId;
   final bool isDark;
 
@@ -18,10 +25,17 @@ class AudioMarketplaceBadge extends StatelessWidget {
   static const _audioColor = Color(0xFF9B5C8A);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => context.push('/marketplace', extra: listingId),
+      onTap: () {
+        final listing = findListingById(ref, listingId);
+        if (listing != null) {
+          showListingBuySheet(context, listing);
+        } else {
+          context.push('/marketplace', extra: listingId);
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -37,12 +51,16 @@ class AudioMarketplaceBadge extends StatelessWidget {
           children: [
             Icon(Icons.headphones_rounded, size: 12, color: _audioColor),
             const SizedBox(width: 5),
-            Text(
-              'Listen in Marketplace',
-              style: GoogleFonts.lato(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _audioColor,
+            Flexible(
+              child: Text(
+                'Listen in Marketplace',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.lato(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _audioColor,
+                ),
               ),
             ),
           ],

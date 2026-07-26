@@ -336,7 +336,9 @@ class _CoverWithAvatar extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                user.displayName[0].toUpperCase(),
+                user.displayName.isEmpty
+                    ? '?'
+                    : user.displayName[0].toUpperCase(),
                 style: GoogleFonts.playfairDisplay(
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
@@ -535,7 +537,10 @@ class _FollowListSheet extends ConsumerWidget {
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.surfaceVariant,
-                    child: Text(u.displayName[0].toUpperCase(),
+                    child: Text(
+                        u.displayName.isEmpty
+                            ? '?'
+                            : u.displayName[0].toUpperCase(),
                         style: GoogleFonts.playfairDisplay(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -563,6 +568,9 @@ class _FollowListSheet extends ConsumerWidget {
                               : AppColors.textMuted)),
                   trailing: GestureDetector(
                     onTap: () {
+                      // Returned sync result deliberately ignored: follows
+                      // apply locally either way; a failed backend write is
+                      // non-fatal.
                       if (isFollowing) {
                         ref
                             .read(followNotifierProvider.notifier)
@@ -818,7 +826,10 @@ class _TopTipperChip extends ConsumerWidget {
               backgroundColor: isDark
                   ? AppColors.darkSurfaceVariant
                   : AppColors.surfaceVariant,
-              child: Text(user.displayName[0].toUpperCase(),
+              child: Text(
+                  user.displayName.isEmpty
+                      ? '?'
+                      : user.displayName[0].toUpperCase(),
                   style: GoogleFonts.playfairDisplay(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -867,7 +878,10 @@ class _TipRow extends ConsumerWidget {
         backgroundColor: isDark
             ? AppColors.darkSurfaceVariant
             : AppColors.surfaceVariant,
-        child: Text(tip.from.displayName[0].toUpperCase(),
+        child: Text(
+            tip.from.displayName.isEmpty
+                ? '?'
+                : tip.from.displayName[0].toUpperCase(),
             style: GoogleFonts.playfairDisplay(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -897,6 +911,8 @@ class _TipRow extends ConsumerWidget {
               isDark: isDark,
               onTap: () {
                 final notifier = ref.read(followNotifierProvider.notifier);
+                // Returned sync result deliberately ignored: follows apply
+                // locally either way; a failed backend write is non-fatal.
                 if (isFollowing) {
                   notifier.unfollow(tip.from.id);
                 } else {

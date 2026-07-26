@@ -119,3 +119,11 @@ final mockUsers = [
     earnings: 215.00,
   ),
 ];
+
+LitUser? findUser(String id) {
+  try {
+    return mockUsers.firstWhere((u) => u.id == id);
+  } catch (_) {
+    return null;
+  }
+}

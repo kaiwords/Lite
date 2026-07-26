@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for audio playback: tracks are streamed from network URLs
+         (see lib/providers/audio_provider.dart). Debug builds get this for
+         free from the Flutter tool, but release/profile builds need it
+         declared explicitly. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="literature"
+        android:label="Literature"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
