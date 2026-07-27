@@ -542,9 +542,6 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
         .watch(postsNotifierProvider)
         .firstWhere((p) => p.id == widget.post.id, orElse: () => widget.post);
 
-    final screenH = MediaQuery.of(context).size.height;
-    final cardH = screenH * 0.58;
-
     final isDark = widget.isDark;
     final titleColor = isDark
         ? AppColors.darkTextPrimary
@@ -555,8 +552,8 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
         : AppColors.textSecondary;
 
     return Container(
-      height: cardH,
       margin: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
@@ -570,191 +567,185 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
           color: isDark ? AppColors.darkDivider : AppColors.divider,
         ),
       ),
-      // The card has a fixed height (`cardH` above), but its content's
-      // natural height doesn't scale down with it — on short phones (iPhone
-      // SE and similar) the fixed-size waveform/controls/engagement row no
-      // longer fit. Scrolling here means the card degrades gracefully
-      // instead of hard-overflowing on those screens, while looking
-      // unchanged on taller ones where everything already fits.
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Category + Now Playing pill ───────────────────────────
-            Row(
+      // Sized to its own content (no fixed height) — this card already lives
+      // inside the screen's outer ListView, so it can't overflow: on short
+      // phones the list just scrolls a little further to reach "More Audio"
+      // instead of the card itself needing a fixed height + internal scroll.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Category + Now Playing pill ───────────────────────────
+          Row(
+            children: [
+              _Pill(
+                label:
+                    '${widget.post.category.emoji} ${widget.post.category.label}',
+                isDark: isDark,
+              ),
+              if (isLoading) ...[
+                const SizedBox(width: 8),
+                _Pill(label: 'Loading…', isDark: isDark, accent: true),
+              ] else if (isPlaying) ...[
+                const SizedBox(width: 8),
+                _Pill(label: '▶ Now Playing', isDark: isDark, accent: true),
+              ] else if (error != null) ...[
+                const SizedBox(width: 8),
+                _Pill(label: 'Playback failed', isDark: isDark),
+              ],
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Waveform visual ───────────────────────────────────────
+          _AnimatedWaveform(isPlaying: isPlaying, progress: progress),
+
+          const SizedBox(height: 16),
+
+          // ── Title + author ────────────────────────────────────────
+          Text(
+            widget.post.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: titleColor,
+            ),
+          ),
+          const SizedBox(height: 3),
+          GestureDetector(
+            onTap: () => context.push('/user/${widget.post.author.id}'),
+            child: Row(
               children: [
-                _Pill(
-                  label:
-                      '${widget.post.category.emoji} ${widget.post.category.label}',
-                  isDark: isDark,
+                Flexible(
+                  child: Text(
+                    widget.post.author.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.lato(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: secondaryColor,
+                    ),
+                  ),
                 ),
-                if (isLoading) ...[
-                  const SizedBox(width: 8),
-                  _Pill(label: 'Loading…', isDark: isDark, accent: true),
-                ] else if (isPlaying) ...[
-                  const SizedBox(width: 8),
-                  _Pill(label: '▶ Now Playing', isDark: isDark, accent: true),
-                ] else if (error != null) ...[
-                  const SizedBox(width: 8),
-                  _Pill(label: 'Playback failed', isDark: isDark),
+                if (widget.post.author.isVerified) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.verified_rounded,
+                    size: 12,
+                    color: AppColors.accent,
+                  ),
                 ],
+                const SizedBox(width: 6),
+                Text(
+                  '· ${timeago.format(widget.post.createdAt)}',
+                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-            // ── Waveform visual ───────────────────────────────────────
-            _AnimatedWaveform(isPlaying: isPlaying, progress: progress),
-
-            const SizedBox(height: 16),
-
-            // ── Title + author ────────────────────────────────────────
-            Text(
-              widget.post.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: titleColor,
-              ),
+          // ── Progress slider ───────────────────────────────────────
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2.5,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+              activeTrackColor: AppColors.accent,
+              inactiveTrackColor: isDark
+                  ? AppColors.darkDivider
+                  : AppColors.divider,
+              thumbColor: AppColors.accent,
             ),
-            const SizedBox(height: 3),
-            GestureDetector(
-              onTap: () => context.push('/user/${widget.post.author.id}'),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      widget.post.author.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: secondaryColor,
-                      ),
-                    ),
-                  ),
-                  if (widget.post.author.isVerified) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.verified_rounded,
-                      size: 12,
-                      color: AppColors.accent,
-                    ),
-                  ],
-                  const SizedBox(width: 6),
-                  Text(
-                    '· ${timeago.format(widget.post.createdAt)}',
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                  ),
-                ],
-              ),
+            child: Slider(
+              value: progress.clamp(0.0, 1.0),
+              onChanged: isCurrent
+                  ? (v) =>
+                        ref.read(audioPlayerProvider.notifier).seekFraction(v)
+                  : (v) {
+                      widget.onPlay();
+                      ref.read(audioPlayerProvider.notifier).seekFraction(v);
+                    },
             ),
-
-            const SizedBox(height: 16),
-
-            // ── Progress slider ───────────────────────────────────────
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2.5,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                activeTrackColor: AppColors.accent,
-                inactiveTrackColor: isDark
-                    ? AppColors.darkDivider
-                    : AppColors.divider,
-                thumbColor: AppColors.accent,
-              ),
-              child: Slider(
-                value: progress.clamp(0.0, 1.0),
-                onChanged: isCurrent
-                    ? (v) =>
-                          ref.read(audioPlayerProvider.notifier).seekFraction(v)
-                    : (v) {
-                        widget.onPlay();
-                        ref.read(audioPlayerProvider.notifier).seekFraction(v);
-                      },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    formatAudioTime(position),
-                    style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
-                  ),
-                  Text(
-                    duration > Duration.zero
-                        ? formatAudioTime(duration)
-                        : '--:--',
-                    style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // ── Playback controls ─────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.skip_previous_rounded),
-                  iconSize: 26,
-                  color: secondaryColor,
-                  onPressed: () =>
-                      ref.read(audioPlayerProvider.notifier).previous(),
+                Text(
+                  formatAudioTime(position),
+                  style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
                 ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: _togglePlay,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: isLoading
-                        ? const Padding(
-                            padding: EdgeInsets.all(15),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 28,
+                Text(
+                  duration > Duration.zero
+                      ? formatAudioTime(duration)
+                      : '--:--',
+                  style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          // ── Playback controls ─────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.skip_previous_rounded),
+                iconSize: 26,
+                color: secondaryColor,
+                onPressed: () =>
+                    ref.read(audioPlayerProvider.notifier).previous(),
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: _togglePlay,
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    color: AppColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(15),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
                           ),
-                  ),
+                        )
+                      : Icon(
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.skip_next_rounded),
-                  iconSize: 26,
-                  color: secondaryColor,
-                  onPressed: () =>
-                      ref.read(audioPlayerProvider.notifier).next(),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.skip_next_rounded),
+                iconSize: 26,
+                color: secondaryColor,
+                onPressed: () => ref.read(audioPlayerProvider.notifier).next(),
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-            // ── Engagement row ────────────────────────────────────────
-            _EngagementRow(post: livePost, isDark: isDark, enabled: isPlaying),
-          ],
-        ),
+          // ── Engagement row ────────────────────────────────────────
+          _EngagementRow(post: livePost, isDark: isDark, enabled: isPlaying),
+        ],
       ),
     );
   }
