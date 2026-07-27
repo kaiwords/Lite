@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:literature/app.dart';
 import 'package:literature/models/marketplace.dart';
+import 'package:literature/models/user.dart';
 import 'package:literature/providers/audio_provider.dart';
+import 'package:literature/providers/auth_provider.dart';
 import 'package:literature/router/app_router.dart';
 import 'package:literature/screens/audio/audiobook_player_screen.dart';
 import 'package:literature/screens/marketplace/list_item_sheet.dart';
@@ -53,12 +55,26 @@ void _setScreenSize(WidgetTester tester, Size size) {
 
 /// Pumps the full app (real router, real providers unless overridden) and
 /// returns after the initial route has settled.
+///
+/// `currentUserProvider` is seeded with a real mock user by default — it's
+/// never populated by the test Supabase setup (see `helpers/test_env.dart`),
+/// and several screens (profile, settings, followers/following, earnings…)
+/// null-guard on it with a loading spinner. Without this default, every one
+/// of those routes would only ever render (and overflow-check) that spinner
+/// instead of its real content. Pass a `currentUserProvider` override in
+/// [overrides] to replace this default, e.g. to exercise the logged-out case.
 Future<void> _pumpApp(
   WidgetTester tester, {
   List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
-    ProviderScope(overrides: overrides, child: const LiteratureApp()),
+    ProviderScope(
+      overrides: [
+        currentUserProvider.overrideWith((ref) => mockUsers.first),
+        ...overrides,
+      ],
+      child: const LiteratureApp(),
+    ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
@@ -122,6 +138,9 @@ void main() {
         '/marketplace': null,
         '/alerts': null,
         '/profile': null,
+        '/profile/followers': null,
+        '/profile/following': null,
+        '/profile/earnings': null,
         '/settings': null,
         '/post/new': null,
         '/search': null,
