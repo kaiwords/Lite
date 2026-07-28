@@ -14,6 +14,7 @@ import '../../providers/marketplace_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/marketplace_lookup.dart';
 import '../../utils/post_paginator.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/share_sheet.dart';
 import '../audio/audiobook_player_screen.dart';
 import '../reader/book_reader_screen.dart';
@@ -1598,15 +1599,12 @@ class _AuthorFollowChip extends ConsumerWidget {
     final accent = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         final notifier = ref.read(followNotifierProvider.notifier);
-        // Returned sync result deliberately ignored: follows apply locally
-        // either way and a failed backend write is non-fatal here.
-        if (isFollowing) {
-          notifier.unfollow(author.id);
-        } else {
-          notifier.follow(author.id);
-        }
+        final ok = isFollowing
+            ? await notifier.unfollow(author.id)
+            : await notifier.follow(author.id);
+        if (!ok && context.mounted) notifySyncFailure(context);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),

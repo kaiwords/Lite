@@ -7,6 +7,7 @@ import '../../models/user.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/follow_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/post_card.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -224,17 +225,13 @@ class _SearchSuggestions extends ConsumerWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      // Returned sync result deliberately ignored: follows
-                      // apply locally either way; a failed backend write is
-                      // non-fatal.
-                      if (isFollowing) {
-                        ref
-                            .read(followNotifierProvider.notifier)
-                            .unfollow(u.id);
-                      } else {
-                        ref.read(followNotifierProvider.notifier).follow(u.id);
-                      }
+                    onTap: () async {
+                      final notifier =
+                          ref.read(followNotifierProvider.notifier);
+                      final ok = isFollowing
+                          ? await notifier.unfollow(u.id)
+                          : await notifier.follow(u.id);
+                      if (!ok && context.mounted) notifySyncFailure(context);
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),

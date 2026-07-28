@@ -23,8 +23,10 @@ class ConversationsNotifier extends StateNotifier<List<Conversation>> {
   }
 
   /// Sends a message in conversation [id], creating the conversation first
-  /// (with [peerId] as the peer) if this is a brand-new thread.
-  Future<void> sendMessage(
+  /// (with [peerId] as the peer) if this is a brand-new thread. The message
+  /// stays visible locally either way; the returned bool reports whether it
+  /// also synced, so the UI can tell the user when it didn't.
+  Future<bool> sendMessage(
     String id, {
     required String text,
     required String peerId,
@@ -54,8 +56,10 @@ class ConversationsNotifier extends StateNotifier<List<Conversation>> {
         contextLabel: contextLabel,
       );
       await ConversationsRepository.insertMessage(id, text: text, fromMe: true);
+      return true;
     } catch (_) {
       // Offline — message stays visible locally but won't sync until next load.
+      return false;
     }
   }
 

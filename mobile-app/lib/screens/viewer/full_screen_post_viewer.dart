@@ -12,6 +12,7 @@ import '../../providers/follow_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/post_paginator.dart';
 import '../../utils/rich_text.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/comments_sheet.dart';
 import '../../widgets/feed_filter_row.dart';
 import '../../widgets/marketplace_badge.dart';
@@ -715,11 +716,12 @@ class _AuthorRow extends ConsumerWidget {
           if (!isFollowing) ...[
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              // Returned sync result deliberately ignored: the follow applies
-              // locally either way; a failed backend write is non-fatal.
-              onTap: () => ref
-                  .read(followNotifierProvider.notifier)
-                  .follow(post.author.id),
+              onTap: () async {
+                final ok = await ref
+                    .read(followNotifierProvider.notifier)
+                    .follow(post.author.id);
+                if (!ok && context.mounted) notifySyncFailure(context);
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,

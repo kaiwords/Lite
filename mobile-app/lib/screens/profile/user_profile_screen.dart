@@ -9,6 +9,7 @@ import '../../providers/feed_provider.dart';
 import '../../providers/follow_provider.dart';
 import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/audio_post_card.dart';
 import '../../widgets/post_card.dart';
 
@@ -355,13 +356,14 @@ class _FollowButtons extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(children: [
         Expanded(
-          // Returned sync results deliberately ignored below: follows apply
-          // locally either way; a failed backend write is non-fatal.
           child: isFollowing
               ? OutlinedButton.icon(
-                  onPressed: () => ref
-                      .read(followNotifierProvider.notifier)
-                      .unfollow(user.id),
+                  onPressed: () async {
+                    final ok = await ref
+                        .read(followNotifierProvider.notifier)
+                        .unfollow(user.id);
+                    if (!ok && context.mounted) notifySyncFailure(context);
+                  },
                   icon: const Icon(Icons.check_rounded, size: 15),
                   label: Text('Following',
                       style: GoogleFonts.lato(
@@ -372,9 +374,12 @@ class _FollowButtons extends ConsumerWidget {
                       shape: shape),
                 )
               : FilledButton.icon(
-                  onPressed: () => ref
-                      .read(followNotifierProvider.notifier)
-                      .follow(user.id),
+                  onPressed: () async {
+                    final ok = await ref
+                        .read(followNotifierProvider.notifier)
+                        .follow(user.id);
+                    if (!ok && context.mounted) notifySyncFailure(context);
+                  },
                   icon: const Icon(Icons.add_rounded, size: 15),
                   label: Text('Follow',
                       style: GoogleFonts.lato(

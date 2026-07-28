@@ -9,6 +9,7 @@ import '../providers/feed_provider.dart';
 import '../providers/follow_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/rich_text.dart';
+import '../utils/sync_feedback.dart';
 import 'comments_sheet.dart';
 import 'marketplace_badge.dart';
 import 'share_sheet.dart';
@@ -339,16 +340,14 @@ class _AuthorRow extends ConsumerWidget {
                     _FollowPill(
                       isFollowing: isFollowing,
                       isDark: isDark,
-                      onTap: () {
+                      onTap: () async {
                         final notifier =
                             ref.read(followNotifierProvider.notifier);
-                        // Returned sync result deliberately ignored: follows
-                        // apply locally either way; a failed backend write is
-                        // non-fatal.
-                        if (isFollowing) {
-                          notifier.unfollow(post.author.id);
-                        } else {
-                          notifier.follow(post.author.id);
+                        final ok = isFollowing
+                            ? await notifier.unfollow(post.author.id)
+                            : await notifier.follow(post.author.id);
+                        if (!ok && context.mounted) {
+                          notifySyncFailure(context);
                         }
                       },
                     ),

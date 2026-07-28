@@ -7,6 +7,7 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/follow_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sync_feedback.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Followers / Following — full screen with search
@@ -274,14 +275,12 @@ class _UserRow extends ConsumerWidget {
         ),
       ),
       trailing: GestureDetector(
-        onTap: () {
-          // Returned sync result deliberately ignored: follows apply
-          // locally either way; a failed backend write is non-fatal.
-          if (isFollowing) {
-            ref.read(followNotifierProvider.notifier).unfollow(user.id);
-          } else {
-            ref.read(followNotifierProvider.notifier).follow(user.id);
-          }
+        onTap: () async {
+          final notifier = ref.read(followNotifierProvider.notifier);
+          final ok = isFollowing
+              ? await notifier.unfollow(user.id)
+              : await notifier.follow(user.id);
+          if (!ok && context.mounted) notifySyncFailure(context);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

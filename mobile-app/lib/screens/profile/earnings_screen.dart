@@ -7,6 +7,7 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/follow_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sync_feedback.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Earnings — full screen: who tipped, how much, when
@@ -343,15 +344,12 @@ class _TipRow extends ConsumerWidget {
           : _SmallFollowPill(
               isFollowing: isFollowing,
               isDark: isDark,
-              onTap: () {
+              onTap: () async {
                 final notifier = ref.read(followNotifierProvider.notifier);
-                // Returned sync result deliberately ignored: follows apply
-                // locally either way; a failed backend write is non-fatal.
-                if (isFollowing) {
-                  notifier.unfollow(tip.from.id);
-                } else {
-                  notifier.follow(tip.from.id);
-                }
+                final ok = isFollowing
+                    ? await notifier.unfollow(tip.from.id)
+                    : await notifier.follow(tip.from.id);
+                if (!ok && context.mounted) notifySyncFailure(context);
               },
             ),
     );

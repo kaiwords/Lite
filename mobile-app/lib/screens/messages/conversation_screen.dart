@@ -49,13 +49,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
     final conversation = ref
         .read(conversationsProvider.notifier)
         .find(widget.conversationId);
-    ref.read(conversationsProvider.notifier).sendMessage(
+    // Capture the (root) messenger up front — this screen may be popped
+    // before the backend write settles.
+    final messenger = ScaffoldMessenger.of(context);
+    final synced = ref.read(conversationsProvider.notifier).sendMessage(
           widget.conversationId,
           text: text,
           peerId: conversation?.peerId ?? widget.conversationId,
@@ -71,6 +74,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         );
       }
     });
+    if (!await synced) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Saved locally — couldn't sync to server"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
