@@ -1,0 +1,611 @@
+openapi: 3.0.3
+info:
+  title: Literature API
+  version: "1.0.0"
+  description: |
+    There is no bespoke API server for this project — `mobile-app/` talks
+    directly to a Supabase-managed Postgres project. This spec documents
+    that real, live backend surface: the auto-generated PostgREST REST API
+    (one CRUD path per table, matching `lib/services/*_repository.dart`)
+    plus the Supabase Auth endpoints the app's login/signup screens call
+    through the `supabase_flutter` SDK.
+
+    Generated from the live schema (`information_schema.columns` and
+    `pg_policies` on the `public` schema) rather than hand-guessed — see
+    [`database.md`](database.md) for the narrative version of what's real
+    vs. still mocked, and [`CLAUDE.md`](../CLAUDE.md) for the standing
+    instruction to keep this file in sync with schema changes.
+
+    **Auth model**: every request needs both an `apikey` header (the
+    project's publishable/anon key — see `mobile-app/.env.example`) and an
+    `Authorization: Bearer <jwt>` header (the signed-in user's session
+    token, or the same anon key for unauthenticated reads where RLS allows
+    it). Row-level security is enabled on every table below; the
+    per-endpoint `description` notes what it actually restricts.
+
+servers:
+  - url: "https://{project_ref}.supabase.co"
+    variables:
+      project_ref:
+        default: your-project-ref
+        description: >-
+          Supabase project ref — see SUPABASE_URL in mobile-app/.env
+          (mobile-app/.env.example shows the placeholder format; the real
+          value is a live secret, never committed).
+
+security:
+  - apiKeyAuth: []
+    bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Supabase Auth (email/password) — not custom to this app, but what login_screen.dart/signup_screen.dart call.
+  - name: users
+  - name: posts
+  - name: comments
+  - name: marketplace_listings
+  - name: ebook_chapters
+  - name: audio_volumes
+  - name: follows
+  - name: conversations
+  - name: messages
+
+paths:
+  # ── Auth ─────────────────────────────────────────────────────────────────
+  /auth/v1/signup:
+    post:
+      tags: [Auth]
+      summary: Create an account (email/password)
+      description: Called by signup_screen.dart via `Supabase.instance.client.auth.signUp`.
+      security: [{ apiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        "200": { description: Session + user created }
+        "400": { description: Invalid email/password, or email already registered }
+
+  /auth/v1/token:
+    post:
+      tags: [Auth]
+      summary: Sign in (grant_type=password) or refresh a session
+      description: Called by login_screen.dart via `Supabase.instance.client.auth.signInWithPassword`.
+      security: [{ apiKeyAuth: [] }]
+      parameters:
+        - name: grant_type
+          in: query
+          required: true
+          schema: { type: string, enum: [password, refresh_token] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                refresh_token: { type: string }
+      responses:
+        "200": { description: Session issued }
+        "400": { description: Invalid credentials — humanized client-side by utils/auth_error.dart }
+
+  /auth/v1/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out (invalidate the current session)
+      security: [{ apiKeyAuth: [], bearerAuth: [] }]
+      responses:
+        "204": { description: Signed out }
+
+  # ── users ────────────────────────────────────────────────────────────────
+  /rest/v1/users:
+    get:
+      tags: [users]
+      summary: List/filter users
+      description: >-
+        RLS: public read. Called by users_repository.dart and
+        LitUser.fromSupabaseRow's caller in app.dart on every sign-in.
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+    patch:
+      tags: [users]
+      summary: Update the signed-in user's own profile row
+      description: "RLS: only the row where id = auth.uid() (\"own row update\") — no insert/delete policy exists, rows are provisioned on signup."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/User" }
+      responses:
+        "204": { description: Updated }
+        "403": { description: RLS rejected — not your row }
+
+  # ── posts ────────────────────────────────────────────────────────────────
+  /rest/v1/posts:
+    get:
+      tags: [posts]
+      summary: List/filter posts
+      description: "RLS: public read. See posts_repository.dart / feed_provider.dart's loadFromSupabase()."
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Post" } }
+    post:
+      tags: [posts]
+      summary: Create a post
+      description: "RLS: insert only where author_id = auth.uid(). See PostsNotifier.addPost."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Post" }
+      responses:
+        "201": { description: Created }
+        "403": { description: RLS rejected — author_id must match the signed-in user }
+    patch:
+      tags: [posts]
+      summary: Update a post
+      description: "RLS: only rows where author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Post" }
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [posts]
+      summary: Delete a post
+      description: "RLS: only rows where author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── comments ─────────────────────────────────────────────────────────────
+  /rest/v1/comments:
+    get:
+      tags: [comments]
+      summary: List/filter comments
+      description: "RLS: public read. See comments_repository.dart."
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: post_id
+          in: query
+          schema: { type: string }
+          example: "eq.p1"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Comment" } }
+    post:
+      tags: [comments]
+      summary: Add a comment
+      description: "RLS: insert only where author_id = auth.uid(). See CommentsNotifier.add."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Comment" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [comments]
+      summary: Update a comment
+      description: "RLS: only rows where author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [comments]
+      summary: Delete a comment
+      description: "RLS: only rows where author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── marketplace_listings ─────────────────────────────────────────────────
+  /rest/v1/marketplace_listings:
+    get:
+      tags: [marketplace_listings]
+      summary: List/filter marketplace listings
+      description: "RLS: public read. See marketplace_repository.dart / marketplace_provider.dart's loadFromSupabase()."
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MarketplaceListing" } }
+    post:
+      tags: [marketplace_listings]
+      summary: List a new item for sale
+      description: "RLS: insert only where seller_id = auth.uid() (server-stamped by column default). See MyListingsNotifier.add."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MarketplaceListing" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [marketplace_listings]
+      summary: Update a listing
+      description: "RLS: only rows where seller_id = auth.uid(). See MyListingsNotifier.update."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [marketplace_listings]
+      summary: Remove a listing
+      description: "RLS: only rows where seller_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── ebook_chapters ───────────────────────────────────────────────────────
+  /rest/v1/ebook_chapters:
+    get:
+      tags: [ebook_chapters]
+      summary: List chapters for a listing
+      description: "RLS: public read."
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: listing_id
+          in: query
+          schema: { type: string }
+          example: "eq.mBook1"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EbookChapter" } }
+    post:
+      tags: [ebook_chapters]
+      summary: Add a chapter to a listing
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EbookChapter" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [ebook_chapters]
+      summary: Update a chapter
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [ebook_chapters]
+      summary: Remove a chapter
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── audio_volumes ────────────────────────────────────────────────────────
+  /rest/v1/audio_volumes:
+    get:
+      tags: [audio_volumes]
+      summary: List audio tracks for a listing
+      description: "RLS: public read."
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: listing_id
+          in: query
+          schema: { type: string }
+          example: "eq.m9"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AudioVolume" } }
+    post:
+      tags: [audio_volumes]
+      summary: Add a track to a listing
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AudioVolume" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [audio_volumes]
+      summary: Update a track
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [audio_volumes]
+      summary: Remove a track
+      description: "RLS: only where the parent listing's seller_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── follows ──────────────────────────────────────────────────────────────
+  /rest/v1/follows:
+    get:
+      tags: [follows]
+      summary: List follow relationships
+      description: >-
+        RLS: public read. See follows_repository.dart. Note: only the
+        "who do I follow" direction is queried anywhere in the app today —
+        there's no "who follows me" query, so the Followers screen shows
+        placeholder data, not a real reverse lookup against this table.
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: follower_id
+          in: query
+          schema: { type: string }
+          example: "eq.u1"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Follow" } }
+    post:
+      tags: [follows]
+      summary: Follow a user
+      description: "RLS: insert only where follower_id = auth.uid(). See FollowNotifier.follow."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Follow" }
+      responses:
+        "201": { description: Created }
+    delete:
+      tags: [follows]
+      summary: Unfollow a user
+      description: "RLS: only rows where follower_id = auth.uid(). See FollowNotifier.unfollow. No update policy — a follow is created or deleted, never edited."
+      parameters:
+        - { $ref: "#/components/parameters/idFilter" }
+        - name: followee_id
+          in: query
+          schema: { type: string }
+          example: "eq.u2"
+      responses:
+        "204": { description: Deleted }
+
+  # ── conversations ────────────────────────────────────────────────────────
+  /rest/v1/conversations:
+    get:
+      tags: [conversations]
+      summary: List the signed-in user's conversations
+      description: "RLS: only rows where owner_id = auth.uid(). See conversations_repository.dart."
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Conversation" } }
+    post:
+      tags: [conversations]
+      summary: Start a conversation
+      description: "RLS: insert only where owner_id = auth.uid() (server-stamped by column default). See ConversationsRepository.ensureConversation."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Conversation" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [conversations]
+      summary: Update conversation metadata (e.g. unread state)
+      description: "RLS: only rows where owner_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [conversations]
+      summary: Delete a conversation
+      description: "RLS: only rows where owner_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── messages ─────────────────────────────────────────────────────────────
+  /rest/v1/messages:
+    get:
+      tags: [messages]
+      summary: List messages in a conversation
+      description: >-
+        RLS: only where the parent conversation's owner_id = auth.uid().
+        One-shot fetch — no live/realtime subscription, see
+        ConversationsNotifier.loadFromSupabase.
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: conversation_id
+          in: query
+          required: true
+          schema: { type: string }
+          example: "eq.u2"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Message" } }
+    post:
+      tags: [messages]
+      summary: Send a message
+      description: "RLS: only where the parent conversation's owner_id = auth.uid(). See ConversationsNotifier.sendMessage."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Message" }
+      responses:
+        "201": { description: Created }
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: apikey
+      description: The project's publishable/anon key (SUPABASE_ANON_KEY).
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The signed-in user's session access token (or the anon key itself for unauthenticated RLS-permitted reads).
+
+  parameters:
+    select:
+      name: select
+      in: query
+      description: PostgREST column-selection syntax, e.g. `select=id,title`.
+      schema: { type: string }
+    idFilter:
+      name: id
+      in: query
+      description: 'PostgREST filter syntax, e.g. `id=eq.p1`.'
+      schema: { type: string }
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
+        bio: { type: string, default: "" }
+        followers_count: { type: integer, default: 0 }
+        following_count: { type: integer, default: 0 }
+        posts_count: { type: integer, default: 0 }
+        earnings: { type: number, default: 0, description: "Display-only — not a real accrued balance, no payment system exists." }
+        is_verified: { type: boolean, default: false }
+        created_at: { type: string, format: date-time }
+
+    Post:
+      type: object
+      required: [id, author_id, title, content, category]
+      properties:
+        id: { type: string }
+        author_id: { type: string }
+        title: { type: string }
+        content: { type: string }
+        category: { type: string, description: "One of the 12 ContentCategory enum names, e.g. poem, novel, haiku." }
+        created_at: { type: string, format: date-time }
+        likes_count: { type: integer, default: 0 }
+        comments_count: { type: integer, default: 0 }
+        shares_count: { type: integer, default: 0 }
+        audio_url: { type: string, nullable: true, description: "Demo/rotating URL today, not a real upload." }
+        cover_image_url: { type: string, nullable: true }
+        linked_listing_id: { type: string, nullable: true }
+        book_id: { type: string, nullable: true }
+
+    Comment:
+      type: object
+      required: [id, post_id, author_id, text]
+      properties:
+        id: { type: string }
+        post_id: { type: string }
+        author_id: { type: string }
+        text: { type: string }
+        created_at: { type: string, format: date-time }
+        likes_count: { type: integer, default: 0 }
+
+    MarketplaceListing:
+      type: object
+      required: [id, title, author_name, price, type]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        author_name: { type: string }
+        price: { type: string, description: "Stored as text, not a numeric/currency type — see database.md." }
+        type: { type: string, enum: [physical, ebook, audio] }
+        rating: { type: number, default: 0 }
+        review_count: { type: integer, default: 0 }
+        linked_post_id: { type: string, nullable: true }
+        content_category: { type: string, nullable: true }
+        genre: { type: string, nullable: true }
+        description: { type: string, default: "" }
+        pdf_file_name: { type: string, nullable: true, description: "Filename only — the file itself is never uploaded anywhere." }
+        ebook_content: { type: string, nullable: true, description: "Legacy flat blob, superseded by ebook_chapters." }
+        seller_id: { type: string, nullable: true, description: "Defaults to auth.uid(); NULL on the original seed rows." }
+
+    EbookChapter:
+      type: object
+      required: [listing_id, position, title, content]
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string }
+        position: { type: integer }
+        title: { type: string }
+        content: { type: string }
+
+    AudioVolume:
+      type: object
+      required: [listing_id, position, title, file_name]
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string }
+        position: { type: integer }
+        title: { type: string }
+        file_name: { type: string, description: "Filename only — not an uploaded/hosted file." }
+
+    Follow:
+      type: object
+      required: [follower_id, followee_id]
+      properties:
+        follower_id: { type: string }
+        followee_id: { type: string }
+        created_at: { type: string, format: date-time }
+
+    Conversation:
+      type: object
+      required: [id, peer_id]
+      properties:
+        id: { type: string }
+        peer_id: { type: string }
+        context_label: { type: string, nullable: true, description: "Set for marketplace-originated threads, e.g. a listing title." }
+        created_at: { type: string, format: date-time }
+        has_unread: { type: boolean, default: false }
+        unread_count: { type: integer, default: 0 }
+        owner_id: { type: string, nullable: true, description: "Defaults to auth.uid(); NULL on the original seed rows (now invisible under RLS)." }
+
+    Message:
+      type: object
+      required: [conversation_id, text]
+      properties:
+        id: { type: string, format: uuid }
+        conversation_id: { type: string }
+        text: { type: string }
+        from_me: { type: boolean, default: false }
+        sent_at: { type: string, format: date-time }
+        is_read: { type: boolean, default: false }
+        sender_id: { type: string, nullable: true, description: "Defaults to auth.uid()." }
