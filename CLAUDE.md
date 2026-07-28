@@ -27,3 +27,17 @@ update it when:
 If a schema change is significant, also check whether
 `docs/database.md`'s "What's real vs. still mocked" section needs
 updating alongside it.
+
+## Keep `codemagic.yaml` in sync with required env vars
+
+`pubspec.yaml` declares `.env` as a bundled asset (`flutter_dotenv`), and
+`.env` is gitignored on purpose (real secrets). `codemagic.yaml`'s "Write
+.env from CI secrets" step writes that file at build time from Codemagic's
+own environment variables (`SUPABASE_URL`, `SUPABASE_ANON_KEY` today) —
+without it, every CI build fails with "No file or variants found for asset:
+.env" before any Dart code compiles (hit and fixed 2026-07-28).
+
+**Whenever a new required key gets added to `.env`/`.env.example`, add it
+to that same script step in `codemagic.yaml`** (and tell whoever owns the
+Codemagic project to add the real value as a new environment variable) —
+otherwise CI silently breaks again the same way.
