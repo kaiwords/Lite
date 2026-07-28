@@ -66,20 +66,28 @@ For full product intent see [`../docs/PRD.md`](../docs/PRD.md) and
 
 ## Backend / data layer
 
-**There is no API server for the mobile app to call.** All data is either:
+The app talks to a real backend: a Supabase-managed Postgres project
+(RLS-enabled), with real email/password auth. Data flows through three
+layers:
 
 1. **Seeded mock data** hard-coded in `lib/models/*.dart` (`mockUsers`,
-   `mockPosts`, `mockListings`, `mockComments`, `mockBooks`) — this stands in
-   for what would eventually be database-backed content served by a real API.
+   `mockPosts`, `mockListings`, `mockComments`, `mockBooks`) — used to render
+   instantly on first launch and as a fallback for the pieces that still
+   have no real backend counterpart (Earnings/tips, the Followers list, cart).
 2. **User-mutable state persisted locally** via `lib/services/local_store.dart`
-   (the `LocalStore` singleton), backed by the `shared_preferences` package.
-   Lists (posts, cart, purchases, my-listings, comments) are JSON-encoded
-   strings; simple scalars (current user, theme mode, follows, visible
-   categories) are stored directly.
+   (the `LocalStore` singleton), backed by the `shared_preferences` package —
+   an instant local cache, not the source of truth for synced data.
+3. **`lib/services/*_repository.dart`** — one per domain (posts, comments,
+   conversations, follows, marketplace, users), each reading/writing the
+   Supabase tables directly. Every provider seeds from (1)/(2) immediately,
+   then calls `loadFromSupabase()` to replace it with live data once it
+   arrives; writes apply locally first and sync in the background, surfacing
+   a "couldn't sync" message if the write fails.
 
-This means: no accounts really exist beyond the current device, nothing
-syncs across devices, and reinstalling the app / clearing app data resets
-everything back to the seeded mock state. When a real backend is built (see
-[`../docs/database.md`](../docs/database.md) — Supabase/Postgres is the
-current plan), it will be shared with the future web app rather than being
-mobile-only.
+Still true: no cloud file storage (uploaded audio/PDFs/covers are read
+locally, never uploaded), no real-time/live delivery (each screen fetches
+once, not pushed), no real payments. See
+[`../docs/database.md`](../docs/database.md) for the full picture of what's
+real vs. still mocked, and [`../docs/out-of-scope.md`](../docs/out-of-scope.md)
+for what's deliberately not built. The future web app, if built, would share
+this same backend rather than getting its own.

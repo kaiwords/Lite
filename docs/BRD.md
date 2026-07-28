@@ -38,8 +38,9 @@ Build a social-first literature platform where:
 
 ## 5. Constraints
 
-- Single-developer / early-stage project; no backend, no payment processor,
-  no real accounts yet (see [`out-of-scope.md`](out-of-scope.md)).
+- Single-developer / early-stage project; real backend and real accounts
+  now exist (Supabase, since 2026-07), but still no payment processor and
+  no content moderation (see [`out-of-scope.md`](out-of-scope.md)).
 - Must work as a mobile-first experience; web is aspirational, not committed.
 
 ## 6. Related documents

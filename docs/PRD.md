@@ -51,17 +51,30 @@ and audiobooks, plus an in-app book reader and audiobook player.
 - Filter bar / filter sheet, marketplace badges on posts
 
 ### 3.5 Social graph & profile
-- Follow/unfollow, followers/following counts
+- Follow/unfollow (real, synced to Supabase), followers/following counts
 - User profile (own + other users' via `/user/:userId`)
 - Editable profile (display name, bio) via edit-profile sheet
-- Per-creator `earnings` field (marketplace revenue attribution)
+- Followers, Following, and Earned each open a dedicated full screen from
+  the profile stats row (`/profile/followers`, `/profile/following`,
+  `/profile/earnings`); the followers/following screen has search
+- Per-creator `earnings` field — **display only, not real**: the Earnings
+  screen's totals and tip history are generated mock data, see §4
 
 ### 3.6 Messaging
 - Conversation list and 1:1 conversation screen (`/messages`,
-  `/messages/:name`)
+  `/messages/:name`), now persisted to Supabase (not just local mocks) —
+  but not live: a peer's message only shows up after a refresh/relaunch
 - Separate marketplace messages screen for buyer/seller communication
 
-### 3.7 Other
+### 3.7 Accounts
+- Real email/password authentication via Supabase Auth (`/login`,
+  `/signup`), session persistence, router-level redirect for signed-out
+  users
+- Real backend (Supabase Postgres, RLS-enabled) backs posts, comments,
+  marketplace listings, conversations/messages, and follows — see
+  [`database.md`](database.md) for what's real vs. still mocked
+
+### 3.8 Other
 - Search screen
 - Alerts/notifications screen (+ marketplace-specific notifications)
 - Settings screen (theme mode: system/light/dark, persisted)
@@ -70,8 +83,11 @@ and audiobooks, plus an in-app book reader and audiobook player.
 ## 4. Explicitly Not Yet Implemented
 
 See [out-of-scope.md](out-of-scope.md) for the full list — most importantly:
-no backend/API, no real authentication, no payments, no push notifications,
-no cross-device sync, no content moderation.
+no payments/payouts, no push notifications, no content moderation/reporting,
+no cloud file storage (uploaded audio/PDFs/covers aren't actually uploaded
+anywhere), no live/real-time data delivery. Real backend, real
+authentication, and real cross-device sync *do* now exist (Supabase,
+shipped 2026-07) — see [database.md](database.md).
 
 ## 5. Non-Goals
 
@@ -82,4 +98,7 @@ See [out-of-scope.md](out-of-scope.md).
 - Is web a real target or mobile-only for the foreseeable future?
 - What's the monetization model for the platform itself (take-rate on
   marketplace sales? subscriptions?) — not modeled anywhere in the code yet.
-- Is content moderation/reporting required before any public launch?
+- Is content moderation/reporting required before any public launch? —
+  more pressing now than when this question was first written: posts,
+  comments, listings, and messages are real, persisted, multi-user data in
+  Supabase, not just on-device mocks.

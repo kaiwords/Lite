@@ -7,4 +7,4 @@ reader, and audiobook player.
 
 - [`mobile-app/`](mobile-app) — the Flutter app (active, primary codebase)
 - [`web-app/`](web-app) — future web client (not started)
-- [`docs/`](docs) — BRD, PRD, requirements, out-of-scope, database plan, task log
+- [`docs/`](docs) — BRD, PRD, requirements, out-of-scope, database (Supabase — live, not just a plan), task log
