@@ -53,6 +53,23 @@ extension ContentCategoryLabel on ContentCategory {
   };
 }
 
+/// An additional page in a multi-page post, beyond the post's main
+/// title/content (which is always page one). [title] is null when the
+/// writer chose not to show a title on this page.
+class PostPage {
+  final String? title;
+  final String content;
+
+  const PostPage({this.title, required this.content});
+
+  Map<String, dynamic> toJson() => {'title': title, 'content': content};
+
+  factory PostPage.fromJson(Map<String, dynamic> j) => PostPage(
+        title: j['title'] as String?,
+        content: j['content'] as String,
+      );
+}
+
 class Post {
   final String id;
   final LitUser author;
@@ -69,6 +86,7 @@ class Post {
   final String? coverImageUrl;
   final String? linkedListingId;
   final String? bookId; // links to a Book in the reader
+  final List<PostPage> pages; // additional pages beyond title/content
 
   const Post({
     required this.id,
@@ -86,6 +104,7 @@ class Post {
     this.coverImageUrl,
     this.linkedListingId,
     this.bookId,
+    this.pages = const [],
   });
 
   Post copyWith({
@@ -111,6 +130,7 @@ class Post {
         coverImageUrl: coverImageUrl,
         linkedListingId: linkedListingId,
         bookId: bookId,
+        pages: pages,
       );
 
   Map<String, dynamic> toJson() => {
@@ -129,6 +149,7 @@ class Post {
         'coverImageUrl': coverImageUrl,
         'linkedListingId': linkedListingId,
         'bookId': bookId,
+        'pages': pages.map((p) => p.toJson()).toList(),
       };
 
   factory Post.fromJson(Map<String, dynamic> j) => Post(
@@ -147,6 +168,10 @@ class Post {
         coverImageUrl: j['coverImageUrl'] as String?,
         linkedListingId: j['linkedListingId'] as String?,
         bookId: j['bookId'] as String?,
+        pages: (j['pages'] as List?)
+                ?.map((p) => PostPage.fromJson((p as Map).cast<String, dynamic>()))
+                .toList() ??
+            const [],
       );
 }
 

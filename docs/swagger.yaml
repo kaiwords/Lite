@@ -42,6 +42,7 @@ tags:
     description: Supabase Auth (email/password) — not custom to this app, but what login_screen.dart/signup_screen.dart call.
   - name: users
   - name: posts
+  - name: post_pages
   - name: comments
   - name: marketplace_listings
   - name: ebook_chapters
@@ -175,6 +176,55 @@ paths:
       tags: [posts]
       summary: Delete a post
       description: "RLS: only rows where author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Deleted }
+
+  # ── post_pages ───────────────────────────────────────────────────────────
+  /rest/v1/post_pages:
+    get:
+      tags: [post_pages]
+      summary: List additional pages for a post
+      description: >-
+        RLS: public read. Extra pages beyond a post's main title/content,
+        added while writing (PostScreen's "Add page"). Each page's `title`
+        is nullable — the writer is prompted per page whether to keep
+        showing a title or not. See posts_repository.dart's fetchAll
+        (joined as `post_pages(*)`) and PostPage in models/post.dart.
+      parameters:
+        - { $ref: "#/components/parameters/select" }
+        - name: post_id
+          in: query
+          schema: { type: string }
+          example: "eq.p1"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/PostPage" } }
+    post:
+      tags: [post_pages]
+      summary: Add a page to a post
+      description: "RLS: only where the parent post's author_id = auth.uid(). See PostsRepository.insert."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostPage" }
+      responses:
+        "201": { description: Created }
+    patch:
+      tags: [post_pages]
+      summary: Update a page
+      description: "RLS: only where the parent post's author_id = auth.uid()."
+      parameters: [{ $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [post_pages]
+      summary: Remove a page
+      description: "RLS: only where the parent post's author_id = auth.uid()."
       parameters: [{ $ref: "#/components/parameters/idFilter" }]
       responses:
         "204": { description: Deleted }
@@ -527,6 +577,16 @@ components:
         cover_image_url: { type: string, nullable: true }
         linked_listing_id: { type: string, nullable: true }
         book_id: { type: string, nullable: true }
+
+    PostPage:
+      type: object
+      required: [post_id, position, content]
+      properties:
+        id: { type: string, format: uuid }
+        post_id: { type: string }
+        position: { type: integer, description: "0-based order among a post's extra pages, after its main title/content." }
+        title: { type: string, nullable: true, description: "Null when the writer chose not to show a title on this page." }
+        content: { type: string }
 
     Comment:
       type: object

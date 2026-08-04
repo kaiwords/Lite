@@ -218,9 +218,25 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
 
   List<String> _computePages(Size bodySize) {
     final post = widget.post;
+    // Author-defined pages (added while writing) are shown as-is, one per
+    // swipe, ahead of any auto-pagination of a single long page.
+    if (post.pages.isNotEmpty) {
+      return [post.content, ...post.pages.map((p) => p.content)];
+    }
     if (post.category == ContentCategory.joke) return [post.content.trim()];
     if (_isPoetic) return paginatePost(post); // one stanza per page
     return paginateTextToFit(post.content, _bodyStyle, bodySize);
+  }
+
+  /// The title to show for the page currently in view — the post's main
+  /// title on page one, otherwise that authored page's own title (which may
+  /// be null if the writer chose to hide it).
+  String? get _currentPageTitle {
+    final post = widget.post;
+    if (post.pages.isEmpty || _pageIndex == 0) return post.title;
+    final pageAuthorIndex = _pageIndex - 1;
+    if (pageAuthorIndex >= post.pages.length) return post.title;
+    return post.pages[pageAuthorIndex].title;
   }
 
   void _applyPages(Size size) {
@@ -265,6 +281,7 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
                     padding: const EdgeInsets.fromLTRB(26, 16, 26, 8),
                     child: _PostHeader(
                       post: widget.post,
+                      title: _currentPageTitle,
                       isDark: widget.isDark,
                       focusMode: widget.focusMode,
                     ),
@@ -345,11 +362,13 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
 
 class _PostHeader extends StatelessWidget {
   final Post post;
+  final String? title;
   final bool isDark;
   final bool focusMode;
 
   const _PostHeader({
     required this.post,
+    required this.title,
     required this.isDark,
     required this.focusMode,
   });
@@ -394,17 +413,18 @@ class _PostHeader extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        Text(
-          post.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: titleColor,
-            height: 1.25,
+        if (title != null)
+          Text(
+            title!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: titleColor,
+              height: 1.25,
+            ),
           ),
-        ),
         if (!focusMode && post.linkedListingId != null) ...[
           const SizedBox(height: 10),
           MarketplaceBadge(listingId: post.linkedListingId!, isDark: isDark),

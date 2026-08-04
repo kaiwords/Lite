@@ -10,7 +10,7 @@ Supabase" entry for what changed and when.
 
 | Layer | What it is | Where |
 |---|---|---|
-| Remote database | Supabase-hosted Postgres. Tables: `users`, `posts`, `comments`, `marketplace_listings`, `ebook_chapters`, `audio_volumes`, `follows`, `conversations`, `messages` — all RLS-enabled | `supabase/migrations/` (RLS policies only; the base schema itself was created directly against the project and isn't captured as migration files yet — see "Gaps" below) |
+| Remote database | Supabase-hosted Postgres. Tables: `users`, `posts`, `post_pages`, `comments`, `marketplace_listings`, `ebook_chapters`, `audio_volumes`, `follows`, `conversations`, `messages` — all RLS-enabled | `supabase/migrations/` (RLS policies only; the base schema itself was created directly against the project and isn't captured as migration files yet — see "Gaps" below) |
 | Client access | `services/*_repository.dart` (one per domain: posts, comments, conversations, follows, marketplace, users), each calling the Supabase client directly | `lib/services/` |
 | Auth | Real Supabase Auth (email/password) | `lib/providers/auth_provider.dart`, `lib/screens/auth/` |
 | Local cache/fallback | `shared_preferences` via `LocalStore` — still used to seed instantly on launch and as an offline fallback; each provider's `loadFromSupabase()` then replaces it with live data | `lib/services/local_store.dart` |

@@ -96,6 +96,26 @@ void main() {
       expect(contentCategoryFromName('not-a-category'), ContentCategory.poem);
       expect(contentCategoryFromName(null), ContentCategory.poem);
     });
+
+    test('toJson/fromJson round-trips extra pages, including a hidden title', () {
+      final post = Post(
+        id: 'p10',
+        author: mockUsers[0],
+        title: 'Main title',
+        content: 'Main content',
+        category: ContentCategory.novel,
+        createdAt: DateTime(2026, 8, 3),
+        pages: const [
+          PostPage(title: 'Main title', content: 'Page two content'),
+          PostPage(content: 'Page three content'), // title hidden
+        ],
+      );
+      final back = Post.fromJson(post.toJson());
+      expect(back.toJson(), post.toJson());
+      expect(back.pages.length, 2);
+      expect(back.pages[0].title, 'Main title');
+      expect(back.pages[1].title, isNull);
+    });
   });
 
   group('MarketplaceListing', () {

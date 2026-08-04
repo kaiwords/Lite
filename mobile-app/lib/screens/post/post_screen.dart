@@ -65,6 +65,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   String? _audioFileName;
   String? _coverFileName;
   List<String> _tags = [];
+  final List<_PageDraft> _extraPages = [];
 
   @override
   void initState() {
@@ -91,7 +92,60 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     _titleController.dispose();
     _contentController.dispose();
     _contentFocus.dispose();
+    for (final page in _extraPages) {
+      page.dispose();
+    }
     super.dispose();
+  }
+
+  /// Appends a new page. If the previous page (or the main title, for the
+  /// first added page) has a visible title, asks whether to keep showing
+  /// that same title on the new page too.
+  Future<void> _addPage() async {
+    final refTitle = _extraPages.isEmpty
+        ? _titleController.text.trim()
+        : (_extraPages.last.showTitle
+            ? _extraPages.last.titleController.text.trim()
+            : '');
+
+    var showTitle = false;
+    var initialTitle = '';
+    if (refTitle.isNotEmpty) {
+      final keep = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text('Add page',
+              style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
+          content: Text('Show "$refTitle" as the title on this page too?',
+              style: GoogleFonts.lato(fontSize: 14)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No title'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Yes, keep it'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (keep ?? false) {
+        showTitle = true;
+        initialTitle = refTitle;
+      }
+    }
+
+    setState(() {
+      _extraPages.add(_PageDraft(showTitle: showTitle, initialTitle: initialTitle));
+    });
+  }
+
+  void _removePage(int index) {
+    setState(() {
+      _extraPages.removeAt(index).dispose();
+    });
   }
 
   /// Wraps the current content selection in [token] (e.g. `**` for bold). With
@@ -266,6 +320,15 @@ class _PostScreenState extends ConsumerState<PostScreen> {
           ? (_audioFileName ?? 'audio/user_recording.mp3')
           : null,
       coverImageUrl: _coverFileName,
+      pages: _extraPages
+          .map((p) => PostPage(
+                title: p.showTitle && p.titleController.text.trim().isNotEmpty
+                    ? p.titleController.text.trim()
+                    : null,
+                content: p.contentController.text.trim(),
+              ))
+          .where((p) => p.content.isNotEmpty)
+          .toList(),
     );
     // Capture the (root) messenger before popping so the sync-failure snack
     // can still be shown after this screen is gone.
@@ -401,8 +464,130 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               onTagsTap: _editTags,
               onUploadTap: _pickAndFillFromFile,
             ),
+            const SizedBox(height: 20),
+            Divider(color: isDark ? AppColors.darkDivider : AppColors.divider),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Pages', style: Theme.of(context).textTheme.titleMedium),
+                TextButton.icon(
+                  onPressed: _addPage,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add page'),
+                ),
+              ],
+            ),
+            for (var i = 0; i < _extraPages.length; i++)
+              _PageEditor(
+                index: i,
+                page: _extraPages[i],
+                isDark: isDark,
+                onRemove: () => _removePage(i),
+                onToggleTitle: () => setState(
+                    () => _extraPages[i].showTitle = !_extraPages[i].showTitle),
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Mutable draft state for one additional page while composing a post.
+class _PageDraft {
+  final TextEditingController titleController;
+  final TextEditingController contentController;
+  bool showTitle;
+
+  _PageDraft({required this.showTitle, String initialTitle = ''})
+      : titleController = TextEditingController(text: initialTitle),
+        contentController = TextEditingController();
+
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+  }
+}
+
+/// Editor card for one additional page: optional title (toggle on/off) plus
+/// content. The writer decides per page whether a title shows at all.
+class _PageEditor extends StatelessWidget {
+  final int index;
+  final _PageDraft page;
+  final bool isDark;
+  final VoidCallback onRemove;
+  final VoidCallback onToggleTitle;
+
+  const _PageEditor({
+    required this.index,
+    required this.page,
+    required this.isDark,
+    required this.onRemove,
+    required this.onToggleTitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final fill = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Page ${index + 2}',
+                  style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w700, color: mutedColor)),
+              const Spacer(),
+              IconButton(
+                tooltip: page.showTitle ? 'Hide title on this page' : 'Show title on this page',
+                icon: Icon(
+                  page.showTitle ? Icons.title_rounded : Icons.title_outlined,
+                  size: 18,
+                  color: page.showTitle ? AppColors.accent : mutedColor,
+                ),
+                onPressed: onToggleTitle,
+              ),
+              IconButton(
+                tooltip: 'Remove page',
+                icon: Icon(Icons.close_rounded, size: 18, color: mutedColor),
+                onPressed: onRemove,
+              ),
+            ],
+          ),
+          if (page.showTitle)
+            TextField(
+              controller: page.titleController,
+              style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700, fontSize: 16, color: textColor),
+              decoration: InputDecoration(
+                hintText: 'Page title',
+                hintStyle: GoogleFonts.playfairDisplay(color: mutedColor),
+                isDense: true,
+                border: InputBorder.none,
+              ),
+            ),
+          TextField(
+            controller: page.contentController,
+            maxLines: null,
+            minLines: 3,
+            style: GoogleFonts.lora(fontSize: 14, height: 1.6, color: textColor),
+            decoration: InputDecoration(
+              hintText: 'Page content...',
+              hintStyle: GoogleFonts.lora(color: mutedColor),
+              isDense: true,
+              border: InputBorder.none,
+            ),
+          ),
+        ],
       ),
     );
   }
