@@ -2,7 +2,7 @@ name: literature
 description: "A social literature platform for writers and readers."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.1.0+5
 
 environment:
   sdk: ^3.10.7

@@ -551,7 +551,8 @@ components:
         id: { type: string }
         username: { type: string }
         display_name: { type: string }
-        avatar_url: { type: string, nullable: true }
+        avatar_url: { type: string, nullable: true, description: "Local file path today — no upload backend, see database.md's 'no file storage' note." }
+        cover_image_url: { type: string, nullable: true, description: "Local file path today — same caveat as avatar_url." }
         bio: { type: string, default: "" }
         followers_count: { type: integer, default: 0 }
         following_count: { type: integer, default: 0 }
@@ -617,6 +618,11 @@ components:
         pdf_file_name: { type: string, nullable: true, description: "Filename only — the file itself is never uploaded anywhere." }
         ebook_content: { type: string, nullable: true, description: "Legacy flat blob, superseded by ebook_chapters." }
         seller_id: { type: string, nullable: true, description: "Defaults to auth.uid(); NULL on the original seed rows." }
+        cover_image_url: { type: string, nullable: true, description: "Added 2026-08-07 for the legacy Firebase import (scripts/firebase-migration/) — no upload flow sets this yet, see database.md's 'no file storage' note." }
+        qty: { type: integer, nullable: true, description: "Added 2026-08-07. Stock count carried over from legacy listings; not read/written by any current app flow." }
+        is_sold_out: { type: boolean, default: false, description: "Added 2026-08-07. Not read/written by any current app flow." }
+        created_at: { type: string, format: date-time, description: "Added 2026-08-07." }
+        updated_at: { type: string, format: date-time, description: "Added 2026-08-07." }
 
     EbookChapter:
       type: object

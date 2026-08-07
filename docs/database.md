@@ -27,8 +27,19 @@ Not everything reachable through the UI is actually backed by this database:
   no payment or tipping system exists at all, real or otherwise).
 - **Still local-only, no file storage**: audio in the feed points at rotating
   demo URLs, not user uploads — `file_picker`-selected files (covers, PDFs,
-  audio) are read locally and never uploaded to Supabase Storage or anywhere
-  else. See "Commerce"/"Backend" gaps in [`out-of-scope.md`](out-of-scope.md).
+  audio, and profile/cover photos) are read locally and never uploaded to
+  Supabase Storage or anywhere else. `users.avatar_url`/`cover_image_url`
+  *are* synced to the row, but the value is the device's local file path —
+  meaningless on any other device until real storage exists. See
+  "Commerce"/"Backend" gaps in [`out-of-scope.md`](out-of-scope.md).
+  Exception: rows brought in by the legacy Firebase import (below) have a
+  real `firebasestorage.googleapis.com` URL in `avatar_url`/
+  `marketplace_listings.cover_image_url`, which works today but goes dead
+  if the old `ram-literature-v2` Firebase project is ever deleted.
+- **`marketplace_listings.cover_image_url`/`qty`/`is_sold_out`/
+  `created_at`/`updated_at`** (added 2026-08-07): exist only to hold data
+  carried over by `scripts/firebase-migration/` from the legacy app's
+  `book_listings` collection. No current app flow reads or writes them.
 - **No real-time transport**: `loadFromSupabase()` is a one-shot fetch on
   provider init, not a live subscription — a second device/session won't see
   a new message or post appear without a manual refresh/relaunch.

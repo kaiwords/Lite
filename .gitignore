@@ -1,0 +1,9 @@
+# Safety net: this repo has no other root .gitignore, so make sure
+# node_modules and stray local secrets never get staged by accident.
+node_modules/
+*.env
+*.env.*
+
+# Firebase Auth export (firebase auth:export) — contains real password
+# hashes/salts. Never commit this; keep exports outside the repo entirely.
+old_users.json

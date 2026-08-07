@@ -6,12 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
 import '../../providers/marketplace_provider.dart';
-import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/marketplace_listing_card.dart';
 import 'cart_tab.dart';
 import 'library_tab.dart';
+import 'marketplace_shared_widgets.dart';
 import 'my_listings_tab.dart';
 import 'sales_tab.dart';
 
@@ -48,7 +47,8 @@ class MarketplaceScreen extends ConsumerWidget {
         label: 'Books',
         subtitle: '${allListings.length} titles to explore',
         icon: Icons.auto_stories_rounded,
-        color: const Color(0xFF6B4EAA),
+        color: const Color(0xFF6E51A6),
+        iconBg: const Color(0xFFECE6F5),
         onTap: () => open(const _BooksSectionScreen()),
       ),
       _SectionTileData(
@@ -57,7 +57,8 @@ class MarketplaceScreen extends ConsumerWidget {
             ? 'Nothing here yet'
             : '${cart.length} ${cart.length == 1 ? 'item' : 'items'}',
         icon: Icons.shopping_cart_outlined,
-        color: AppColors.accent,
+        color: const Color(0xFFB4692A),
+        iconBg: const Color(0xFFF7E6D2),
         badge: cart.isEmpty ? null : '${cart.length}',
         onTap: () => open(_CartSectionScreen(isDark: isDark)),
       ),
@@ -67,7 +68,8 @@ class MarketplaceScreen extends ConsumerWidget {
             ? 'No purchases yet'
             : '${purchases.length} ${purchases.length == 1 ? 'title' : 'titles'}',
         icon: Icons.library_books_outlined,
-        color: const Color(0xFF4A6FA5),
+        color: const Color(0xFF47637E),
+        iconBg: const Color(0xFFE2E9EE),
         onTap: () => open(_LibrarySectionScreen(isDark: isDark)),
       ),
       _SectionTileData(
@@ -76,7 +78,8 @@ class MarketplaceScreen extends ConsumerWidget {
             ? 'Nothing listed yet'
             : '${myListings.length} active',
         icon: Icons.storefront_outlined,
-        color: const Color(0xFF5C7A5C),
+        color: const Color(0xFF5A7A3C),
+        iconBg: const Color(0xFFE6EEDD),
         onTap: () => open(_MyListingsSectionScreen(isDark: isDark)),
       ),
       _SectionTileData(
@@ -85,7 +88,8 @@ class MarketplaceScreen extends ConsumerWidget {
             ? 'No sales yet'
             : '${sales.length} ${sales.length == 1 ? 'sale' : 'sales'}',
         icon: Icons.bar_chart_rounded,
-        color: const Color(0xFF9B5C8A),
+        color: const Color(0xFF8A4468),
+        iconBg: const Color(0xFFF2E1E9),
         onTap: () => open(_SalesSectionScreen(isDark: isDark)),
       ),
     ];
@@ -95,7 +99,12 @@ class MarketplaceScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Marketplace',
-          style: Theme.of(context).appBarTheme.titleTextStyle,
+          style: GoogleFonts.playfairDisplay(
+            color: textColor,
+            fontSize: 26,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.3,
+          ),
         ),
         actions: [
           IconButton(
@@ -115,17 +124,21 @@ class MarketplaceScreen extends ConsumerWidget {
             Text(
               'What would you like to do?',
               style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
                 color: textColor,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               'Browse books, manage your cart, library, listings and sales',
-              style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+              style: GoogleFonts.lato(
+                fontSize: 14,
+                color: mutedColor,
+                height: 1.4,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             Expanded(
               // A fixed `mainAxisExtent` (rather than `childAspectRatio`)
               // keeps each tile's height constant regardless of screen
@@ -136,9 +149,12 @@ class MarketplaceScreen extends ConsumerWidget {
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: 168,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  // 168 was too tight for the tile's actual content (icon
+                  // chip + title + subtitle + "View" row + 18px padding on
+                  // all sides) and overflowed by ~14px on every phone width.
+                  mainAxisExtent: 190,
                 ),
                 itemCount: sections.length,
                 itemBuilder: (_, i) =>
@@ -161,6 +177,7 @@ class _SectionTileData {
   final String subtitle;
   final IconData icon;
   final Color color;
+  final Color iconBg;
   final String? badge;
   final VoidCallback onTap;
 
@@ -169,6 +186,7 @@ class _SectionTileData {
     required this.subtitle,
     required this.icon,
     required this.color,
+    required this.iconBg,
     required this.onTap,
     this.badge,
   });
@@ -181,46 +199,32 @@ class _SectionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark
-        ? AppColors.darkCardBorder
-        : AppColors.cardBorder;
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final cardColor = isDark ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
 
+    // Card tile: white surface, hairline border, rounded corners — matches
+    // the marketplace redesign reference (soft pastel icon chip, serif
+    // title, muted subtitle, "View →" link pinned to the bottom).
     return GestureDetector(
       onTap: data.onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(18),
+          color: cardColor,
           border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(16),
         ),
+        padding: const EdgeInsets.all(18),
         child: Stack(
           children: [
-            // Colored top bar
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 5,
-                decoration: BoxDecoration(
-                  color: data.color,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
-                ),
-              ),
-            ),
-
             // Badge
             if (data.badge != null)
               Positioned(
-                top: 12,
-                right: 12,
+                top: -4,
+                right: -4,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 7,
@@ -241,66 +245,59 @@ class _SectionTile extends StatelessWidget {
                 ),
               ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: data.color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(data.icon, size: 19, color: data.color),
+            // Content — left-aligned, icon chip → title → subtitle → "View →"
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: data.iconBg,
+                    borderRadius: BorderRadius.circular(13),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    data.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
+                  child: Icon(data.icon, size: 22, color: data.color),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  data.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    data.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                  ),
-                  const SizedBox(height: 8),
-                  // A plain Icon (rather than a "→" glyph in the string)
-                  // avoids depending on the active font having that glyph —
-                  // a missing glyph can render as a much taller fallback
-                  // box and blow out this tile's tight fixed height.
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View',
-                        style: GoogleFonts.lato(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: data.color,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 12,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  data.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'View',
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                         color: data.color,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: data.color,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -319,15 +316,7 @@ class _BooksSectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Books',
-          style: Theme.of(context).appBarTheme.titleTextStyle,
-        ),
-      ),
-      body: _BooksBody(isDark: isDark),
-    );
+    return Scaffold(body: _BooksBody(isDark: isDark));
   }
 }
 
@@ -340,7 +329,12 @@ class _CartSectionScreen extends StatelessWidget {
     appBar: AppBar(
       title: Text('Cart', style: Theme.of(context).appBarTheme.titleTextStyle),
     ),
-    body: CartTab(isDark: isDark),
+    body: CartTab(
+      isDark: isDark,
+      onBrowseBooks: () => Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const _BooksSectionScreen()),
+      ),
+    ),
   );
 }
 
@@ -390,7 +384,7 @@ class _SalesSectionScreen extends StatelessWidget {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Books body — all listings with genre + format filters (no genre grouping)
+// Books body — search bar + result count + a 3-column cover grid
 // ═════════════════════════════════════════════════════════════════════════════
 
 class _BooksBody extends ConsumerStatefulWidget {
@@ -401,9 +395,27 @@ class _BooksBody extends ConsumerStatefulWidget {
   ConsumerState<_BooksBody> createState() => _BooksBodyState();
 }
 
+enum _BookLayout { grid, list }
+
 class _BooksBodyState extends ConsumerState<_BooksBody> {
+  final _searchController = TextEditingController();
+  String _query = '';
   Genre? _genre; // null = all genres
   ListingType? _format; // null = all formats
+  _BookLayout _layout = _BookLayout.grid;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearFilters() => setState(() {
+        _searchController.clear();
+        _query = '';
+        _genre = null;
+        _format = null;
+      });
 
   // Genres that have at least one listing
   List<Genre> _availableGenres(List<MarketplaceListing> allListings) {
@@ -417,107 +429,238 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
-    final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final allPosts = ref.watch(postsNotifierProvider);
     final allListings = ref.watch(marketplaceListingsProvider);
 
+    final q = _query.trim().toLowerCase();
     final listings = allListings.where((l) {
       if (_genre != null && l.genre != _genre) return false;
       if (_format != null && l.type != _format) return false;
+      if (q.isNotEmpty &&
+          !l.title.toLowerCase().contains(q) &&
+          !l.authorName.toLowerCase().contains(q)) {
+        return false;
+      }
       return true;
     }).toList();
 
-    final hasFilter = _genre != null || _format != null;
-
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        // ── Sort / filter by genre ──────────────────────────────────────────
-        _GenreFilterRow(
-          genres: _availableGenres(allListings),
-          selected: _genre,
-          isDark: isDark,
-          onChanged: (g) => setState(() => _genre = g),
-        ),
-        const SizedBox(height: 8),
-        // ── Filter by format ────────────────────────────────────────────────
-        _FormatFilterRow(
-          selected: _format,
-          isDark: isDark,
-          onChanged: (t) => setState(() => _format = t),
-        ),
-        const SizedBox(height: 6),
-        // ── Result count + clear ────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-          child: Row(
-            children: [
-              Text(
-                '${listings.length} ${listings.length == 1 ? 'title' : 'titles'}',
-                style: GoogleFonts.lato(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: mutedColor,
-                ),
+    return CustomScrollView(
+      slivers: [
+        // floating+snap: hides the title/search as soon as the list scrolls
+        // down, and snaps them back the moment the user scrolls back up.
+        SliverAppBar(
+          floating: true,
+          snap: true,
+          toolbarHeight: 44,
+          title: Text(
+            'Books',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(64),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: _SearchField(
+                controller: _searchController,
+                isDark: isDark,
+                onChanged: (v) => setState(() => _query = v),
               ),
-              const Spacer(),
-              if (hasFilter)
-                GestureDetector(
-                  onTap: () => setState(() {
-                    _genre = null;
-                    _format = null;
-                  }),
-                  child: Text(
-                    'Clear',
-                    style: GoogleFonts.lato(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accent,
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
-        Divider(height: 1, color: divColor),
-        Expanded(
-          child: listings.isEmpty
-              ? _EmptyBooks(
+        // pinned (not just a plain sliver): genre + format stay on screen at
+        // all times, unlike the title/search bar above, which is allowed to
+        // scroll out of view.
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _PinnedFiltersDelegate(
+            height: 78,
+            isDark: isDark,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                _GenreFilterRow(
+                  genres: _availableGenres(allListings),
+                  selected: _genre,
                   isDark: isDark,
-                  onClear: () => setState(() {
-                    _genre = null;
-                    _format = null;
-                  }),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(top: 4, bottom: 24),
-                  itemCount: listings.length,
-                  itemBuilder: (context, i) {
-                    final listing = listings[i];
-                    VoidCallback? onViewPost;
-                    if (listing.linkedPostId != null) {
-                      if (listing.type == ListingType.audio) {
-                        onViewPost = () =>
-                            context.push('/audio', extra: listing.linkedPostId);
-                      } else {
-                        final idx = allPosts.indexWhere(
-                          (p) => p.id == listing.linkedPostId,
-                        );
-                        if (idx >= 0) {
-                          onViewPost = () => context.push('/viewer/$idx');
-                        }
-                      }
-                    }
-                    return MarketplaceListingCard(
-                      listing: listing,
-                      isDark: isDark,
-                      onViewPost: onViewPost,
-                    );
-                  },
+                  onChanged: (g) => setState(() => _genre = g),
                 ),
+                const SizedBox(height: 8),
+                _FormatFilterRow(
+                  selected: _format,
+                  isDark: isDark,
+                  onChanged: (t) => setState(() => _format = t),
+                ),
+              ],
+            ),
+          ),
         ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing ${listings.length} of ${allListings.length} titles',
+                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                  ),
+                ),
+                _LayoutToggleButton(
+                  icon: Icons.grid_view_rounded,
+                  selected: _layout == _BookLayout.grid,
+                  isDark: isDark,
+                  onTap: () => setState(() => _layout = _BookLayout.grid),
+                ),
+                const SizedBox(width: 4),
+                _LayoutToggleButton(
+                  icon: Icons.view_list_rounded,
+                  selected: _layout == _BookLayout.list,
+                  isDark: isDark,
+                  onTap: () => setState(() => _layout = _BookLayout.list),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (listings.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _EmptyBooks(isDark: isDark, onClear: _clearFilters),
+          )
+        else if (_layout == _BookLayout.grid)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 4,
+                // Fixed extent (not childAspectRatio) keeps each tile's
+                // height constant regardless of screen width — see
+                // library_tab.dart's identical grid for why. Must stay
+                // >= the cover's fixed height (below) + text block, or
+                // the tile's Column overflows.
+                mainAxisExtent: 250,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _BookGridTile(
+                  listing: listings[i],
+                  coverColor: coverPalette[i % coverPalette.length],
+                  isDark: isDark,
+                ),
+                childCount: listings.length,
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  if (i.isOdd) {
+                    return Divider(
+                      height: 1,
+                      color:
+                          isDark ? AppColors.darkDivider : AppColors.divider,
+                    );
+                  }
+                  final listing = listings[i ~/ 2];
+                  return _BookListTile(
+                    listing: listing,
+                    coverColor:
+                        coverPalette[(i ~/ 2) % coverPalette.length],
+                    isDark: isDark,
+                  );
+                },
+                childCount: listings.isEmpty ? 0 : listings.length * 2 - 1,
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pinned genre/format filter header — stays on screen while everything else
+// (including the title/search SliverAppBar above it) scrolls away.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PinnedFiltersDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+  final bool isDark;
+  const _PinnedFiltersDelegate({
+    required this.child,
+    required this.height,
+    required this.isDark,
+  });
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    // Opaque background needed — a pinned sliver otherwise lets the
+    // scrolling content behind it show through.
+    return ColoredBox(
+      color: isDark ? AppColors.darkBackground : AppColors.background,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedFiltersDelegate oldDelegate) =>
+      child != oldDelegate.child ||
+      height != oldDelegate.height ||
+      isDark != oldDelegate.isDark;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid / list layout toggle
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LayoutToggleButton extends StatelessWidget {
+  final IconData icon;
+  final bool selected;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _LayoutToggleButton({
+    required this.icon,
+    required this.selected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 17,
+          color: selected ? AppColors.accent : mutedColor,
+        ),
+      ),
     );
   }
 }
@@ -542,7 +685,7 @@ class _GenreFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 36,
+      height: 30,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -572,7 +715,7 @@ class _GenreFilterRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Format filter row
+// Format filter row — Physical / Ebook / Audio
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _FormatFilterRow extends StatelessWidget {
@@ -589,7 +732,7 @@ class _FormatFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 36,
+      height: 30,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -647,32 +790,217 @@ class _FmtChip extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
             color: selected
                 ? color.withValues(alpha: 0.15)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: selected ? color : borderColor),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (emoji != null)
-                Text(emoji!, style: const TextStyle(fontSize: 12))
+                Text(emoji!, style: const TextStyle(fontSize: 11))
               else if (icon != null)
-                Icon(icon, size: 13, color: selected ? color : mutedColor),
-              const SizedBox(width: 5),
+                Icon(icon, size: 12, color: selected ? color : mutedColor),
+              const SizedBox(width: 4),
               Text(
                 label,
                 style: GoogleFonts.lato(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: selected ? color : mutedColor,
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Search field
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool isDark;
+  final ValueChanged<String> onChanged;
+  const _SearchField({
+    required this.controller,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = isDark ? AppColors.darkSurfaceVariant : AppColors.surface;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      style: GoogleFonts.lato(fontSize: 14, color: textColor),
+      decoration: InputDecoration(
+        hintText: 'Search titles, authors...',
+        hintStyle: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+        prefixIcon: Icon(Icons.search_rounded, color: mutedColor),
+        filled: true,
+        fillColor: fill,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Book grid tile — cover placeholder, title, author, price
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookGridTile extends StatelessWidget {
+  final MarketplaceListing listing;
+  final Color coverColor;
+  final bool isDark;
+  const _BookGridTile({
+    required this.listing,
+    required this.coverColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    return GestureDetector(
+      onTap: () => context.push('/marketplace/listing/${listing.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A fixed height (not AspectRatio-driven) keeps every tile's
+          // total height constant regardless of screen width — the grid
+          // above uses a fixed mainAxisExtent, and a width-relative square
+          // cover on wide screens grew taller than that budget, overflowing
+          // the column.
+          StripedCover(
+            color: coverColor,
+            width: double.infinity,
+            height: 150,
+            borderRadius: 8,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            listing.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+              color: titleColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            listing.authorName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            listing.price,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.lato(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Book list tile — thumbnail cover + title/author/price row
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookListTile extends StatelessWidget {
+  final MarketplaceListing listing;
+  final Color coverColor;
+  final bool isDark;
+  const _BookListTile({
+    required this.listing,
+    required this.coverColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    return GestureDetector(
+      onTap: () => context.push('/marketplace/listing/${listing.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            StripedCover(
+              color: coverColor,
+              width: 56,
+              height: 80,
+              borderRadius: 7,
+              showLabel: false,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    listing.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    listing.authorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.lato(fontSize: 12.5, color: mutedColor),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    listing.price,
+                    style: GoogleFonts.lato(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -707,7 +1035,7 @@ class _EmptyBooks extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Try a different genre or format',
+            'Try a different search, genre, or format',
             style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
           ),
           const SizedBox(height: 16),

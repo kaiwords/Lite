@@ -24,19 +24,20 @@ class PostCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
 
+    // No background/border/margin — posts run edge-to-edge and sit flush
+    // against each other, separated only by the bottom line (no gap).
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Profile first (Support stays right next to the author's name),
+          // then category, then the post itself — engagement buttons last.
+          _AuthorRow(post: post, isDark: isDark),
           if (ref.watch(feedCategoryProvider) == FeedCategory.all)
             _CategoryBadge(category: post.category, isDark: isDark),
           if (post.linkedListingId != null)
@@ -45,10 +46,7 @@ class PostCard extends ConsumerWidget {
               child: MarketplaceBadge(listingId: post.linkedListingId!, isDark: isDark),
             ),
           _ContentSection(post: post, isDark: isDark, onTap: onContentTap),
-          Divider(height: 1, color: borderColor),
           _EngagementRow(post: post, isDark: isDark, ref: ref),
-          Divider(height: 1, color: borderColor),
-          _AuthorRow(post: post, isDark: isDark),
         ],
       ),
     );
@@ -63,7 +61,7 @@ class _CategoryBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
       child: Row(
         children: [
           Container(
@@ -106,7 +104,9 @@ class _ContentSection extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      // No bottom padding — closes the gap between "Read more"/content and
+      // the engagement row right below it.
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -141,7 +141,7 @@ class _ContentSection extends StatelessWidget {
                   accent: isDark ? AppColors.darkAccent : AppColors.accent,
                 ),
               ),
-              maxLines: isPoetic ? 10 : 4,
+              maxLines: isPoetic ? 14 : 10,
               overflow: TextOverflow.ellipsis,
             );
           }),
@@ -172,7 +172,10 @@ class _EngagementRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      // No top padding — the button's own 44px tap target already gives
+      // plenty of room; a separate top inset just widened the gap above
+      // "Read more"/content.
+      padding: const EdgeInsets.fromLTRB(6, 0, 6, 4),
       child: Row(
         children: [
           _EngagementButton(
@@ -280,7 +283,7 @@ class _AuthorRow extends ConsumerWidget {
     final isFollowing = ref.watch(followNotifierProvider).contains(post.author.id);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
       child: Row(
         children: [
           GestureDetector(

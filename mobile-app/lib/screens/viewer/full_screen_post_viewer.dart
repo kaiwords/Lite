@@ -34,7 +34,11 @@ class FullScreenPostViewer extends ConsumerStatefulWidget {
 
 class _FullScreenPostViewerState extends ConsumerState<FullScreenPostViewer> {
   late final PageController _vController;
-  bool _focusMode = false;
+  // Starts collapsed: opening a post (the tap that got you here) already
+  // counts as "focus on reading" — no second tap inside the viewer should
+  // be needed just to hide the chrome. Tapping the content still toggles
+  // it back on/off as before.
+  bool _focusMode = true;
 
   @override
   void initState() {
@@ -261,6 +265,52 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── Hint, then author row — shown first, like the home feed's
+        // post cards. Collapses away in focus mode along with the rest of
+        // the chrome; lives outside the tap-to-focus GestureDetector below
+        // so tapping Follow/Support here doesn't also toggle focus mode.
+        _CollapseSection(
+          visible: !widget.focusMode,
+          // Capped + internally scrollable for the same reason as the
+          // title/category header below: on very short screens (e.g.
+          // iPhone SE) this section's own fixed height plus the header's
+          // and footer's left no room for the Expanded paged body,
+          // overflowing the outer Column. A cap here degrades to a short
+          // internal scroll instead.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 96),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Text(
+                      'tap to focus · swipe ↕ posts · ← → pages',
+                      style: GoogleFonts.lato(
+                        fontSize: 11,
+                        color: (widget.isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.textMuted)
+                            .withValues(alpha: 0.65),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    // _AuthorRow already carries its own horizontal:10
+                    // padding — its fixed-width Follow/Support buttons
+                    // can't shrink like text can, so stacking the header's
+                    // 26px on top of that overflowed on narrow phones.
+                    padding: const EdgeInsets.only(left: 6, right: 6),
+                    child: _AuthorRow(post: livePost, isDark: widget.isDark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
         // ── Content area (tap to toggle focus) ──────────────────────────
         Expanded(
           child: GestureDetector(
@@ -378,22 +428,12 @@ class _PostHeader extends StatelessWidget {
     final titleColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!focusMode) ...[
-          Text(
-            'tap to focus · swipe ↕ posts · ← → pages',
-            style: GoogleFonts.lato(
-              fontSize: 11,
-              color: mutedColor.withValues(alpha: 0.65),
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -534,6 +574,8 @@ class _PostFooter extends ConsumerWidget {
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
+    // Author row now lives up top (see _PostFullPage) — engagement buttons
+    // last, matching the home feed's post cards.
     return Container(
       padding: EdgeInsets.only(
         top: 8,
@@ -545,16 +587,7 @@ class _PostFooter extends ConsumerWidget {
         border: Border(top: BorderSide(color: borderColor, width: 0.5)),
         color: isDark ? AppColors.darkSurface : AppColors.surface,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _EngagementBar(post: post, isDark: isDark),
-          const SizedBox(height: 6),
-          Divider(height: 1, color: borderColor),
-          const SizedBox(height: 8),
-          _AuthorRow(post: post, isDark: isDark),
-        ],
-      ),
+      child: _EngagementBar(post: post, isDark: isDark),
     );
   }
 }
