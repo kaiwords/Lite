@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -221,7 +224,7 @@ class _EngagementRow extends StatelessWidget {
   }
 }
 
-class _EngagementButton extends StatelessWidget {
+class _EngagementButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -235,12 +238,41 @@ class _EngagementButton extends StatelessWidget {
   });
 
   @override
+  State<_EngagementButton> createState() => _EngagementButtonState();
+}
+
+class _EngagementButtonState extends State<_EngagementButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _popCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _popCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+  }
+
+  @override
+  void dispose() {
+    _popCtrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    HapticFeedback.lightImpact();
+    _popCtrl.forward(from: 0);
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
+        onTap: _handleTap,
         // Minimum 44x44 tappable area (accessibility touch target guidance)
         // even though the icon itself stays visually compact.
         child: ConstrainedBox(
@@ -251,12 +283,26 @@ class _EngagementButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 20, color: color),
-                  if (label.isNotEmpty) ...[
+                  AnimatedBuilder(
+                    animation: _popCtrl,
+                    // A quick pop-and-settle on tap (peaks mid-animation,
+                    // starts/ends at 1.0) rather than a directional curve —
+                    // reads as a little punch of feedback, not a resize.
+                    builder: (context, child) => Transform.scale(
+                      scale: 1.0 + 0.35 * sin(pi * _popCtrl.value),
+                      child: child,
+                    ),
+                    child: Icon(widget.icon, size: 20, color: widget.color),
+                  ),
+                  if (widget.label.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     Text(
-                      label,
-                      style: GoogleFonts.lato(fontSize: 13, color: color, fontWeight: FontWeight.w500),
+                      widget.label,
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        color: widget.color,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ],

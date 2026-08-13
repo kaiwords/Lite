@@ -89,16 +89,6 @@ enum AudioFilter { following, narrators }
 final audioFilterProvider =
     StateProvider<AudioFilter>((ref) => AudioFilter.following);
 
-final feedPostsProvider = Provider<List<Post>>((ref) {
-  final category = ref.watch(feedCategoryProvider);
-  if (category == FeedCategory.all) return mockPosts;
-  final contentCategory = ContentCategory.values.firstWhere(
-    (c) => c.name == category.name,
-    orElse: () => ContentCategory.poem,
-  );
-  return mockPosts.where((p) => p.category == contentCategory).toList();
-});
-
 class PostsNotifier extends StateNotifier<List<Post>> {
   PostsNotifier(super.initial);
 
@@ -172,7 +162,7 @@ class PostsNotifier extends StateNotifier<List<Post>> {
 
 final postsNotifierProvider = StateNotifierProvider<PostsNotifier, List<Post>>(
   (ref) {
-    final notifier = PostsNotifier(LocalStore.instance.loadPosts() ?? mockPosts);
+    final notifier = PostsNotifier(LocalStore.instance.loadPosts() ?? const []);
     notifier.addListener(LocalStore.instance.savePosts, fireImmediately: false);
     notifier.loadFromSupabase();
     return notifier;

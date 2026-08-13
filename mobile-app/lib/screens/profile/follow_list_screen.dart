@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/follow_provider.dart';
+import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sync_feedback.dart';
 
@@ -14,6 +15,17 @@ import '../../utils/sync_feedback.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum FollowListKind { followers, following }
+
+/// Resolves the signed-in user's real followed ids ([followNotifierProvider])
+/// to full [LitUser] records via the `users` table. There is no reverse
+/// "who follows me" tracking in the backend, so the Followers list has no
+/// real-data equivalent and is always empty.
+final _followingUsersProvider = FutureProvider.family<List<LitUser>, Set<String>>(
+  (ref, ids) async {
+    final users = await Future.wait(ids.map(UsersRepository.fetchById));
+    return users.whereType<LitUser>().toList();
+  },
+);
 
 class FollowListScreen extends ConsumerStatefulWidget {
   final FollowListKind kind;
@@ -45,14 +57,34 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // There's no reverse-follower tracking yet (the backend only records who
-    // the signed-in user follows), so both lists fall back to the seeded
-    // users the same way the old Followers/Following sheet did — Followers
-    // shows everyone else, Following shows the first two.
-    final all = widget.kind == FollowListKind.followers
-        ? mockUsers.where((u) => u.id != currentUser.id).toList()
-        : mockUsers.where((u) => u.id != currentUser.id).take(2).toList();
+    final followed = ref.watch(followNotifierProvider);
 
+    // There's no reverse-follower tracking in the backend (only who the
+    // signed-in user follows), so Followers has no real-data source and is
+    // always empty. Following resolves the real followed ids to full user
+    // records.
+    if (widget.kind == FollowListKind.followers) {
+      return _body(context, isDark, title, followed, const []);
+    }
+
+    final followingAsync = ref.watch(_followingUsersProvider(followed));
+    return followingAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: Text(title, style: Theme.of(context).appBarTheme.titleTextStyle)),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => _body(context, isDark, title, followed, const []),
+      data: (all) => _body(context, isDark, title, followed, all),
+    );
+  }
+
+  Widget _body(
+    BuildContext context,
+    bool isDark,
+    String title,
+    Set<String> followed,
+    List<LitUser> all,
+  ) {
     final query = _query.trim().toLowerCase();
     final users = query.isEmpty
         ? all
@@ -64,7 +96,6 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
               )
               .toList();
 
-    final followed = ref.watch(followNotifierProvider);
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
     final div = isDark ? AppColors.darkDivider : AppColors.divider;
 

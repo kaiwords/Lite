@@ -3,6 +3,7 @@ class LitUser {
   final String username;
   final String displayName;
   final String? avatarUrl;
+  final String? coverImageUrl;
   final String bio;
   final int followersCount;
   final int followingCount;
@@ -16,6 +17,7 @@ class LitUser {
     required this.username,
     required this.displayName,
     this.avatarUrl,
+    this.coverImageUrl,
     this.bio = '',
     this.followersCount = 0,
     this.followingCount = 0,
@@ -31,12 +33,15 @@ class LitUser {
     String? bio,
     bool? isFollowing,
     int? followersCount,
+    String? avatarUrl,
+    String? coverImageUrl,
   }) =>
       LitUser(
         id: id,
         username: username ?? this.username,
         displayName: displayName ?? this.displayName,
-        avatarUrl: avatarUrl,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        coverImageUrl: coverImageUrl ?? this.coverImageUrl,
         bio: bio ?? this.bio,
         followersCount: followersCount ?? this.followersCount,
         followingCount: followingCount,
@@ -51,6 +56,7 @@ class LitUser {
         'username': username,
         'displayName': displayName,
         'avatarUrl': avatarUrl,
+        'coverImageUrl': coverImageUrl,
         'bio': bio,
         'followersCount': followersCount,
         'followingCount': followingCount,
@@ -65,6 +71,7 @@ class LitUser {
         username: j['username'] as String,
         displayName: j['displayName'] as String,
         avatarUrl: j['avatarUrl'] as String?,
+        coverImageUrl: j['coverImageUrl'] as String?,
         bio: (j['bio'] as String?) ?? '',
         followersCount: (j['followersCount'] as num?)?.toInt() ?? 0,
         followingCount: (j['followingCount'] as num?)?.toInt() ?? 0,
@@ -83,6 +90,7 @@ class LitUser {
         username: (row['username'] as String?) ?? '',
         displayName: (row['display_name'] as String?) ?? '',
         avatarUrl: row['avatar_url'] as String?,
+        coverImageUrl: row['cover_image_url'] as String?,
         bio: (row['bio'] as String?) ?? '',
         followersCount: (row['followers_count'] as num?)?.toInt() ?? 0,
         followingCount: (row['following_count'] as num?)?.toInt() ?? 0,

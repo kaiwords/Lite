@@ -3,8 +3,7 @@ import '../models/marketplace.dart';
 import '../services/marketplace_repository.dart';
 import 'marketplace_account_provider.dart';
 
-/// The shared browsable catalogue, seeded synchronously from [mockListings]
-/// and then refreshed from Supabase once the live data loads.
+/// The shared browsable catalogue, populated from Supabase once it loads.
 class CatalogueNotifier extends StateNotifier<List<MarketplaceListing>> {
   CatalogueNotifier(super.initial);
 
@@ -13,14 +12,14 @@ class CatalogueNotifier extends StateNotifier<List<MarketplaceListing>> {
       final remote = await MarketplaceRepository.fetchAll();
       if (remote.isNotEmpty) state = remote;
     } catch (_) {
-      // Offline or request failed — keep the mock catalogue already shown.
+      // Offline or request failed — keep the catalogue already shown.
     }
   }
 }
 
 final catalogueProvider =
     StateNotifierProvider<CatalogueNotifier, List<MarketplaceListing>>((ref) {
-  final notifier = CatalogueNotifier(mockListings);
+  final notifier = CatalogueNotifier(const []);
   notifier.loadFromSupabase();
   return notifier;
 });

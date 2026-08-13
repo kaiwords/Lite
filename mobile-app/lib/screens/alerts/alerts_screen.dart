@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 
@@ -11,6 +15,7 @@ class AlertItem {
   final String detail;
   final Duration ago;
   final bool isRead;
+  final String? postId; // the post this alert is about, if any — see mockPosts
 
   const AlertItem({
     required this.type,
@@ -18,6 +23,7 @@ class AlertItem {
     required this.detail,
     required this.ago,
     this.isRead = false,
+    this.postId,
   });
 
   AlertItem copyWith({bool? isRead}) => AlertItem(
@@ -26,29 +32,64 @@ class AlertItem {
         detail: detail,
         ago: ago,
         isRead: isRead ?? this.isRead,
+        postId: postId,
       );
 }
 
-const _alerts = [
-  AlertItem(type: AlertType.tip, actor: 'Priya Nair', detail: 'sent you a \$5 tip on "Between the Lines"', ago: Duration(minutes: 12)),
-  AlertItem(type: AlertType.like, actor: 'Marcus Osei', detail: 'liked your poem "Between the Lines"', ago: Duration(hours: 1)),
-  AlertItem(type: AlertType.comment, actor: 'Javier Morales', detail: 'commented: "This moved me deeply."', ago: Duration(hours: 2)),
-  AlertItem(type: AlertType.follow, actor: 'luna_reads', detail: 'started following you', ago: Duration(hours: 3), isRead: true),
-  AlertItem(type: AlertType.newPost, actor: 'Priya Nair', detail: 'published a new article: "On Solitude and the Creative Mind"', ago: Duration(hours: 5), isRead: true),
-  AlertItem(type: AlertType.like, actor: 'sarah_bookclub', detail: 'liked your poem "Morning Without You"', ago: Duration(hours: 7), isRead: true),
-  AlertItem(type: AlertType.tip, actor: 'Anonymous', detail: 'sent you a \$2 tip on "The Glass House"', ago: Duration(days: 1), isRead: true),
-  AlertItem(type: AlertType.comment, actor: 'Eleanor Voss', detail: 'replied to your comment', ago: Duration(days: 1), isRead: true),
-  AlertItem(type: AlertType.follow, actor: 'ink_and_fire', detail: 'started following you', ago: Duration(days: 2), isRead: true),
-];
+// No notifications backend exists yet (no Supabase table) — the app has no
+// real data source for alerts, so this starts empty rather than fabricated.
+// See demo_data/demo_alerts.dart for sample content, kept for reference/
+// tests only.
+const _alerts = <AlertItem>[];
 
-class AlertsScreen extends StatefulWidget {
+// Which calendar week (0 = this week, 1 = last week, …) an alert falls in.
+int _weeksAgo(Duration ago) => ago.inDays ~/ 7;
+
+String _weekLabel(int weeksAgo) {
+  if (weeksAgo <= 0) return 'This Week';
+  if (weeksAgo == 1) return 'Last Week';
+  return '$weeksAgo Weeks Ago';
+}
+
+// A row is either a week-group header or a reference (by index into
+// _AlertsScreenState._items) to an alert — built once per build so the list
+// can group consecutive same-week alerts under one header + divider.
+sealed class _Row {
+  const _Row();
+}
+
+class _HeaderRow extends _Row {
+  final int weeksAgo;
+  const _HeaderRow(this.weeksAgo);
+}
+
+class _ItemRow extends _Row {
+  final int index;
+  const _ItemRow(this.index);
+}
+
+List<_Row> _buildRows(List<AlertItem> items) {
+  final rows = <_Row>[];
+  int? lastWeek;
+  for (var i = 0; i < items.length; i++) {
+    final week = _weeksAgo(items[i].ago);
+    if (week != lastWeek) {
+      rows.add(_HeaderRow(week));
+      lastWeek = week;
+    }
+    rows.add(_ItemRow(i));
+  }
+  return rows;
+}
+
+class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
 
   @override
-  State<AlertsScreen> createState() => _AlertsScreenState();
+  ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
 }
 
-class _AlertsScreenState extends State<AlertsScreen> {
+class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   late List<AlertItem> _items = List.of(_alerts);
 
   void _markAllRead() {
@@ -60,6 +101,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
   void _markRead(int i) {
     if (_items[i].isRead) return;
     setState(() => _items[i] = _items[i].copyWith(isRead: true));
+  }
+
+  // Mirrors the home feed's tap behavior (see home_screen.dart/
+  // profile_screen.dart's _openPost): the viewer reads from
+  // filteredPostsProvider, so reset the category filter to All first to
+  // guarantee the post we want is at the index we compute.
+  void _openPost(String postId) {
+    ref.read(feedCategoryProvider.notifier).state = FeedCategory.all;
+    final all = ref.read(postsNotifierProvider);
+    final idx = all.indexWhere((p) => p.id == postId);
+    if (idx >= 0) context.push('/viewer/$idx');
   }
 
   @override
@@ -83,19 +135,82 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ],
       ),
       bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 3),
-      body: ListView.separated(
-        itemCount: _items.length,
-        separatorBuilder: (_, _) => Divider(
-          height: 1,
-          color: isDark ? AppColors.darkDivider : AppColors.divider,
-        ),
-        itemBuilder: (context, i) => _AlertTile(
-          alert: _items[i],
-          isDark: isDark,
-          onTap: () => _markRead(i),
-        ),
+      body: Builder(
+        builder: (context) {
+          if (_items.isEmpty) {
+            final muted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notifications_none_rounded, size: 48, color: muted),
+                  const SizedBox(height: 12),
+                  Text('No notifications yet',
+                      style: GoogleFonts.lato(fontSize: 14, color: muted)),
+                ],
+              ),
+            );
+          }
+          final rows = _buildRows(_items);
+          return ListView.builder(
+            itemCount: rows.length,
+            itemBuilder: (context, rowIndex) {
+              final row = rows[rowIndex];
+              if (row is _HeaderRow) {
+                return _WeekHeader(label: _weekLabel(row.weeksAgo), isDark: isDark);
+              }
+              final i = (row as _ItemRow).index;
+              return _AlertTile(
+                alert: _items[i],
+                isDark: isDark,
+                onTap: () {
+                  _markRead(i);
+                  final postId = _items[i].postId;
+                  if (postId != null) _openPost(postId);
+                },
+              )
+                  .animate()
+                  .fadeIn(duration: 260.ms, delay: 30.ms * (rowIndex % 8))
+                  .slideY(begin: 0.06, end: 0, duration: 260.ms, curve: Curves.easeOut);
+            },
+          );
+        },
       ),
     );
+  }
+}
+
+// Week-group header — a small caption label followed by a divider line,
+// separating each week's worth of notifications from the next.
+class _WeekHeader extends StatelessWidget {
+  final String label;
+  final bool isDark;
+  const _WeekHeader({required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final divider = isDark ? AppColors.darkDivider : AppColors.divider;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.lato(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: muted,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Divider(height: 1, color: divider),
+        ],
+      ),
+    ).animate().fadeIn(duration: 220.ms);
   }
 }
 
@@ -137,7 +252,9 @@ class _AlertTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
       color: alert.isRead ? bg : unreadBg,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -187,8 +304,11 @@ class _AlertTile extends StatelessWidget {
               ],
             ),
           ),
-          if (!alert.isRead)
-            Container(
+          AnimatedScale(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            scale: alert.isRead ? 0.0 : 1.0,
+            child: Container(
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(top: 6, left: 8),
@@ -197,6 +317,7 @@ class _AlertTile extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
             ),
+          ),
         ],
       ),
       ),

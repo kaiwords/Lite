@@ -117,6 +117,7 @@ void main() {
     // network — just that `contains` reads the current state correctly.
     test('contains reflects the current state', () {
       final purchase = Purchase(
+        orderItemId: 'oi-1',
         listing: mockListings.first,
         purchasedAt: DateTime.now(),
         orderId: 'order-1',

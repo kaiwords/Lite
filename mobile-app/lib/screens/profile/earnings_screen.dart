@@ -23,55 +23,6 @@ class _Tip {
 class EarningsScreen extends ConsumerWidget {
   const EarningsScreen({super.key});
 
-  List<_Tip> _mockTips(LitUser user) {
-    final others = mockUsers.where((u) => u.id != user.id).toList();
-    if (others.isEmpty) return const [];
-    final now = DateTime.now();
-    final tips = <_Tip>[
-      _Tip(
-        from: others[0],
-        amount: 50,
-        at: now.subtract(const Duration(hours: 3)),
-      ),
-      if (others.length > 1)
-        _Tip(
-          from: others[1],
-          amount: 20,
-          at: now.subtract(const Duration(days: 1)),
-        ),
-      if (others.length > 2)
-        _Tip(
-          from: others[2],
-          amount: 100,
-          at: now.subtract(const Duration(days: 2)),
-        ),
-      _Tip(
-        from: others[0],
-        amount: 10,
-        at: now.subtract(const Duration(days: 4)),
-      ),
-      if (others.length > 1)
-        _Tip(
-          from: others[1],
-          amount: 5,
-          at: now.subtract(const Duration(days: 6)),
-        ),
-      if (others.length > 2)
-        _Tip(
-          from: others[2],
-          amount: 25,
-          at: now.subtract(const Duration(days: 9)),
-        ),
-      _Tip(
-        from: others[0],
-        amount: 15,
-        at: now.subtract(const Duration(days: 12)),
-      ),
-    ];
-    tips.sort((a, b) => b.at.compareTo(a.at));
-    return tips;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -84,8 +35,11 @@ class EarningsScreen extends ConsumerWidget {
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
     final div = isDark ? AppColors.darkDivider : AppColors.divider;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final tips = _mockTips(user);
-    final total = tips.fold<double>(0, (s, t) => s + t.amount);
+    // No tipping/payments backend exists yet — there is no real data source
+    // for tips, so this always reflects the honest zero state rather than
+    // fabricated amounts.
+    const tips = <_Tip>[];
+    const total = 0.0;
 
     // Aggregate top tippers by total amount.
     final byUser = <String, double>{};

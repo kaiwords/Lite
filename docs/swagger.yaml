@@ -60,6 +60,13 @@ tags:
       Stripe's secret key, checkout amount validation, and Connect payout
       splitting can't live in the client. See CLAUDE.md's swagger.yaml
       sync rule and docs/database.md.
+  - name: Edge Functions
+    description: >-
+      Added 2026-08-13. Non-Stripe server-side code (Deno, in
+      supabase/functions/) — exists because order_items has no direct
+      UPDATE RLS policy for authenticated users (writing to it always goes
+      through the service role, to stop a seller rewriting their own
+      unit_price_cents/platform_fee_cents/transfer_status).
 
 paths:
   # ── Auth ─────────────────────────────────────────────────────────────────
@@ -616,7 +623,9 @@ paths:
       description: >-
         Validates every listing server-side (authoritative price_cents,
         not-your-own-listing, not-already-purchased, seller has finished
-        Connect onboarding), creates the orders/order_items rows, and
+        Connect onboarding, and — added 2026-08-13 — a valid shipping
+        choice for every Physical listing the seller configured
+        shipping_methods on), creates the orders/order_items rows, and
         returns a PaymentIntent client secret for the Flutter Payment
         Sheet. One PaymentIntent covers the whole cart even across
         multiple sellers ("separate charges and transfers" — see the
@@ -632,6 +641,19 @@ paths:
               required: [listingIds]
               properties:
                 listingIds: { type: array, items: { type: string } }
+                shipping:
+                  type: object
+                  description: >-
+                    Added 2026-08-13. Keyed by listing id — the buyer's
+                    fulfillment choice for each Physical listing that has
+                    shipping_methods configured (collected by
+                    widgets/shipping_method_sheet.dart). Omitted/empty when
+                    nothing in the cart needs it.
+                  additionalProperties:
+                    type: object
+                    properties:
+                      method: { type: string, enum: [pickup, delivery, meetup] }
+                      meetupPlace: { type: string, description: "Required when method is 'meetup'." }
       responses:
         "200":
           description: OK
@@ -662,6 +684,86 @@ paths:
       responses:
         "200": { description: Event handled (or intentionally ignored — unhandled event types are a no-op) }
         "400": { description: Signature verification failed }
+
+  /functions/v1/confirm-meetup:
+    post:
+      tags: [Edge Functions]
+      summary: Seller confirms a Meetup order's suggested place/time
+      description: >-
+        Added 2026-08-13. Flips order_items.meetup_confirmed to true, after
+        checking the caller is that item's seller_id and its
+        shipping_method is 'meetup'. Called from sales_tab.dart's "Confirm
+        meetup" button — see CommerceRepository.confirmMeetup.
+      security: [{ apiKeyAuth: [], bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderItemId]
+              properties:
+                orderItemId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+        "400": { description: "orderItemId missing, or the order isn't a meetup" }
+        "401": { description: Missing/invalid session }
+        "403": { description: "Caller isn't this order item's seller" }
+        "404": { description: Order item not found }
+
+  /functions/v1/claim-listing:
+    post:
+      tags: [Edge Functions]
+      summary: Claim a Free or Swap listing — no payment involved
+      description: >-
+        Added 2026-08-13. Validates the listing is offer 'free' or 'swap',
+        not the caller's own, not already claimed (is_sold_out), and (if
+        the listing has shipping_methods configured) a valid shipping
+        choice — same rules stripe-create-checkout applies, minus the
+        price/Connect checks since nothing is charged. Creates an orders
+        row (amount_total_cents 0, status inserted straight to 'paid') and
+        an order_items row (unit_price_cents/platform_fee_cents 0,
+        transfer_status 'transferred') so CommerceRepository.fetchPurchases/
+        fetchSales and "already owned" checks elsewhere keep working
+        unchanged, then sets the listing's is_sold_out true. See
+        CommerceRepository.claimListing, utils/purchase_flow.dart's
+        runClaimFlow.
+      security: [{ apiKeyAuth: [], bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId]
+              properties:
+                listingId: { type: string }
+                shipping:
+                  type: object
+                  description: "Present when the listing has shipping_methods configured — same shape as stripe-create-checkout's per-listing shipping entry."
+                  properties:
+                    method: { type: string, enum: [pickup, delivery, meetup] }
+                    meetupPlace: { type: string, description: "Required when method is 'meetup'." }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  orderId: { type: string, format: uuid }
+        "400": { description: "Not Free/Swap, own listing, already claimed, or missing/invalid shipping choice" }
+        "401": { description: Missing/invalid session }
+        "404": { description: Listing not found }
 
 components:
   securitySchemes:
@@ -765,8 +867,20 @@ components:
         seller_id: { type: string, nullable: true, description: "Defaults to auth.uid(); NULL on the original seed rows." }
         cover_image_url: { type: string, nullable: true, description: "Added 2026-08-07 for the legacy Firebase import; now also set by the List a Book sheet's Cover step (picked photo) — a local file path on device, not an uploaded URL, see database.md's 'no file storage' note." }
         cover_color: { type: integer, nullable: true, description: "Added 2026-08-10. ARGB int for the Cover step's 'design a cover' alternative — the gradient cover color used when no photo was picked." }
-        qty: { type: integer, nullable: true, description: "Added 2026-08-07. Stock count carried over from legacy listings; not read/written by any current app flow." }
-        is_sold_out: { type: boolean, default: false, description: "Added 2026-08-07. Not read/written by any current app flow." }
+        isbn: { type: string, nullable: true, description: "Added 2026-08-13. Physical and E-Book listings only — set by the List a Book sheet." }
+        publisher: { type: string, nullable: true, description: "Added 2026-08-13. Physical and E-Book listings only." }
+        publication_date: { type: string, format: date, nullable: true, description: "Added 2026-08-13. Physical and E-Book listings only." }
+        condition: { type: string, nullable: true, enum: [brandNew, likeNew, good, fair], description: "Added 2026-08-13. Physical listings only." }
+        edition: { type: string, nullable: true, description: "Added 2026-08-13. Physical listings only — free-text edition/language, e.g. \"1st Edition, English\"." }
+        shipping_methods: { type: array, items: { type: string, enum: [pickup, delivery, meetup] }, default: [], description: "Added 2026-08-13. Physical listings only — which fulfillment methods the seller supports; the buyer picks one of these at checkout (see order_items.shipping_method)." }
+        pickup_location: { type: string, nullable: true, description: "Added 2026-08-13. Required in the List a Book sheet when 'pickup' is checked in shipping_methods." }
+        pickup_phone: { type: string, nullable: true, description: "Added 2026-08-13. Required alongside pickup_location. Shown to buyers only once they own the listing (or it's their own) — see listing_detail_screen.dart's _DetailsSection." }
+        meetup_location: { type: string, nullable: true, description: "Added 2026-08-13. Required in the List a Book sheet when 'meetup' is checked in shipping_methods — the seller's general meeting area; the buyer still suggests a specific place/time per order (order_items.meetup_place)." }
+        meetup_phone: { type: string, nullable: true, description: "Added 2026-08-13. Required alongside meetup_location. Shown to buyers only once they own the listing (or it's their own), same gating as pickup_phone." }
+        offer: { type: string, enum: [sale, free, swap], default: sale, description: "Added 2026-08-13. Physical listings only (E-Book/Audio are always 'sale') — the Books section's Free/Swap filter row reads this. See swap_wanted_for and is_sold_out." }
+        swap_wanted_for: { type: string, nullable: true, description: "Added 2026-08-13. Optional free-text description of what the seller wants in return, meaningful only when offer is 'swap' — blank means \"open to offers\"." }
+        qty: { type: integer, nullable: true, description: "Added 2026-08-07 as a legacy Firebase-import carryover, unused until 2026-08-13: now the 'Quantity Available' field on Physical listings in the List a Book sheet." }
+        is_sold_out: { type: boolean, default: false, description: "Added 2026-08-07, first actually read/written by the app 2026-08-13: set true by /functions/v1/claim-listing once a Free/Swap listing is claimed, so it stops showing as claimable. Not used by Sale listings, which can be bought repeatedly." }
         created_at: { type: string, format: date-time, description: "Added 2026-08-07." }
         updated_at: { type: string, format: date-time, description: "Added 2026-08-07." }
 
@@ -859,4 +973,7 @@ components:
         platform_fee_cents: { type: integer, default: 0, description: "Flat 10% today (PLATFORM_FEE_BPS in stripe-create-checkout) — taken out of the seller's Transfer, not billed separately." }
         stripe_transfer_id: { type: string, nullable: true, description: "Set once stripe-webhook successfully transfers this item's payout to the seller's connected account." }
         transfer_status: { type: string, enum: [pending, transferred, failed], default: pending }
+        shipping_method: { type: string, nullable: true, enum: [pickup, delivery, meetup], description: "Added 2026-08-13. The buyer's fulfillment choice, set by stripe-create-checkout — only present when the listing is Physical and the seller configured shipping_methods." }
+        meetup_place: { type: string, nullable: true, description: "Added 2026-08-13. The buyer's suggested meetup place/time, required when shipping_method is 'meetup'." }
+        meetup_confirmed: { type: boolean, default: false, description: "Added 2026-08-13. Flipped true by /functions/v1/confirm-meetup once the seller confirms the meetup — see CommerceRepository.confirmMeetup, sales_tab.dart." }
         created_at: { type: string, format: date-time }

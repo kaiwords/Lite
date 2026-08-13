@@ -402,6 +402,7 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
   String _query = '';
   Genre? _genre; // null = all genres
   ListingType? _format; // null = all formats
+  ListingOffer? _offer; // null = all offers (Sale/Free/Swap)
   _BookLayout _layout = _BookLayout.grid;
 
   @override
@@ -415,6 +416,7 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
         _query = '';
         _genre = null;
         _format = null;
+        _offer = null;
       });
 
   // Genres that have at least one listing
@@ -436,6 +438,7 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
     final listings = allListings.where((l) {
       if (_genre != null && l.genre != _genre) return false;
       if (_format != null && l.type != _format) return false;
+      if (_offer != null && l.offer != _offer) return false;
       if (q.isNotEmpty &&
           !l.title.toLowerCase().contains(q) &&
           !l.authorName.toLowerCase().contains(q)) {
@@ -471,13 +474,13 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
             ),
           ),
         ),
-        // pinned (not just a plain sliver): genre + format stay on screen at
-        // all times, unlike the title/search bar above, which is allowed to
-        // scroll out of view.
+        // pinned (not just a plain sliver): genre + format + offer stay on
+        // screen at all times, unlike the title/search bar above, which is
+        // allowed to scroll out of view.
         SliverPersistentHeader(
           pinned: true,
           delegate: _PinnedFiltersDelegate(
-            height: 78,
+            height: 116,
             isDark: isDark,
             child: Column(
               children: [
@@ -493,6 +496,12 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
                   selected: _format,
                   isDark: isDark,
                   onChanged: (t) => setState(() => _format = t),
+                ),
+                const SizedBox(height: 8),
+                _OfferFilterRow(
+                  selected: _offer,
+                  isDark: isDark,
+                  onChanged: (o) => setState(() => _offer = o),
                 ),
               ],
             ),
@@ -761,6 +770,60 @@ class _FormatFilterRow extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Offer filter row — For Sale / Free / Swap. Underneath the format row, so a
+// reader can browse straight to giveaways/swaps regardless of format.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _offerChipColors = {
+  ListingOffer.sale: AppColors.accent,
+  ListingOffer.free: Color(0xFF2E8B57),
+  ListingOffer.swap: Color(0xFFD4870F),
+};
+
+class _OfferFilterRow extends StatelessWidget {
+  final ListingOffer? selected;
+  final bool isDark;
+  final ValueChanged<ListingOffer?> onChanged;
+
+  const _OfferFilterRow({
+    required this.selected,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        children: [
+          _FmtChip(
+            label: 'All',
+            icon: Icons.apps_rounded,
+            color: AppColors.accent,
+            selected: selected == null,
+            isDark: isDark,
+            onTap: () => onChanged(null),
+          ),
+          ...ListingOffer.values.map(
+            (o) => _FmtChip(
+              label: o.label,
+              icon: o.icon,
+              color: _offerChipColors[o]!,
+              selected: selected == o,
+              isDark: isDark,
+              onTap: () => onChanged(selected == o ? null : o),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FmtChip extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -890,8 +953,9 @@ class _BookGridTile extends StatelessWidget {
           // above uses a fixed mainAxisExtent, and a width-relative square
           // cover on wide screens grew taller than that budget, overflowing
           // the column.
-          StripedCover(
-            color: coverColor,
+          ListingCover(
+            listing: listing,
+            fallbackColor: coverColor,
             width: double.infinity,
             height: 150,
             borderRadius: 8,
@@ -917,13 +981,15 @@ class _BookGridTile extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            listing.price,
+            listing.isSoldOut ? 'Claimed' : listing.price,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.lato(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.accent,
+              color: listing.isSoldOut
+                  ? mutedColor
+                  : (_offerChipColors[listing.offer] ?? AppColors.accent),
             ),
           ),
         ],
@@ -958,8 +1024,9 @@ class _BookListTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            StripedCover(
-              color: coverColor,
+            ListingCover(
+              listing: listing,
+              fallbackColor: coverColor,
               width: 56,
               height: 80,
               borderRadius: 7,
@@ -990,11 +1057,13 @@ class _BookListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    listing.price,
+                    listing.isSoldOut ? 'Claimed' : listing.price,
                     style: GoogleFonts.lato(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.accent,
+                      color: listing.isSoldOut
+                          ? mutedColor
+                          : (_offerChipColors[listing.offer] ?? AppColors.accent),
                     ),
                   ),
                 ],

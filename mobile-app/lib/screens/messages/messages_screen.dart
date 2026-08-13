@@ -3,24 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/conversation.dart';
-import '../../models/user.dart';
 import '../../providers/conversations_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/action_sheet.dart';
 
+// There's no "list/search people" backend yet to populate a real "New
+// message" picker, so this just says so rather than offering fake names.
 void _showNewMessage(BuildContext context) {
-  showActionSheet(
-    context,
-    title: 'New message',
-    items: [
-      for (final u in mockUsers.where((u) => u.id != 'u1'))
-        ActionSheetItem(
-          icon: Icons.person_outline_rounded,
-          label: u.displayName,
-          onTap: () =>
-              context.push('/messages/${Uri.encodeComponent(u.id)}'),
-        ),
-    ],
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Search for someone's profile to start a conversation"),
+      behavior: SnackBarBehavior.floating,
+    ),
   );
 }
 

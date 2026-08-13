@@ -85,6 +85,14 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         if (mounted) _pickAudio();
       });
     }
+    // Live word count / reading-time caption below the content field.
+    _contentController.addListener(() => setState(() {}));
+  }
+
+  int get _wordCount {
+    final text = _contentController.text.trim();
+    if (text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).length;
   }
 
   @override
@@ -448,6 +456,22 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                 focusedBorder: InputBorder.none,
               ),
             ),
+            if (_wordCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '$_wordCount word${_wordCount == 1 ? '' : 's'} · '
+                    '~${(_wordCount / 200).ceil().clamp(1, 999)} min read',
+                    style: GoogleFonts.lato(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 20),
             Divider(color: isDark ? AppColors.darkDivider : AppColors.divider),
             const SizedBox(height: 12),

@@ -6,6 +6,9 @@ import '../theme/app_theme.dart';
 import 'category_chip_bar.dart';
 
 class FeedFilterRow extends ConsumerWidget {
+  // Whole-row hide/show (e.g. HomeScreen collapsing its entire top chrome
+  // on scroll) is handled by the caller wrapping this widget in its own
+  // collapse section — this widget always renders both sub-rows.
   const FeedFilterRow({super.key});
 
   @override

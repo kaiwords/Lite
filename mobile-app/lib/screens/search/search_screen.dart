@@ -3,11 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/post.dart';
-import '../../models/user.dart';
 import '../../providers/feed_provider.dart';
-import '../../providers/follow_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/sync_feedback.dart';
 import '../../widgets/post_card.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -105,7 +102,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-class _SearchSuggestions extends ConsumerWidget {
+class _SearchSuggestions extends StatelessWidget {
   final bool isDark;
   const _SearchSuggestions({required this.isDark});
 
@@ -120,14 +117,13 @@ class _SearchSuggestions extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
     final chipBg = isDark
         ? AppColors.darkSurfaceVariant
         : AppColors.surfaceVariant;
-    final followed = ref.watch(followNotifierProvider);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -156,121 +152,6 @@ class _SearchSuggestions extends ConsumerWidget {
               )
               .toList(),
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Writers to follow',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
-        ...mockUsers.map((u) {
-          final isFollowing = followed.contains(u.id);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GestureDetector(
-              onTap: () => context.push('/user/${u.id}'),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: chipBg,
-                    child: Text(
-                      u.displayName.isEmpty
-                          ? '?'
-                          : u.displayName[0].toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                u.displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.lato(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                ),
-                              ),
-                            ),
-                            if (u.isVerified) ...[
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.verified_rounded,
-                                size: 13,
-                                color: AppColors.accent,
-                              ),
-                            ],
-                          ],
-                        ),
-                        Text(
-                          '@${u.username}',
-                          style: GoogleFonts.lato(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextMuted
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () async {
-                      final notifier =
-                          ref.read(followNotifierProvider.notifier);
-                      final ok = isFollowing
-                          ? await notifier.unfollow(u.id)
-                          : await notifier.follow(u.id);
-                      if (!ok && context.mounted) notifySyncFailure(context);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isFollowing
-                            ? Colors.transparent
-                            : AppColors.accent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isFollowing
-                              ? (isDark
-                                    ? AppColors.darkDivider
-                                    : AppColors.divider)
-                              : AppColors.accent,
-                        ),
-                      ),
-                      child: Text(
-                        isFollowing ? 'Following' : 'Follow',
-                        style: GoogleFonts.lato(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isFollowing
-                              ? (isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.textSecondary)
-                              : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
       ],
     );
   }

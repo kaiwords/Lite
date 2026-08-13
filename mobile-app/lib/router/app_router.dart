@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../screens/auth/login_screen.dart';
@@ -135,7 +135,10 @@ final appRouter = GoRouter(
       path: '/reader/:id',
       builder: (_, state) {
         final id = state.pathParameters['id'] ?? '';
-        final book = findBook(id) ?? mockBooks.first;
+        final book = findBook(id);
+        if (book == null) {
+          return const Scaffold(body: Center(child: Text('Book not found')));
+        }
         return BookReaderScreen(book: book);
       },
     ),

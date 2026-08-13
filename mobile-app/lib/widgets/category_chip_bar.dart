@@ -21,7 +21,10 @@ class CategoryChipBar extends ConsumerWidget {
     ];
 
     return SizedBox(
-      height: 44,
+      // Was 44 — taller than the chip's actual content (padding + one line
+      // of text, ~28px), which left empty space below each pill within the
+      // row. Sized to match instead.
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),

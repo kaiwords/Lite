@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/book.dart';
+import '../../models/post.dart';
 import '../../providers/feed_provider.dart';
 import '../../screens/reader/book_reader_screen.dart';
 import '../../theme/app_theme.dart';
@@ -25,6 +26,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
   int _visibleCount = _kPageSize;
+  // Covers the whole top chrome now: the "Literature" bar (+ create/search/
+  // message) and the Following/Writers + category chips row underneath.
+  bool _showTopChrome = true;
+  // Once the reader has opened any post, the chrome stays hidden until they
+  // pull-to-refresh or scroll back to the very top — opening a post is
+  // treated as "I'm reading now", not just a momentary scroll.
+  bool _hasOpenedPost = false;
 
   @override
   void initState() {
@@ -39,10 +47,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 300) {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
       _loadMore();
     }
+
+    // Back at the top resets everything, including the "opened a post"
+    // latch — same reset point as pull-to-refresh.
+    if (pos.pixels <= 0) {
+      if (_hasOpenedPost || !_showTopChrome) {
+        setState(() {
+          _hasOpenedPost = false;
+          _showTopChrome = true;
+        });
+      }
+      return;
+    }
+
+    // Any scroll away from the top hides the chrome — scrolling back up
+    // doesn't bring it back, only reaching the very top (or refresh) does.
+    if (_showTopChrome) setState(() => _showTopChrome = false);
   }
 
   void _loadMore() {
@@ -50,6 +74,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (_visibleCount < total) {
       setState(
           () => _visibleCount = (_visibleCount + _kPageSize).clamp(0, total));
+    }
+  }
+
+  // Tapping the Home tab while already on Home scrolls back to the top and
+  // refreshes the feed, same as pull-to-refresh — mirrors how most feed
+  // apps treat a second tap on the current tab.
+  Future<void> _refreshFromTop() async {
+    if (_scrollController.hasClients && _scrollController.offset > 0) {
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _visibleCount = _kPageSize;
+      _hasOpenedPost = false;
+      _showTopChrome = true;
+    });
+  }
+
+  void _openPost(Post post, int index) {
+    setState(() {
+      _hasOpenedPost = true;
+      _showTopChrome = false;
+    });
+    if (post.bookId != null) {
+      final book = findBook(post.bookId!);
+      if (book == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This book is not available yet')),
+        );
+        return;
+      }
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => BookReaderScreen(book: book)));
+    } else {
+      context.push('/viewer/$index');
     }
   }
 
@@ -70,79 +133,98 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasMore = allPosts.length > _visibleCount;
 
     return Scaffold(
-      appBar: const LiteratureAppBar(),
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 0),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() => _visibleCount = _kPageSize);
-          await Future.delayed(const Duration(milliseconds: 600));
-        },
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            // ── Following / Writers / hamburger + category chips ───────
-            const SliverToBoxAdapter(child: FeedFilterRow()),
-            const SliverToBoxAdapter(child: SizedBox(height: 4)),
+      bottomNavigationBar: LiteratureBottomNavBar(
+        currentIndex: 0,
+        onSameTabTap: _refreshFromTop,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+          // ── Top chrome: app bar + Following/Writers + category chips ───
+          // Lives outside the scroll view; collapses as one unit on
+          // scroll-down and reappears on scroll-up (see _onScroll).
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: !_showTopChrome
+                ? const SizedBox.shrink()
+                : const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LiteratureAppBar(),
+                      FeedFilterRow(),
+                    ],
+                  ),
+          ),
 
-            // ── Posts ──────────────────────────────────────────────────
-            if (posts.isEmpty)
-              const SliverFillRemaining(child: _EmptyFeed())
-            else
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final post = posts[i];
-                    return PostCard(
-                      post: post,
-                      onContentTap: () {
-                        if (post.bookId != null) {
-                          final book = findBook(post.bookId!) ?? mockBooks.first;
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => BookReaderScreen(book: book),
-                          ));
-                        } else {
-                          context.push('/viewer/$i');
-                        }
-                      },
-                    )
-                        // Subtle fade+slide-in as cards enter — staggered by
-                        // position (capped so it never feels sluggish on a
-                        // long feed) rather than by global index.
-                        .animate()
-                        .fadeIn(
-                          duration: 280.ms,
-                          delay: 45.ms * (i % 6),
-                        )
-                        .slideY(
-                          begin: 0.06,
-                          end: 0,
-                          duration: 280.ms,
-                          curve: Curves.easeOut,
-                        );
-                  },
-                  childCount: posts.length,
-                ),
-              ),
-
-            // ── Load-more / end indicator ──────────────────────────────
-            SliverToBoxAdapter(
-              child: hasMore
-                  ? _LoadMoreButton(isDark: isDark, onTap: _loadMore)
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: Text(
-                          '— end of feed —',
-                          style: GoogleFonts.lato(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextMuted
-                                : AppColors.textMuted,
-                          ),
-                        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _visibleCount = _kPageSize;
+                  _hasOpenedPost = false;
+                  _showTopChrome = true;
+                });
+                await Future.delayed(const Duration(milliseconds: 600));
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  // ── Posts ──────────────────────────────────────────────
+                  if (posts.isEmpty)
+                    const SliverFillRemaining(child: _EmptyFeed())
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final post = posts[i];
+                          return PostCard(
+                            post: post,
+                            onContentTap: () => _openPost(post, i),
+                          )
+                              // Subtle fade+slide-in as cards enter — staggered
+                              // by position (capped so it never feels sluggish
+                              // on a long feed) rather than by global index.
+                              .animate()
+                              .fadeIn(
+                                duration: 280.ms,
+                                delay: 45.ms * (i % 6),
+                              )
+                              .slideY(
+                                begin: 0.06,
+                                end: 0,
+                                duration: 280.ms,
+                                curve: Curves.easeOut,
+                              );
+                        },
+                        childCount: posts.length,
                       ),
                     ),
+
+                  // ── Load-more / end indicator ─────────────────────────
+                  SliverToBoxAdapter(
+                    child: hasMore
+                        ? _LoadMoreButton(isDark: isDark, onTap: _loadMore)
+                        : Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Center(
+                              child: Text(
+                                '— end of feed —',
+                                style: GoogleFonts.lato(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
+          ),
           ],
         ),
       ),

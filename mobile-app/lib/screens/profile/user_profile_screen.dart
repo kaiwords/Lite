@@ -17,8 +17,7 @@ import '../../widgets/post_card.dart';
 // Screen — shown when tapping another user's name/avatar
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Fallback lookup for `/user/:userId` ids that aren't seeded mock users —
-/// e.g. real accounts whose posts were loaded from Supabase.
+/// Looks up `/user/:userId` against the real `users` table.
 final _remoteUserProvider = FutureProvider.family<LitUser?, String>(
     (ref, id) => UsersRepository.fetchById(id));
 
@@ -48,12 +47,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Seeded mock users resolve synchronously; anything else is fetched from
-    // the `users` table so profiles of real accounts don't 404.
-    final mockUser =
-        mockUsers.where((u) => u.id == widget.userId).firstOrNull;
-    if (mockUser != null) return _profile(context, mockUser);
-
     final remote = ref.watch(_remoteUserProvider(widget.userId));
     return remote.when(
       loading: () => Scaffold(
@@ -468,18 +461,25 @@ class _EmptyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A user with zero posts/audio/saved leaves the tab body very little
+    // vertical room (NestedScrollView's pinned tab bar can leave barely a
+    // few dozen pixels before any scrolling happens) — SingleChildScrollView
+    // lets this degrade to a short scroll instead of a RenderFlex overflow
+    // the way ListView-based tabs already tolerate the same tight space.
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon,
-            size: 48,
-            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-        const SizedBox(height: 12),
-        Text(label,
-            style: GoogleFonts.lato(
-                fontSize: 14,
-                color:
-                    isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
-      ]),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon,
+              size: 48,
+              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text(label,
+              style: GoogleFonts.lato(
+                  fontSize: 14,
+                  color:
+                      isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
+        ]),
+      ),
     );
   }
 }

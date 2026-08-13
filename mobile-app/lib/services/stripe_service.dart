@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/marketplace.dart';
 import 'supabase_service.dart';
 
 /// Wraps the two buyer/seller-facing Stripe flows, both backed by Supabase
@@ -29,10 +30,17 @@ class StripeService {
   /// (either a validation error from the server, e.g. "seller hasn't
   /// finished payment setup yet", or "cancelled" if the sheet was
   /// dismissed).
-  static Future<String> buyListings(List<String> listingIds) async {
+  static Future<String> buyListings(
+    List<String> listingIds, {
+    Map<String, ShippingSelection> shipping = const {},
+  }) async {
     final response = await SupabaseService.client.functions.invoke(
       'stripe-create-checkout',
-      body: {'listingIds': listingIds},
+      body: {
+        'listingIds': listingIds,
+        if (shipping.isNotEmpty)
+          'shipping': shipping.map((id, sel) => MapEntry(id, sel.toJson())),
+      },
     );
     final data = response.data as Map<String, dynamic>;
     if (data['error'] != null) {

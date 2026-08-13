@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +13,8 @@ import '../../models/post.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
+import '../../services/local_store.dart';
+import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/audio_post_card.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -16,6 +22,51 @@ import '../../widgets/edit_profile_sheet.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/share_sheet.dart';
 import '../reader/book_reader_screen.dart';
+
+// Picks an image and saves it as the signed-in user's avatar or cover photo.
+// `path` is null on web (file_picker has no local filesystem there) — the
+// pick is silently dropped rather than saving a URL-less reference, same
+// graceful-degradation pattern PostScreen uses for its own file pickers.
+Future<void> _pickProfileImage(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool isCover,
+}) async {
+  final result = await FilePicker.pickFiles(type: FileType.image, withData: false);
+  if (!context.mounted || result == null || result.files.isEmpty) return;
+  final path = result.files.single.path;
+  if (path == null) return;
+
+  final user = ref.read(currentUserProvider);
+  if (user == null) return;
+  final updated = isCover
+      ? user.copyWith(coverImageUrl: path)
+      : user.copyWith(avatarUrl: path);
+  ref.read(currentUserProvider.notifier).state = updated;
+  LocalStore.instance.saveCurrentUser(updated);
+
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await UsersRepository.updateProfile(updated);
+  } catch (_) {
+    messenger.showSnackBar(const SnackBar(
+      content: Text("Saved locally — couldn't sync to server"),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+}
+
+// A user-picked photo is always a local file path today (no upload backend
+// yet — see database.md's "no file storage" note); `http`-prefixed values
+// are handled too so this keeps working if that ever changes.
+Widget? _profileImage(String? url, {required BoxFit fit}) {
+  if (url == null || url.isEmpty) return null;
+  if (url.startsWith('http')) {
+    return Image.network(url, fit: fit);
+  }
+  if (kIsWeb) return null;
+  return Image.file(File(url), fit: fit);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -167,22 +218,25 @@ class _ProfileHeader extends StatelessWidget {
                   color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                user.bio,
-                style: GoogleFonts.lora(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.textSecondary,
+              // Skipped entirely when there's no bio — an empty Text still
+              // reserves a line's height, which read as a gap before the
+              // stats row.
+              if (user.bio.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  user.bio,
+                  style: GoogleFonts.lora(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
-
-        const SizedBox(height: 14),
 
         // Stats row
         _StatsRow(user: user, isDark: isDark),
@@ -191,8 +245,6 @@ class _ProfileHeader extends StatelessWidget {
 
         // Action buttons
         _ActionButtons(isDark: isDark),
-
-        const SizedBox(height: 12),
       ],
     );
   }
@@ -266,47 +318,67 @@ class _PinnedTabBar extends SliverPersistentHeaderDelegate {
 // Cover gradient + avatar overlapping its bottom edge
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CoverWithAvatar extends StatelessWidget {
+class _CoverWithAvatar extends ConsumerWidget {
   final LitUser user;
   final bool isDark;
   const _CoverWithAvatar({required this.user, required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coverImage = _profileImage(user.coverImageUrl, fit: BoxFit.cover);
+    final avatarImage = _profileImage(user.avatarUrl, fit: BoxFit.cover);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // Gradient cover
-        Container(
-          height: 110,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkSurfaceVariant, AppColors.darkBackground]
-                  : [AppColors.accentSoft, AppColors.surfaceVariant],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        // Cover — tap to replace with a picked photo, falls back to gradient
+        GestureDetector(
+          onTap: () => _pickProfileImage(context, ref, isCover: true),
+          child: Container(
+            height: 110,
+            decoration: BoxDecoration(
+              gradient: coverImage == null
+                  ? LinearGradient(
+                      colors: isDark
+                          ? [AppColors.darkSurfaceVariant, AppColors.darkBackground]
+                          : [AppColors.accentSoft, AppColors.surfaceVariant],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
             ),
-          ),
-          child: Align(
-            alignment: Alignment.bottomLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '✍️ Author',
-                  style: GoogleFonts.lato(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.accent,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ?coverImage,
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '✍️ Author',
+                        style: GoogleFonts.lato(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // Camera badge — signals the cover is tappable
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: _CameraBadge(size: 26, iconSize: 13),
+                ),
+              ],
             ),
           ),
         ),
@@ -335,38 +407,82 @@ class _CoverWithAvatar extends StatelessWidget {
           ),
         ),
 
-        // Avatar raised above cover bottom
+        // Avatar raised above cover bottom — tap to replace with a picked
+        // photo, falls back to the initial-letter placeholder.
         Positioned(
           bottom: -28,
           left: 16,
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isDark ? AppColors.darkBackground : AppColors.background,
-                width: 3,
-              ),
-              color: isDark
-                  ? AppColors.darkSurfaceVariant
-                  : AppColors.surfaceVariant,
-            ),
-            child: Center(
-              child: Text(
-                user.displayName.isEmpty
-                    ? '?'
-                    : user.displayName[0].toUpperCase(),
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
+          child: GestureDetector(
+            onTap: () => _pickProfileImage(context, ref, isCover: false),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark
+                          ? AppColors.darkBackground
+                          : AppColors.background,
+                      width: 3,
+                    ),
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
+                  ),
+                  child: avatarImage != null
+                      ? ClipOval(child: avatarImage)
+                      : Center(
+                          child: Text(
+                            user.displayName.isEmpty
+                                ? '?'
+                                : user.displayName[0].toUpperCase(),
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                        ),
                 ),
-              ),
+                const Positioned(
+                  bottom: -2,
+                  right: -2,
+                  child: _CameraBadge(size: 24, iconSize: 12),
+                ),
+              ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// Small camera-icon badge overlaid on the cover/avatar to signal it's
+// tappable to change the photo.
+class _CameraBadge extends StatelessWidget {
+  final double size;
+  final double iconSize;
+  const _CameraBadge({required this.size, required this.iconSize});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Icon(
+        Icons.camera_alt_rounded,
+        size: iconSize,
+        color: Colors.white,
+      ),
     );
   }
 }
@@ -460,7 +576,13 @@ class _StatCell extends StatelessWidget {
           ? InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: onTap,
-              child: Padding(padding: const EdgeInsets.all(6), child: col),
+              // No top padding — that's what left a gap between the bio
+              // above and the stats row; horizontal/bottom padding stays
+              // for a comfortable tap target.
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                child: col,
+              ),
             )
           : col,
     );
@@ -620,7 +742,13 @@ class _SavedTab extends ConsumerWidget {
 // guarantee the post we want is at the index we compute.
 void _openPost(BuildContext context, WidgetRef ref, Post post) {
   if (post.bookId != null) {
-    final book = findBook(post.bookId!) ?? mockBooks.first;
+    final book = findBook(post.bookId!);
+    if (book == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This book is not available yet')),
+      );
+      return;
+    }
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => BookReaderScreen(book: book)));
@@ -644,24 +772,32 @@ class _EmptyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A brand-new account with zero posts/audio/saved lands here with very
+    // little vertical room to work with (NestedScrollView's pinned tab bar
+    // can leave the body just a few dozen pixels tall before any scrolling
+    // happens) — SingleChildScrollView lets this degrade to a short scroll
+    // instead of a RenderFlex overflow the way ListView-based tabs already
+    // tolerate the same tight space.
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 48,
-            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: GoogleFonts.lato(
-              fontSize: 14,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 48,
               color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: GoogleFonts.lato(
+                fontSize: 14,
+                color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

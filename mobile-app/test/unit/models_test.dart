@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:literature/demo_data/demo_comments.dart';
+import 'package:literature/demo_data/demo_marketplace.dart';
+import 'package:literature/demo_data/demo_posts.dart';
 import 'package:literature/models/comment.dart';
 import 'package:literature/models/marketplace.dart';
 import 'package:literature/models/post.dart';
@@ -13,6 +16,7 @@ void main() {
         username: 'tester',
         displayName: 'Test User',
         avatarUrl: 'https://example.com/a.png',
+        coverImageUrl: '/local/path/cover.jpg',
         bio: 'bio',
         followersCount: 3,
         followingCount: 4,
@@ -23,6 +27,16 @@ void main() {
       );
       final back = LitUser.fromJson(user.toJson());
       expect(back.toJson(), user.toJson());
+    });
+
+    test('copyWith updates avatarUrl/coverImageUrl independently', () {
+      const user = LitUser(id: 'u9', username: 'tester', displayName: 'Test User');
+      final withAvatar = user.copyWith(avatarUrl: '/a.png');
+      expect(withAvatar.avatarUrl, '/a.png');
+      expect(withAvatar.coverImageUrl, isNull);
+      final withCover = withAvatar.copyWith(coverImageUrl: '/c.png');
+      expect(withCover.avatarUrl, '/a.png');
+      expect(withCover.coverImageUrl, '/c.png');
     });
 
     test('fromSupabaseRow maps snake_case columns', () {
@@ -142,6 +156,90 @@ void main() {
       expect(back.toJson(), listing.toJson());
     });
 
+    test('toJson/fromJson round-trips book-metadata and physical fields', () {
+      final listing = MarketplaceListing(
+        id: 'x2',
+        title: 'Physical Book',
+        authorName: 'Author',
+        price: '\$14.99',
+        type: ListingType.physical,
+        rating: 4.8,
+        reviewCount: 3,
+        isbn: '978-3-16-148410-0',
+        publisher: 'Penguin Books',
+        publicationDate: DateTime.utc(2019, 5, 12),
+        condition: ListingCondition.likeNew,
+        quantity: 2,
+        edition: '1st Edition, English',
+        shippingMethods: const [ShippingMethod.pickup, ShippingMethod.meetup],
+        pickupLocation: '123 Main St',
+        pickupPhone: '(555) 123-4567',
+        meetupLocation: 'Downtown, near the library',
+        meetupPhone: '(555) 987-6543',
+      );
+      final back = MarketplaceListing.fromJson(listing.toJson());
+      expect(back.toJson(), listing.toJson());
+      expect(back.isbn, '978-3-16-148410-0');
+      expect(back.publisher, 'Penguin Books');
+      expect(back.publicationDate, DateTime.utc(2019, 5, 12));
+      expect(back.condition, ListingCondition.likeNew);
+      expect(back.quantity, 2);
+      expect(back.edition, '1st Edition, English');
+      expect(back.shippingMethods, [ShippingMethod.pickup, ShippingMethod.meetup]);
+      expect(back.pickupLocation, '123 Main St');
+      expect(back.pickupPhone, '(555) 123-4567');
+      expect(back.meetupLocation, 'Downtown, near the library');
+      expect(back.meetupPhone, '(555) 987-6543');
+    });
+
+    test('toJson/fromJson round-trips offer/swap/sold-out fields', () {
+      final listing = MarketplaceListing(
+        id: 'x3',
+        title: 'Swap Book',
+        authorName: 'Author',
+        price: 'Swap',
+        type: ListingType.physical,
+        rating: 0,
+        reviewCount: 0,
+        offer: ListingOffer.swap,
+        swapWantedFor: 'Another mystery novel',
+        isSoldOut: true,
+      );
+      final back = MarketplaceListing.fromJson(listing.toJson());
+      expect(back.toJson(), listing.toJson());
+      expect(back.offer, ListingOffer.swap);
+      expect(back.swapWantedFor, 'Another mystery novel');
+      expect(back.isSoldOut, isTrue);
+    });
+
+    test('missing offer/isSoldOut default to sale/false (pre-existing listings)', () {
+      final l = MarketplaceListing.fromJson({
+        'id': 'x',
+        'title': 't',
+        'authorName': 'a',
+        'price': '\$1',
+        'type': 'physical',
+        'rating': 0,
+        'reviewCount': 0,
+      });
+      expect(l.offer, ListingOffer.sale);
+      expect(l.isSoldOut, isFalse);
+    });
+
+    test('unknown condition falls back to good', () {
+      final l = MarketplaceListing.fromJson({
+        'id': 'x',
+        'title': 't',
+        'authorName': 'a',
+        'price': '\$1',
+        'type': 'physical',
+        'rating': 0,
+        'reviewCount': 0,
+        'condition': 'pristine',
+      });
+      expect(l.condition, ListingCondition.good);
+    });
+
     test('unknown listing type falls back to physical', () {
       final l = MarketplaceListing.fromJson({
         'id': 'x',
@@ -192,11 +290,13 @@ void main() {
   group('Purchase', () {
     test('toJson/fromJson round-trips', () {
       final purchase = Purchase(
+        orderItemId: 'OI-1',
         listing: mockListings.first,
         purchasedAt: DateTime(2026, 7, 1, 12),
         orderId: 'ORD-1',
       );
       final back = Purchase.fromJson(purchase.toJson());
+      expect(back.orderItemId, 'OI-1');
       expect(back.orderId, 'ORD-1');
       expect(back.purchasedAt, DateTime(2026, 7, 1, 12));
       expect(back.listing.toJson(), mockListings.first.toJson());

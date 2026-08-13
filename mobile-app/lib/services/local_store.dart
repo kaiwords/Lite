@@ -26,6 +26,7 @@ class LocalStore {
 
   static Future<void> init() async {
     _instance ??= LocalStore._(await SharedPreferences.getInstance());
+    await _instance!._purgeStaleDemoCacheOnce();
   }
 
   static const _kPosts = 'posts';
@@ -37,6 +38,34 @@ class LocalStore {
   static const _kThemeMode = 'theme_mode';
   static const _kFollows = 'follows';
   static const _kVisibleCategories = 'visible_categories';
+  static const _kBookBookmarks = 'book_bookmarks';
+  static const _kBookLastPosition = 'book_last_position';
+  static const _kDemoCachePurged = 'demo_cache_purged_v2';
+
+  /// One-time cleanup for installs that cached posts/comments/cart/purchases/
+  /// my-listings/follows back when their notifiers seeded from hardcoded
+  /// demo data (see demo_data/) — any like/comment/purchase/follow/etc. made
+  /// while that seed was still showing wrote the whole list, mocks included,
+  /// to disk. Without this, those devices would keep reloading that stale
+  /// snapshot forever even though the app itself no longer seeds from demo
+  /// data. Runs once per install; a real empty result from Supabase after
+  /// this is trusted as genuinely empty, not re-purged. (v2 widens v1's
+  /// posts/comments-only purge to the other notifiers that also used to
+  /// seed from demo data.)
+  Future<void> _purgeStaleDemoCacheOnce() async {
+    if (_prefs.getBool(_kDemoCachePurged) == true) return;
+    for (final key in [
+      _kPosts,
+      _kComments,
+      _kCart,
+      _kPurchases,
+      _kMyListings,
+      _kFollows,
+    ]) {
+      await _prefs.remove(key);
+    }
+    await _prefs.setBool(_kDemoCachePurged, true);
+  }
 
   /// Wipes every persisted key except the theme preference. Called on logout
   /// so the next signed-in account doesn't inherit this one's cached posts,
@@ -51,6 +80,8 @@ class LocalStore {
       _kCurrentUser,
       _kFollows,
       _kVisibleCategories,
+      _kBookBookmarks,
+      _kBookLastPosition,
     ]) {
       await _prefs.remove(key);
     }
@@ -133,4 +164,66 @@ class LocalStore {
       _prefs.getStringList(_kVisibleCategories);
   void saveVisibleCategories(List<String> names) =>
       unawaited(_prefs.setStringList(_kVisibleCategories, names));
+
+  // ── Book bookmarks (bookId -> sorted list of bookmarked page indices) ───────
+  List<int> loadBookBookmarks(String bookId) {
+    final raw = _prefs.getString(_kBookBookmarks);
+    if (raw == null) return [];
+    try {
+      final decoded = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      final pages = decoded[bookId] as List?;
+      return pages?.cast<int>() ?? [];
+    } catch (_) {
+      return []; // corrupt data — fall back to no bookmarks
+    }
+  }
+
+  void saveBookBookmarks(String bookId, List<int> pageIndices) {
+    final raw = _prefs.getString(_kBookBookmarks);
+    Map<String, dynamic> decoded;
+    try {
+      decoded = raw == null
+          ? {}
+          : (jsonDecode(raw) as Map).cast<String, dynamic>();
+    } catch (_) {
+      decoded = {};
+    }
+    if (pageIndices.isEmpty) {
+      decoded.remove(bookId);
+    } else {
+      decoded[bookId] = pageIndices;
+    }
+    unawaited(_prefs.setString(_kBookBookmarks, jsonEncode(decoded)));
+  }
+
+  // ── Last read position (bookId -> flattened page index) — the "continue
+  // reading" marker, distinct from the user-placed bookmarks above. Updated
+  // silently on every page turn; read once on opening a book to offer
+  // "Continue reading" vs. "Start over" (see BookReaderScreen/
+  // _EbookReadScreen). Null means never opened, or finished/reset.
+  int? loadBookLastPosition(String bookId) {
+    final raw = _prefs.getString(_kBookLastPosition);
+    if (raw == null) return null;
+    try {
+      final decoded = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      final index = decoded[bookId] as num?;
+      return index?.toInt();
+    } catch (_) {
+      return null; // corrupt data — fall back to no saved position
+    }
+  }
+
+  void saveBookLastPosition(String bookId, int pageIndex) {
+    final raw = _prefs.getString(_kBookLastPosition);
+    Map<String, dynamic> decoded;
+    try {
+      decoded = raw == null
+          ? {}
+          : (jsonDecode(raw) as Map).cast<String, dynamic>();
+    } catch (_) {
+      decoded = {};
+    }
+    decoded[bookId] = pageIndex;
+    unawaited(_prefs.setString(_kBookLastPosition, jsonEncode(decoded)));
+  }
 }

@@ -63,6 +63,15 @@ Deno.serve(async (req) => {
     }
     const uniqueIds = [...new Set(listingIds)] as string[];
 
+    // Keyed by listing id: { method: "pickup"|"delivery"|"meetup", meetupPlace?: string }
+    // — the buyer's fulfillment choice for each Physical listing that has
+    // shipping_methods configured, collected by the Flutter app's
+    // widgets/shipping_method_sheet.dart before this function is called.
+    const shipping = (body.shipping ?? {}) as Record<
+      string,
+      { method?: string; meetupPlace?: string }
+    >;
+
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -70,7 +79,7 @@ Deno.serve(async (req) => {
 
     const { data: listings, error: listingsError } = await admin
       .from("marketplace_listings")
-      .select("id, seller_id, price_cents, title")
+      .select("id, seller_id, price_cents, title, type, shipping_methods")
       .in("id", uniqueIds);
     if (listingsError) throw listingsError;
     if (!listings || listings.length !== uniqueIds.length) {
@@ -83,6 +92,19 @@ Deno.serve(async (req) => {
       }
       if (!listing.price_cents || listing.price_cents <= 0) {
         return json({ error: `"${listing.title}" doesn't have a valid price yet` }, 400);
+      }
+      // Physical listings the seller configured shipping methods for
+      // require the buyer to have picked one (server-side, since this is
+      // also what determines fulfillment — not just a UI nicety).
+      const methods = (listing.shipping_methods ?? []) as string[];
+      if (listing.type === "physical" && methods.length > 0) {
+        const choice = shipping[listing.id];
+        if (!choice?.method || !methods.includes(choice.method)) {
+          return json({ error: `Choose a shipping method for "${listing.title}"` }, 400);
+        }
+        if (choice.method === "meetup" && !choice.meetupPlace?.trim()) {
+          return json({ error: `Suggest a meetup place/time for "${listing.title}"` }, 400);
+        }
       }
     }
 
@@ -131,13 +153,18 @@ Deno.serve(async (req) => {
     if (orderError) throw orderError;
 
     const { error: itemsError } = await admin.from("order_items").insert(
-      items.map((i) => ({
-        order_id: order.id,
-        listing_id: i.listing.id,
-        seller_id: i.listing.seller_id,
-        unit_price_cents: i.unitPriceCents,
-        platform_fee_cents: i.platformFeeCents,
-      })),
+      items.map((i) => {
+        const choice = shipping[i.listing.id];
+        return {
+          order_id: order.id,
+          listing_id: i.listing.id,
+          seller_id: i.listing.seller_id,
+          unit_price_cents: i.unitPriceCents,
+          platform_fee_cents: i.platformFeeCents,
+          shipping_method: choice?.method ?? null,
+          meetup_place: choice?.method === "meetup" ? choice.meetupPlace : null,
+        };
+      }),
     );
     if (itemsError) throw itemsError;
 

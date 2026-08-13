@@ -72,6 +72,24 @@ class MarketplaceRepository {
         'content_category': listing.contentCategory?.name,
         'genre': listing.genre?.name,
         'description': listing.description,
+        'isbn': listing.isbn,
+        'publisher': listing.publisher,
+        'publication_date': listing.publicationDate?.toIso8601String(),
+        'condition': listing.condition?.name,
+        // Reuses the pre-existing (legacy, previously-unwritten) qty column
+        // rather than adding a duplicate — see docs/database.md.
+        'qty': listing.quantity,
+        'edition': listing.edition,
+        'shipping_methods': listing.shippingMethods.map((m) => m.name).toList(),
+        'pickup_location': listing.pickupLocation,
+        'pickup_phone': listing.pickupPhone,
+        'meetup_location': listing.meetupLocation,
+        'meetup_phone': listing.meetupPhone,
+        'offer': listing.offer.name,
+        'swap_wanted_for': listing.swapWantedFor,
+        // Reuses the pre-existing (legacy, previously-unwritten) is_sold_out
+        // column rather than adding a duplicate — see docs/database.md.
+        'is_sold_out': listing.isSoldOut,
         'pdf_file_name': listing.pdfFileName,
         'ebook_content': listing.ebookContent,
         'cover_image_url': listing.coverImageUrl,
@@ -115,6 +133,38 @@ class MarketplaceRepository {
               orElse: () => Genre.literaryFiction,
             ),
       description: (row['description'] as String?) ?? '',
+      isbn: row['isbn'] as String?,
+      publisher: row['publisher'] as String?,
+      publicationDate: row['publication_date'] == null
+          ? null
+          : DateTime.tryParse(row['publication_date'] as String),
+      condition: row['condition'] == null
+          ? null
+          : ListingCondition.values.firstWhere(
+              (c) => c.name == row['condition'],
+              orElse: () => ListingCondition.good,
+            ),
+      quantity: (row['qty'] as num?)?.toInt(),
+      edition: row['edition'] as String?,
+      shippingMethods: [
+        for (final name
+            in ((row['shipping_methods'] as List?) ?? const [])
+                .whereType<String>())
+          if (ShippingMethod.values.any((m) => m.name == name))
+            ShippingMethod.values.firstWhere((m) => m.name == name),
+      ],
+      pickupLocation: row['pickup_location'] as String?,
+      pickupPhone: row['pickup_phone'] as String?,
+      meetupLocation: row['meetup_location'] as String?,
+      meetupPhone: row['meetup_phone'] as String?,
+      offer: row['offer'] == null
+          ? ListingOffer.sale
+          : ListingOffer.values.firstWhere(
+              (o) => o.name == row['offer'],
+              orElse: () => ListingOffer.sale,
+            ),
+      swapWantedFor: row['swap_wanted_for'] as String?,
+      isSoldOut: (row['is_sold_out'] as bool?) ?? false,
       pdfFileName: row['pdf_file_name'] as String?,
       ebookContent: row['ebook_content'] as String?,
       coverImageUrl: row['cover_image_url'] as String?,

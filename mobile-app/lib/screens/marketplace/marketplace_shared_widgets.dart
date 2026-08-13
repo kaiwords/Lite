@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/book.dart';
 import '../../models/marketplace.dart';
+import '../../utils/cover_image.dart';
 import '../reader/book_reader_screen.dart';
 import '../../theme/app_theme.dart';
 
@@ -14,18 +14,20 @@ import '../../theme/app_theme.dart';
 // per-file — anything referenced from more than one tab file must be public.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Book grid card — used in Library and My Listings ────────────────────────
+// ── Book list row — used in Library and My Listings ─────────────────────────
+// Minimal by design: cover on the left, the book's title only — no type
+// chip, author, price, or sold count. Whatever trailing action the tab
+// needs (remove from library, or edit/delete a listing) sits on the right.
 
-class BookGridCard extends ConsumerWidget {
+class BookListRow extends StatelessWidget {
   final MarketplaceListing listing;
   final bool isDark;
-  final VoidCallback? onRemove; // shows an X button (e.g. remove from library)
+  final VoidCallback? onRemove; // library: remove from library
   final VoidCallback? onEdit; // my listings: edit via ⋮ menu
   final VoidCallback? onDelete; // my listings: delete via ⋮ menu
-  final String? accessLabel; // library: Play/Read/View
-  final int? salesCount; // my listings: sold count
+  final String? accessLabel; // 'Read' opens the book reader instead of the listing detail
 
-  const BookGridCard({
+  const BookListRow({
     super.key,
     required this.listing,
     required this.isDark,
@@ -33,27 +35,30 @@ class BookGridCard extends ConsumerWidget {
     this.onEdit,
     this.onDelete,
     this.accessLabel,
-    this.salesCount,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark
-        ? AppColors.darkCardBorder
-        : AppColors.cardBorder;
+  Widget build(BuildContext context) {
     final titleColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
+    // No background/border/rounded corners/separator line — rows sit flush
+    // against each other with nothing between them.
     return GestureDetector(
       onTap: () {
         if (accessLabel == 'Read') {
           // Map listing id → book id (extend as more books are added)
           const listingToBook = {'mBook1': 'b1'};
-          final bookId = listingToBook[listing.id] ?? 'b1';
-          final book = findBook(bookId) ?? mockBooks.first;
+          final bookId = listingToBook[listing.id];
+          final book = bookId == null ? null : findBook(bookId);
+          if (book == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This book is not available yet')),
+            );
+            return;
+          }
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => BookReaderScreen(book: book)),
           );
@@ -61,243 +66,134 @@ class BookGridCard extends ConsumerWidget {
           context.push('/marketplace/listing/${listing.id}');
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
           children: [
             // Cover
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
-              ),
-              child: Container(
-                height: 100,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      listing.type.badgeColor.withValues(alpha: 0.85),
-                      listing.type.badgeColor.withValues(alpha: 0.35),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(
-                        listing.type.icon,
-                        size: 36,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (onRemove != null)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: GestureDetector(
-                          onTap: onRemove,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.45),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close_rounded,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (onEdit != null || onDelete != null)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: _CardMenu(
-                          onEdit: onEdit,
-                          onDelete: onDelete,
-                          isDark: isDark,
-                        ),
-                      ),
-                  ],
+            _RowCover(listing: listing),
+            const SizedBox(width: 12),
+
+            // Title only
+            Expanded(
+              child: Text(
+                listing.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: titleColor,
                 ),
               ),
             ),
 
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TypeChip(type: listing.type),
-                    const SizedBox(height: 5),
-                    Text(
-                      listing.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
+            // Trailing action
+            if (onRemove != null)
+              IconButton(
+                icon: Icon(Icons.close_rounded, size: 20, color: mutedColor),
+                tooltip: 'Remove',
+                onPressed: onRemove,
+              )
+            else if (onEdit != null || onDelete != null)
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded, color: mutedColor),
+                tooltip: 'Options',
+                onSelected: (v) {
+                  if (v == 'edit') onEdit?.call();
+                  if (v == 'delete') onDelete?.call();
+                },
+                itemBuilder: (_) => [
+                  if (onEdit != null)
+                    PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 18),
+                          const SizedBox(width: 10),
+                          Text('Edit', style: GoogleFonts.lato(fontSize: 13)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      listing.authorName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            listing.price,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                  if (onDelete != null)
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: Color(0xFFC0392B),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Delete',
                             style: GoogleFonts.lato(
                               fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.accent,
+                              color: const Color(0xFFC0392B),
                             ),
                           ),
-                        ),
-                        const Spacer(),
-                        if (accessLabel != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: listing.type.badgeColor.withValues(
-                                alpha: 0.15,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              accessLabel!,
-                              style: GoogleFonts.lato(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: listing.type.badgeColor,
-                              ),
-                            ),
-                          ),
-                        if (salesCount != null)
-                          Text(
-                            '$salesCount sold',
-                            style: GoogleFonts.lato(
-                              fontSize: 10,
-                              color: mutedColor,
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                ],
+              )
+            else
+              const SizedBox(width: 12),
           ],
         ),
-      ),
     );
   }
 }
 
-// ── Edit / delete menu overlay (My Listings) ────────────────────────────────
-
-class _CardMenu extends StatelessWidget {
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-  final bool isDark;
-  const _CardMenu({
-    required this.onEdit,
-    required this.onDelete,
-    required this.isDark,
-  });
+// Small (56×72) cover thumbnail — the seller's picked photo when there is
+// one, otherwise the type-tinted gradient placeholder this app has always
+// shown for listings without real cover art.
+class _RowCover extends StatelessWidget {
+  final MarketplaceListing listing;
+  const _RowCover({required this.listing});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        shape: BoxShape.circle,
-      ),
-      child: PopupMenuButton<String>(
-        padding: EdgeInsets.zero,
-        iconSize: 16,
-        tooltip: 'Options',
-        icon: const Icon(
-          Icons.more_vert_rounded,
-          size: 16,
-          color: Colors.white,
+    final coverImage = coverImageFile(listing.coverImageUrl);
+    if (coverImage != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.file(
+          coverImage,
+          width: 56,
+          height: 72,
+          fit: BoxFit.cover,
         ),
-        onSelected: (v) {
-          if (v == 'edit') onEdit?.call();
-          if (v == 'delete') onDelete?.call();
-        },
-        itemBuilder: (_) => [
-          if (onEdit != null)
-            PopupMenuItem<String>(
-              value: 'edit',
-              child: Row(
-                children: [
-                  const Icon(Icons.edit_outlined, size: 18),
-                  const SizedBox(width: 10),
-                  Text('Edit', style: GoogleFonts.lato(fontSize: 13)),
-                ],
-              ),
-            ),
-          if (onDelete != null)
-            PopupMenuItem<String>(
-              value: 'delete',
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 18,
-                    color: Color(0xFFC0392B),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Delete',
-                    style: GoogleFonts.lato(
-                      fontSize: 13,
-                      color: const Color(0xFFC0392B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
+      );
+    }
+    final color = listing.coverColor != null
+        ? Color(listing.coverColor!)
+        : listing.type.badgeColor;
+    return Container(
+      width: 56,
+      height: 72,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.85),
+            color.withValues(alpha: 0.35),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
+      child: Icon(listing.type.icon, size: 24, color: Colors.white),
     );
   }
 }
 
-// ── Add tile — reused by Library "Add Book" and My Listings "List a Book" ──
+// ── Add row — reused by Library "Add Book" and My Listings "List a Book" ───
 
-class AddTile extends StatelessWidget {
+class AddListRow extends StatelessWidget {
   final bool isDark;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  const AddTile({
+  const AddListRow({
     super.key,
     required this.isDark,
     required this.title,
@@ -307,54 +203,56 @@ class AddTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.add_rounded,
-                size: 28,
-                color: AppColors.accent,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: GoogleFonts.lato(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+            SizedBox(
+              width: 56,
+              height: 72,
+              child: Center(
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 22,
+                    color: AppColors.accent,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: GoogleFonts.lato(
-                fontSize: 11,
-                color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.lato(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                  ),
+                ],
               ),
             ),
+            Icon(Icons.chevron_right_rounded, color: mutedColor),
+            const SizedBox(width: 8),
           ],
         ),
-      ),
     );
   }
 }
@@ -457,6 +355,142 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Shared cover tint palette ────────────────────────────────────────────────
+// Used to tint StripedCover placeholders across Books (grid/list) and Cart so
+// the same listing reads with a consistent color wherever it appears.
+
+const coverPalette = [
+  Color(0xFFD9C9AE), // tan
+  Color(0xFFBFD8E0), // blue
+  Color(0xFFE3C6CE), // pink
+  Color(0xFFC3D9C1), // green
+  Color(0xFFCEC9E3), // lavender
+  Color(0xFFDAD3C2), // sand
+];
+
+// ── Striped placeholder cover ────────────────────────────────────────────────
+// This app has no real cover art, so every listing shows the same kind of
+// diagonal-stripe "cover" skeleton, tinted per-listing by [color]. Shared by
+// the Books grid/list tiles and the Cart row so covers read consistently
+// across the marketplace.
+
+class StripedCover extends StatelessWidget {
+  final Color color;
+  final double? width;
+  final double height;
+  final double borderRadius;
+  final bool showLabel;
+  const StripedCover({
+    super.key,
+    required this.color,
+    required this.height,
+    this.width,
+    this.borderRadius = 8,
+    this.showLabel = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: CustomPaint(
+          painter: _StripePainter(color: color),
+          child: showLabel
+              ? Center(
+                  child: Text(
+                    'cover',
+                    style: GoogleFonts.lato(
+                      fontSize: 10,
+                      color: color.withValues(alpha: 0.9),
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Listing cover — real photo when the seller picked one, else the ─────────
+// striped placeholder above (tinted by the seller's chosen design color when
+// set, otherwise the caller's per-tile fallback from [coverPalette]).
+
+class ListingCover extends StatelessWidget {
+  final MarketplaceListing listing;
+  final Color fallbackColor;
+  final double? width;
+  final double height;
+  final double borderRadius;
+  final bool showLabel;
+  const ListingCover({
+    super.key,
+    required this.listing,
+    required this.fallbackColor,
+    required this.height,
+    this.width,
+    this.borderRadius = 8,
+    this.showLabel = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final coverImage = coverImageFile(listing.coverImageUrl);
+    if (coverImage != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image.file(
+          coverImage,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return StripedCover(
+      color: listing.coverColor != null
+          ? Color(listing.coverColor!)
+          : fallbackColor,
+      width: width,
+      height: height,
+      borderRadius: borderRadius,
+      showLabel: showLabel,
+    );
+  }
+}
+
+class _StripePainter extends CustomPainter {
+  final Color color;
+  const _StripePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = color.withValues(alpha: 0.35),
+    );
+
+    final stripePaint = Paint()
+      ..color = color.withValues(alpha: 0.5)
+      ..strokeWidth = 7;
+    const gap = 13.0;
+    for (double x = -size.height; x < size.width + size.height; x += gap) {
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + size.height, 0),
+        stripePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StripePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 // ── Shared helpers ───────────────────────────────────────────────────────────

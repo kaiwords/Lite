@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +13,7 @@ import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/comments_sheet.dart';
+import '../../widgets/literature_app_bar.dart';
 import '../../widgets/share_sheet.dart';
 import '../../widgets/tip_sheet.dart';
 
@@ -33,6 +35,9 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
   final _scrollController = ScrollController();
   int _visibleCount = _kAudioPageSize;
   String? _featuredId; // null = use first audio post
+  // Covers the whole top chrome: the Audio app bar (title + create/search/
+  // message) and the Following/Narrators + category chips row underneath.
+  bool _showTopChrome = true;
 
   @override
   void initState() {
@@ -48,9 +53,17 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 300) {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
       _loadMore();
+    }
+
+    // Any scroll away from the top hides the whole top chrome — scrolling
+    // back up doesn't bring it back, only reaching the very top does.
+    if (pos.pixels <= 0) {
+      if (!_showTopChrome) setState(() => _showTopChrome = true);
+    } else if (_showTopChrome) {
+      setState(() => _showTopChrome = false);
     }
   }
 
@@ -64,6 +77,23 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
         () => _visibleCount = (_visibleCount + _kAudioPageSize).clamp(0, total),
       );
     }
+  }
+
+  // Tapping the Audio tab while already on Audio scrolls back to the top
+  // and refreshes the list — mirrors Home's same behavior.
+  Future<void> _refreshFromTop() async {
+    if (_scrollController.hasClients && _scrollController.offset > 0) {
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _visibleCount = _kAudioPageSize;
+      _showTopChrome = true;
+    });
   }
 
   // Promote a track to the featured player and start playing the whole list
@@ -145,73 +175,103 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
         : allPosts.where((p) => p.id == playingId).firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Audio',
-          style: Theme.of(context).appBarTheme.titleTextStyle,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () => context.push('/search'),
-          ),
-        ],
+      bottomNavigationBar: LiteratureBottomNavBar(
+        currentIndex: 1,
+        onSameTabTap: _refreshFromTop,
       ),
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 1),
-      body: Column(
-        children: [
-          _AudioCategoryBar(isDark: isDark),
-
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: playingPost != null
-                ? _MiniPlayer(post: playingPost, isDark: isDark)
-                : const SizedBox.shrink(),
-          ),
-
-          Expanded(
-            child: audioPosts.isEmpty
-                ? _EmptyState(
-                    isDark: isDark,
-                    filtered: category != FeedCategory.all,
-                    label: category.label,
-                  )
-                : ListView(
-                    controller: _scrollController,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _FeaturedPlayer(
-                        post: featured!,
-                        isDark: isDark,
-                        onPlay: () => _playFrom(featured, audioPosts),
-                      ),
-
-                      if (rest.isNotEmpty) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                          child: Text(
-                            'More Audio',
-                            style: Theme.of(context).textTheme.headlineSmall,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // ── Top chrome: app bar + Following/Narrators + category chips ──
+            // Collapses as one unit on scroll-down, reappears on scroll-up.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: !_showTopChrome
+                  ? const SizedBox.shrink()
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppBar(
+                          title: Text(
+                            'Audio',
+                            style: Theme.of(context).appBarTheme.titleTextStyle,
                           ),
+                          actions: [
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline_rounded),
+                              tooltip: 'Create',
+                              onPressed: () => showCreateChooser(context, isDark),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.search_rounded),
+                              tooltip: 'Search',
+                              onPressed: () => context.push('/search'),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.mail_outline_rounded),
+                              tooltip: 'Messages',
+                              onPressed: () => context.push('/messages'),
+                            ),
+                          ],
                         ),
-                        ...visibleRest.map(
-                          (p) => _AudioListItem(
-                            post: p,
-                            isDark: isDark,
-                            onSelect: () => _selectFeatured(p, audioPosts),
-                          ),
-                        ),
+                        _AudioCategoryBar(isDark: isDark),
                       ],
+                    ),
+            ),
 
-                      if (hasMore)
-                        _LoadMoreButton(isDark: isDark, onTap: _loadMore)
-                      else
-                        const SizedBox(height: 32),
-                    ],
-                  ),
-          ),
-        ],
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: playingPost != null
+                  ? _MiniPlayer(post: playingPost, isDark: isDark)
+                  : const SizedBox.shrink(),
+            ),
+
+            Expanded(
+              child: audioPosts.isEmpty
+                  ? _EmptyState(
+                      isDark: isDark,
+                      filtered: category != FeedCategory.all,
+                      label: category.label,
+                    )
+                  : ListView(
+                      controller: _scrollController,
+                      padding: EdgeInsets.zero,
+                      children: [
+                        _FeaturedPlayer(
+                          post: featured!,
+                          isDark: isDark,
+                          onPlay: () => _playFrom(featured, audioPosts),
+                        ),
+
+                        if (rest.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                            child: Text(
+                              'More Audio',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                          ),
+                          ...visibleRest.map(
+                            (p) => _AudioListItem(
+                              post: p,
+                              isDark: isDark,
+                              onSelect: () => _selectFeatured(p, audioPosts),
+                            ),
+                          ),
+                        ],
+
+                        if (hasMore)
+                          _LoadMoreButton(isDark: isDark, onTap: _loadMore)
+                        else
+                          const SizedBox(height: 32),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -230,7 +290,6 @@ class _AudioCategoryBar extends ConsumerWidget {
     final selectedFilter = ref.watch(audioFilterProvider);
     final selectedCategory = ref.watch(audioCategoryProvider);
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
-    final dividerColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
     final inactiveColor = isDark
         ? AppColors.darkTextMuted
@@ -244,7 +303,7 @@ class _AudioCategoryBar extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Following / Narrators ──────────────────────────────────────
+          // ── Following / Narrators ────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -256,8 +315,9 @@ class _AudioCategoryBar extends ConsumerWidget {
                     activeColor: activeColor,
                     activeBg: activeBg,
                     inactiveColor: inactiveColor,
-                    onTap: () => ref.read(audioFilterProvider.notifier).state =
-                        AudioFilter.following,
+                    onTap: () =>
+                        ref.read(audioFilterProvider.notifier).state =
+                            AudioFilter.following,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -268,8 +328,9 @@ class _AudioCategoryBar extends ConsumerWidget {
                     activeColor: activeColor,
                     activeBg: activeBg,
                     inactiveColor: inactiveColor,
-                    onTap: () => ref.read(audioFilterProvider.notifier).state =
-                        AudioFilter.narrators,
+                    onTap: () =>
+                        ref.read(audioFilterProvider.notifier).state =
+                            AudioFilter.narrators,
                   ),
                 ),
               ],
@@ -328,7 +389,6 @@ class _AudioCategoryBar extends ConsumerWidget {
               }).toList(),
             ),
           ),
-          Divider(height: 1, color: dividerColor),
         ],
       ),
     );
@@ -552,7 +612,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
         : AppColors.textSecondary;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+      margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -871,7 +931,7 @@ class _EngagementRow extends ConsumerWidget {
   }
 }
 
-class _EngBtn extends StatelessWidget {
+class _EngBtn extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -886,12 +946,40 @@ class _EngBtn extends StatelessWidget {
   });
 
   @override
+  State<_EngBtn> createState() => _EngBtnState();
+}
+
+class _EngBtnState extends State<_EngBtn> with SingleTickerProviderStateMixin {
+  late final AnimationController _popCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _popCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+  }
+
+  @override
+  void dispose() {
+    _popCtrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    HapticFeedback.lightImpact();
+    _popCtrl.forward(from: 0);
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: enabled ? onTap : null,
+        onTap: widget.enabled ? _handleTap : null,
         // Minimum 44x44 tappable area (accessibility touch target guidance)
         // even though the icon itself stays visually compact.
         child: ConstrainedBox(
@@ -902,14 +990,21 @@ class _EngBtn extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 20, color: color),
-                  if (label.isNotEmpty) ...[
+                  AnimatedBuilder(
+                    animation: _popCtrl,
+                    builder: (context, child) => Transform.scale(
+                      scale: 1.0 + 0.35 * sin(pi * _popCtrl.value),
+                      child: child,
+                    ),
+                    child: Icon(widget.icon, size: 20, color: widget.color),
+                  ),
+                  if (widget.label.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     Text(
-                      label,
+                      widget.label,
                       style: GoogleFonts.lato(
                         fontSize: 13,
-                        color: color,
+                        color: widget.color,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -942,7 +1037,6 @@ class _AudioListItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(audioPlayerProvider);
     final isPlaying = player.trackId == post.id && player.isPlaying;
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark
         ? AppColors.darkCardBorder
         : AppColors.cardBorder;
@@ -958,17 +1052,17 @@ class _AudioListItem extends ConsumerWidget {
         .watch(postsNotifierProvider)
         .firstWhere((p) => p.id == post.id, orElse: () => post);
 
+    // No background/border/margin — items run edge-to-edge and sit flush
+    // against each other, separated only by the bottom line (no gap). The
+    // "now playing" cue moves from a card border to a tinted background.
     return GestureDetector(
       onTap: onSelect,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isPlaying ? AppColors.accent : borderColor,
-            width: isPlaying ? 1.5 : 1,
-          ),
+          color: isPlaying
+              ? AppColors.accent.withValues(alpha: isDark ? 0.12 : 0.08)
+              : null,
+          border: Border(bottom: BorderSide(color: borderColor, width: 1)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),

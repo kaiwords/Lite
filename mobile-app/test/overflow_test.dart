@@ -282,12 +282,12 @@ void main() {
         await _pumpApp(tester);
 
         final context = tester.element(find.byType(Scaffold).first);
-        showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const ListItemSheet(
-            isDark: false,
-            initialType: ListingType.ebook,
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ListItemSheet(
+              isDark: false,
+              initialType: ListingType.ebook,
+            ),
           ),
         );
         await tester.pump();
@@ -301,18 +301,71 @@ void main() {
         await _pumpApp(tester);
 
         final context = tester.element(find.byType(Scaffold).first);
-        showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const ListItemSheet(
-            isDark: false,
-            initialType: ListingType.audio,
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ListItemSheet(
+              isDark: false,
+              initialType: ListingType.audio,
+            ),
           ),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         _expectNoOverflow(tester, 'list item sheet (audio) at $size');
+      });
+
+      testWidgets('list item sheet (physical) has no overflow', (
+        tester,
+      ) async {
+        _setScreenSize(tester, size);
+        await _pumpApp(tester);
+
+        final context = tester.element(find.byType(Scaffold).first);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ListItemSheet(
+              isDark: false,
+              initialType: ListingType.physical,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Check Pickup and Meet Up so their conditional location/phone
+        // fields (added 2026-08-13) actually render, since they're the
+        // rows most likely to overflow on a narrow phone.
+        final pickupChip = find.text('Pickup');
+        await tester.scrollUntilVisible(
+          pickupChip,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(pickupChip);
+        await tester.pump();
+        final meetupChip = find.text('Meet Up');
+        await tester.scrollUntilVisible(
+          meetupChip,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(meetupChip);
+        await tester.pump();
+
+        // Check Swap too, so the "what would you like in exchange" field
+        // (added 2026-08-13) renders — the Price field it replaces is gone,
+        // this is the row most likely to trip up that swap.
+        final swapChip = find.text('Swap');
+        await tester.scrollUntilVisible(
+          swapChip,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(swapChip);
+        await tester.pump();
+
+        _expectNoOverflow(tester, 'list item sheet (physical) at $size');
       });
 
       // ── Chapter list editor + per-chapter editor, reached by editing an
@@ -342,19 +395,27 @@ void main() {
         );
 
         final context = tester.element(find.byType(Scaffold).first);
-        showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) =>
-              const ListItemSheet(isDark: false, existing: existing),
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                const ListItemSheet(isDark: false, existing: existing),
+          ),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Sheet defaults to "Write online" source since chapters exist —
-        // tap the chapters box to open the chapter list screen.
+        // tap the chapters box to open the chapter list screen. On short
+        // screens the sheet's Cover step (photo/design picker) pushes this
+        // below the fold, so scroll it into view first instead of assuming
+        // it's already on-screen.
         final chaptersBox = find.text('Continue writing');
         expect(chaptersBox, findsOneWidget);
+        await tester.scrollUntilVisible(
+          chaptersBox,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(chaptersBox);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
@@ -415,4 +476,30 @@ void main() {
       }
     });
   }
+
+  // Regression check for a bug that slipped past the narrow-phone sizes
+  // above: the Books grid tile's cover used AspectRatio(1), so its height
+  // scaled with the (fixed 3-column) cell width — but the grid itself uses
+  // a fixed mainAxisExtent. On screens wide enough that a square cell
+  // exceeded that budget, the tile's Column overflowed. Fixed by giving the
+  // cover a fixed height instead. One-off, not part of the `_sizes` matrix
+  // above, since it only needs to prove this specific width class is safe.
+  testWidgets(
+    'marketplace "Books" section grid has no overflow on a wide phone (430x932)',
+    (tester) async {
+      _setScreenSize(tester, const Size(430, 932));
+      await _pumpApp(tester);
+      await _goTo(tester, '/marketplace');
+
+      await tester.tap(find.textContaining('titles to explore'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Confirms we actually reached the Books grid (not some other screen
+      // that just happened not to overflow) before trusting a clean result.
+      expect(find.textContaining('Showing'), findsOneWidget);
+      _expectNoOverflow(tester, 'marketplace "Books" section at 430x932');
+    },
+  );
 }

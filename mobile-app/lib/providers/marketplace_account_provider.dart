@@ -40,26 +40,49 @@ final cartProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Purchase {
+  final String orderItemId;
   final MarketplaceListing listing;
   final DateTime purchasedAt;
   final String orderId;
+  final ShippingMethod? shippingMethod;
+  final String? meetupPlace;
+  final bool meetupConfirmed;
   const Purchase({
+    required this.orderItemId,
     required this.listing,
     required this.purchasedAt,
     required this.orderId,
+    this.shippingMethod,
+    this.meetupPlace,
+    this.meetupConfirmed = false,
   });
 
   Map<String, dynamic> toJson() => {
+        'orderItemId': orderItemId,
         'listing': listing.toJson(),
         'purchasedAt': purchasedAt.toIso8601String(),
         'orderId': orderId,
+        'shippingMethod': shippingMethod?.name,
+        'meetupPlace': meetupPlace,
+        'meetupConfirmed': meetupConfirmed,
       };
 
   factory Purchase.fromJson(Map<String, dynamic> j) => Purchase(
+        // Older locally-cached purchases predate order_items.id being
+        // stored — fall back to orderId so they still round-trip.
+        orderItemId: (j['orderItemId'] as String?) ?? j['orderId'] as String,
         listing:
             MarketplaceListing.fromJson((j['listing'] as Map).cast<String, dynamic>()),
         purchasedAt: DateTime.parse(j['purchasedAt'] as String),
         orderId: j['orderId'] as String,
+        shippingMethod: j['shippingMethod'] == null
+            ? null
+            : ShippingMethod.values.firstWhere(
+                (m) => m.name == j['shippingMethod'],
+                orElse: () => ShippingMethod.pickup,
+              ),
+        meetupPlace: j['meetupPlace'] as String?,
+        meetupConfirmed: (j['meetupConfirmed'] as bool?) ?? false,
       );
 }
 
@@ -79,9 +102,13 @@ class PurchasesNotifier extends StateNotifier<List<Purchase>> {
       final records = await CommerceRepository.fetchPurchases(buyerId);
       state = records
           .map((r) => Purchase(
+                orderItemId: r.orderItemId,
                 listing: r.listing,
                 purchasedAt: r.purchasedAt,
                 orderId: r.orderId,
+                shippingMethod: r.shippingMethod,
+                meetupPlace: r.meetupPlace,
+                meetupConfirmed: r.meetupConfirmed,
               ))
           .toList();
     } catch (_) {
@@ -98,8 +125,24 @@ class PurchasesNotifier extends StateNotifier<List<Purchase>> {
   Future<void> buyListings(
     List<MarketplaceListing> listings, {
     required String buyerId,
+    Map<String, ShippingSelection> shipping = const {},
   }) async {
-    await StripeService.buyListings(listings.map((l) => l.id).toList());
+    await StripeService.buyListings(
+      listings.map((l) => l.id).toList(),
+      shipping: shipping,
+    );
+    await loadFromSupabase(buyerId);
+  }
+
+  /// Claims a Free or Swap [listing] via [CommerceRepository.claimListing]
+  /// (no Stripe involved — see the claim-listing Edge Function), then
+  /// refreshes from Supabase the same way [buyListings] does.
+  Future<void> claimListing(
+    MarketplaceListing listing, {
+    required String buyerId,
+    ShippingSelection? shipping,
+  }) async {
+    await CommerceRepository.claimListing(listing.id, shipping: shipping);
     await loadFromSupabase(buyerId);
   }
 }
@@ -120,15 +163,23 @@ final purchasesProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Sale {
+  final String orderItemId;
   final MarketplaceListing listing;
   final DateTime soldAt;
   final String buyerName;
   final double amount;
+  final ShippingMethod? shippingMethod;
+  final String? meetupPlace;
+  final bool meetupConfirmed;
   const Sale({
+    required this.orderItemId,
     required this.listing,
     required this.soldAt,
     required this.buyerName,
     required this.amount,
+    this.shippingMethod,
+    this.meetupPlace,
+    this.meetupConfirmed = false,
   });
 }
 
@@ -144,15 +195,26 @@ class SalesNotifier extends StateNotifier<List<Sale>> {
       final records = await CommerceRepository.fetchSales(sellerId);
       state = records
           .map((r) => Sale(
+                orderItemId: r.orderItemId,
                 listing: r.listing,
                 soldAt: r.soldAt,
                 buyerName: r.buyerName,
                 amount: r.amount,
+                shippingMethod: r.shippingMethod,
+                meetupPlace: r.meetupPlace,
+                meetupConfirmed: r.meetupConfirmed,
               ))
           .toList();
     } catch (_) {
       // Offline or request failed — keep whatever was last shown.
     }
+  }
+
+  /// Marks one sale's Meetup as confirmed and refreshes so the Sales tab
+  /// reflects it immediately.
+  Future<void> confirmMeetup(String orderItemId, String sellerId) async {
+    await CommerceRepository.confirmMeetup(orderItemId);
+    await loadFromSupabase(sellerId);
   }
 }
 

@@ -30,26 +30,25 @@ const _coverDesignColors = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// "List a Book" sell-flow bottom sheet + its write-online editor.
+// "List a Book" sell-flow full-screen form + its write-online editor.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Opens the "List a Book" sheet. [initialType] pre-selects the listing format
-/// (e.g. E-Book or Audio) when launching from elsewhere, such as the Home
-/// upload action.
+/// Opens the "List a Book" screen. [initialType] pre-selects the listing
+/// format (e.g. E-Book or Audio) when launching from elsewhere, such as the
+/// Home upload action.
 void showListItemSheet(
   BuildContext context, {
   ListingType? initialType,
   MarketplaceListing? existing,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => ListItemSheet(
-      isDark: isDark,
-      initialType: initialType,
-      existing: existing,
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ListItemSheet(
+        isDark: isDark,
+        initialType: initialType,
+        existing: existing,
+      ),
     ),
   );
 }
@@ -72,8 +71,26 @@ class ListItemSheet extends ConsumerStatefulWidget {
 class _ListItemSheetState extends ConsumerState<ListItemSheet> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _priceCtrl;
+  late final TextEditingController _descriptionCtrl;
   late ListingType _type;
   late ContentCategory _category;
+
+  // Book metadata — shown for Physical and E-Book listings only.
+  late final TextEditingController _isbnCtrl;
+  late final TextEditingController _publisherCtrl;
+  DateTime? _publicationDate;
+
+  // Physical-copy-only fields.
+  ListingCondition? _condition;
+  late final TextEditingController _quantityCtrl;
+  late final TextEditingController _editionCtrl;
+  final Set<ShippingMethod> _shippingMethods = {};
+  late final TextEditingController _pickupLocationCtrl;
+  late final TextEditingController _pickupPhoneCtrl;
+  late final TextEditingController _meetupLocationCtrl;
+  late final TextEditingController _meetupPhoneCtrl;
+  late ListingOffer _offer;
+  late final TextEditingController _swapWantedForCtrl;
 
   // Cover art — a picked photo takes precedence over the designed
   // (color + title/author/decorative-line) cover when both are set.
@@ -100,6 +117,22 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
     _priceCtrl = TextEditingController(
       text: e != null ? e.price.replaceAll('\$', '') : '',
     );
+    _descriptionCtrl = TextEditingController(text: e?.description ?? '');
+    _isbnCtrl = TextEditingController(text: e?.isbn ?? '');
+    _publisherCtrl = TextEditingController(text: e?.publisher ?? '');
+    _publicationDate = e?.publicationDate;
+    _condition = e?.condition;
+    _quantityCtrl = TextEditingController(
+      text: e?.quantity != null ? e!.quantity.toString() : '',
+    );
+    _editionCtrl = TextEditingController(text: e?.edition ?? '');
+    _shippingMethods.addAll(e?.shippingMethods ?? const []);
+    _pickupLocationCtrl = TextEditingController(text: e?.pickupLocation ?? '');
+    _pickupPhoneCtrl = TextEditingController(text: e?.pickupPhone ?? '');
+    _meetupLocationCtrl = TextEditingController(text: e?.meetupLocation ?? '');
+    _meetupPhoneCtrl = TextEditingController(text: e?.meetupPhone ?? '');
+    _offer = e?.offer ?? ListingOffer.sale;
+    _swapWantedForCtrl = TextEditingController(text: e?.swapWantedFor ?? '');
     _type = e?.type ?? widget.initialType ?? ListingType.ebook;
     _category = e?.contentCategory ?? ContentCategory.novel;
     _coverImagePath = e?.coverImageUrl;
@@ -129,6 +162,16 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
   void dispose() {
     _titleCtrl.dispose();
     _priceCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _isbnCtrl.dispose();
+    _publisherCtrl.dispose();
+    _quantityCtrl.dispose();
+    _editionCtrl.dispose();
+    _pickupLocationCtrl.dispose();
+    _pickupPhoneCtrl.dispose();
+    _meetupLocationCtrl.dispose();
+    _meetupPhoneCtrl.dispose();
+    _swapWantedForCtrl.dispose();
     for (final c in _volumeTitleCtrls) {
       c.dispose();
     }
@@ -146,6 +189,19 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       if (path != null) {
         setState(() => _coverImagePath = path);
       }
+    }
+  }
+
+  Future<void> _pickPublicationDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _publicationDate ?? now,
+      firstDate: DateTime(1500),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() => _publicationDate = picked);
     }
   }
 
@@ -204,8 +260,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
 
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
-    final priceRaw = _priceCtrl.text.trim();
-    if (title.isEmpty || priceRaw.isEmpty) {
+    if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields.'),
@@ -214,17 +269,36 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       );
       return;
     }
-    final price = double.tryParse(
-      priceRaw.replaceAll('\$', '').replaceAll(',', ''),
-    );
-    if (price == null || price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid price.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+
+    // Free/Swap Physical listings cost nothing — the Price field is hidden
+    // for them, so there's nothing to parse or validate.
+    final isFreeOrSwap =
+        _type == ListingType.physical && _offer != ListingOffer.sale;
+    double price = 0;
+    if (!isFreeOrSwap) {
+      final priceRaw = _priceCtrl.text.trim();
+      if (priceRaw.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fill in all fields.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      final parsed = double.tryParse(
+        priceRaw.replaceAll('\$', '').replaceAll(',', ''),
       );
-      return;
+      if (parsed == null || parsed <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid price.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      price = parsed;
     }
 
     // For E-Books, require either an uploaded PDF or at least one written
@@ -273,6 +347,75 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       return;
     }
 
+    // Physical-only quantity, validated only when a value was actually typed
+    // (it's optional — sellers who don't set it just aren't tracked for stock).
+    final isPhysical = _type == ListingType.physical;
+    int? quantity;
+    if (isPhysical && _quantityCtrl.text.trim().isNotEmpty) {
+      quantity = int.tryParse(_quantityCtrl.text.trim());
+      if (quantity == null || quantity < 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter a valid quantity (1 or more).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // ISBN/publisher/publication date are book-metadata fields, relevant to
+    // Physical and E-Book listings but not a pure Audio listing.
+    final showBookMeta = isPhysical || isEbook;
+    final isbn = showBookMeta && _isbnCtrl.text.trim().isNotEmpty
+        ? _isbnCtrl.text.trim()
+        : null;
+    final publisher = showBookMeta && _publisherCtrl.text.trim().isNotEmpty
+        ? _publisherCtrl.text.trim()
+        : null;
+    final publicationDate = showBookMeta ? _publicationDate : null;
+    final edition = isPhysical && _editionCtrl.text.trim().isNotEmpty
+        ? _editionCtrl.text.trim()
+        : null;
+
+    // Delivery needs nothing extra, but Pickup and Meetup each need
+    // seller-entered details so a buyer knows where (and, for Pickup, how)
+    // to actually get the book.
+    String? pickupLocation;
+    String? pickupPhone;
+    if (isPhysical && _shippingMethods.contains(ShippingMethod.pickup)) {
+      pickupLocation = _pickupLocationCtrl.text.trim();
+      pickupPhone = _pickupPhoneCtrl.text.trim();
+      if (pickupLocation.isEmpty || pickupPhone.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enter a pickup location and phone number for Pickup.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+    String? meetupLocation;
+    String? meetupPhone;
+    if (isPhysical && _shippingMethods.contains(ShippingMethod.meetup)) {
+      meetupLocation = _meetupLocationCtrl.text.trim();
+      meetupPhone = _meetupPhoneCtrl.text.trim();
+      if (meetupLocation.isEmpty || meetupPhone.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enter a meetup location and phone number for Meet Up.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     final e = widget.existing;
     final listing = MarketplaceListing(
       id: e?.id ?? 'u${DateTime.now().millisecondsSinceEpoch}',
@@ -280,15 +423,33 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       // New listings are attributed to the signed-in profile, not a mock name.
       authorName:
           e?.authorName ?? ref.read(currentUserProvider)?.displayName ?? '',
-      price: '\$${price.toStringAsFixed(2)}',
-      priceCents: (price * 100).round(),
+      price: isFreeOrSwap ? _offer.label : '\$${price.toStringAsFixed(2)}',
+      priceCents: isFreeOrSwap ? 0 : (price * 100).round(),
       type: _type,
       rating: e?.rating ?? 0,
       reviewCount: e?.reviewCount ?? 0,
       linkedPostId: e?.linkedPostId,
       contentCategory: _category,
       genre: e?.genre,
-      description: e?.description ?? '',
+      description: _descriptionCtrl.text.trim(),
+      isbn: isbn,
+      publisher: publisher,
+      publicationDate: publicationDate,
+      condition: isPhysical ? _condition : null,
+      quantity: quantity,
+      edition: edition,
+      shippingMethods: isPhysical ? _shippingMethods.toList() : const [],
+      pickupLocation: pickupLocation,
+      pickupPhone: pickupPhone,
+      meetupLocation: meetupLocation,
+      meetupPhone: meetupPhone,
+      offer: isPhysical ? _offer : ListingOffer.sale,
+      swapWantedFor: isPhysical && _offer == ListingOffer.swap
+          ? _swapWantedForCtrl.text.trim()
+          : null,
+      // Preserved from the existing listing on edit (only the claim-listing
+      // Edge Function ever sets this true) — never reset by re-saving.
+      isSoldOut: e?.isSoldOut ?? false,
       pdfFileName: pdfName,
       // Chapters supersede the legacy flat blob going forward — once a
       // listing is edited through this sheet it's saved in the new format.
@@ -326,45 +487,31 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
-    final bg = isDark ? AppColors.darkSurface : AppColors.surface;
+    final bg = isDark ? AppColors.darkBackground : AppColors.background;
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
     final labelColor = isDark
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        title: Text(
+          _isEdit ? 'Edit Listing' : 'List a Book',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
       ),
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: borderColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              _isEdit ? 'Edit Listing' : 'List a Book',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 4),
             Text(
               _isEdit
                   ? 'Update your listing details'
@@ -380,6 +527,17 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               controller: _titleCtrl,
               hint: 'e.g. Midnight Verses',
               isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+
+            // Description
+            _FieldLabel('Description', isDark: isDark),
+            const SizedBox(height: 6),
+            _TextField(
+              controller: _descriptionCtrl,
+              hint: 'What is this book about?',
+              isDark: isDark,
+              maxLines: 4,
             ),
             const SizedBox(height: 16),
 
@@ -456,6 +614,193 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               }).toList(),
             ),
             const SizedBox(height: 16),
+
+            // Book details — ISBN, publisher, publication date. Relevant to
+            // Physical and E-Book listings; a pure Audio listing skips them.
+            if (_type == ListingType.physical || _type == ListingType.ebook) ...[
+              _FieldLabel('ISBN', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _isbnCtrl,
+                hint: 'e.g. 978-3-16-148410-0',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel('Publisher', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _publisherCtrl,
+                hint: 'e.g. Penguin Books',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel('Publication Date', isDark: isDark),
+              const SizedBox(height: 6),
+              _DatePickerField(
+                date: _publicationDate,
+                isDark: isDark,
+                onTap: _pickPublicationDate,
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Physical-copy-only fields — condition, quantity, edition.
+            if (_type == ListingType.physical) ...[
+              _FieldLabel('Condition', isDark: isDark),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ListingCondition.values.map((c) {
+                  final sel = _condition == c;
+                  return GestureDetector(
+                    onTap: () => setState(() => _condition = c),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sel
+                            ? AppColors.accent.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: sel ? AppColors.accent : borderColor,
+                        ),
+                      ),
+                      child: Text(
+                        c.label,
+                        style: GoogleFonts.lato(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: sel ? AppColors.accent : labelColor,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel('Quantity Available', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _quantityCtrl,
+                hint: 'e.g. 1',
+                isDark: isDark,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel('Edition / Language', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _editionCtrl,
+                hint: 'e.g. 1st Edition, English',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel('Shipping Methods', isDark: isDark),
+              const SizedBox(height: 4),
+              Text(
+                'How can buyers get this copy from you?',
+                style: GoogleFonts.lato(fontSize: 11, color: labelColor),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ShippingMethod.values.map((m) {
+                  final sel = _shippingMethods.contains(m);
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      if (sel) {
+                        _shippingMethods.remove(m);
+                      } else {
+                        _shippingMethods.add(m);
+                      }
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sel
+                            ? AppColors.accent.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: sel ? AppColors.accent : borderColor,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            m.icon,
+                            size: 14,
+                            color: sel ? AppColors.accent : labelColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            m.label,
+                            style: GoogleFonts.lato(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: sel ? AppColors.accent : labelColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              // Delivery needs nothing extra. Pickup needs where/how to
+              // reach the seller; Meetup needs a general meeting area (the
+              // buyer still suggests a specific place/time per order).
+              if (_shippingMethods.contains(ShippingMethod.pickup)) ...[
+                const SizedBox(height: 12),
+                _FieldLabel('Pickup Location', isDark: isDark),
+                const SizedBox(height: 6),
+                _TextField(
+                  controller: _pickupLocationCtrl,
+                  hint: 'e.g. 123 Main St, Springfield',
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 12),
+                _FieldLabel('Pickup Phone Number', isDark: isDark),
+                const SizedBox(height: 6),
+                _TextField(
+                  controller: _pickupPhoneCtrl,
+                  hint: 'e.g. (555) 123-4567',
+                  isDark: isDark,
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+              if (_shippingMethods.contains(ShippingMethod.meetup)) ...[
+                const SizedBox(height: 12),
+                _FieldLabel('Meetup Location', isDark: isDark),
+                const SizedBox(height: 6),
+                _TextField(
+                  controller: _meetupLocationCtrl,
+                  hint: 'e.g. Downtown, near the library',
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 12),
+                _FieldLabel('Meetup Phone Number', isDark: isDark),
+                const SizedBox(height: 6),
+                _TextField(
+                  controller: _meetupPhoneCtrl,
+                  hint: 'e.g. (555) 123-4567',
+                  isDark: isDark,
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
 
             // E-Book content — upload a PDF or write the book online
             if (_type == ListingType.ebook) ...[
@@ -619,49 +964,174 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
             ),
             const SizedBox(height: 16),
 
-            // Price
-            _FieldLabel('Price (USD)', isDark: isDark),
-            const SizedBox(height: 6),
-            _TextField(
-              controller: _priceCtrl,
-              hint: 'e.g. 9.99',
-              isDark: isDark,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            // Offer — a Physical copy can be sold, given away, or offered
+            // as a swap instead. E-Book/Audio are always For Sale (a
+            // pickup/meetup exchange doesn't apply to digital content).
+            if (_type == ListingType.physical) ...[
+              _FieldLabel('Offer', isDark: isDark),
+              const SizedBox(height: 8),
+              Row(
+                children: ListingOffer.values.map((o) {
+                  final sel = _offer == o;
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _offer = o),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? AppColors.accent.withValues(alpha: 0.15)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: sel ? AppColors.accent : borderColor,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                o.icon,
+                                size: 20,
+                                color: sel ? AppColors.accent : labelColor,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                o.label,
+                                style: GoogleFonts.lato(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: sel ? AppColors.accent : labelColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              prefix: Text(
-                '\$ ',
-                style: GoogleFonts.lato(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
+            ],
 
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  // accentOnFill (darker than accent) keeps the white label
-                  // at WCAG AA contrast.
-                  backgroundColor: isDark
-                      ? AppColors.darkAccentOnFill
-                      : AppColors.accentOnFill,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+            // Price — hidden for Free/Swap, which cost nothing.
+            if (_type != ListingType.physical ||
+                _offer == ListingOffer.sale) ...[
+              _FieldLabel('Price (USD)', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _priceCtrl,
+                hint: 'e.g. 9.99',
+                isDark: isDark,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                onPressed: _submit,
-                child: Text(
-                  _isEdit ? 'Save Changes' : 'List for Sale',
+                prefix: Text(
+                  '\$ ',
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                    color: AppColors.accent,
                   ),
                 ),
+              ),
+            ],
+
+            // What the seller wants in return — Swap only, optional (blank
+            // means "open to offers").
+            if (_type == ListingType.physical &&
+                _offer == ListingOffer.swap) ...[
+              _FieldLabel('What would you like in exchange?', isDark: isDark),
+              const SizedBox(height: 6),
+              _TextField(
+                controller: _swapWantedForCtrl,
+                hint: 'e.g. Another mystery novel, or open to offers',
+                isDark: isDark,
+              ),
+            ],
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              // accentOnFill (darker than accent) keeps the white label
+              // at WCAG AA contrast.
+              backgroundColor: isDark
+                  ? AppColors.darkAccentOnFill
+                  : AppColors.accentOnFill,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _submit,
+            child: Text(
+              _isEdit ? 'Save Changes' : 'List for Sale',
+              style: GoogleFonts.lato(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Publication date picker field
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+class _DatePickerField extends StatelessWidget {
+  final DateTime? date;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _DatePickerField({
+    required this.date,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
+    final bg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final label = date == null
+        ? 'Select a date'
+        : '${_monthNames[date!.month - 1]} ${date!.day}, ${date!.year}';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_rounded, size: 16, color: mutedColor),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: GoogleFonts.lato(
+                fontSize: 14,
+                color: date == null ? mutedColor : textColor,
               ),
             ),
           ],
@@ -2134,12 +2604,14 @@ class _TextField extends StatelessWidget {
   final bool isDark;
   final TextInputType? keyboardType;
   final Widget? prefix;
+  final int maxLines;
   const _TextField({
     required this.controller,
     required this.hint,
     required this.isDark,
     this.keyboardType,
     this.prefix,
+    this.maxLines = 1,
   });
 
   @override
@@ -2164,6 +2636,7 @@ class _TextField extends StatelessWidget {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
+              maxLines: maxLines,
               style: GoogleFonts.lato(fontSize: 14, color: textColor),
               decoration: InputDecoration(
                 hintText: hint,

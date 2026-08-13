@@ -302,18 +302,51 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _SaleListRow extends StatelessWidget {
+class _SaleListRow extends ConsumerStatefulWidget {
   final Sale sale;
   final bool isDark;
   const _SaleListRow({required this.sale, required this.isDark});
 
   @override
+  ConsumerState<_SaleListRow> createState() => _SaleListRowState();
+}
+
+class _SaleListRowState extends ConsumerState<_SaleListRow> {
+  bool _confirming = false;
+
+  Future<void> _confirmMeetup() async {
+    final sellerId = ref.read(currentUserProvider)?.id;
+    if (sellerId == null) return;
+    setState(() => _confirming = true);
+    try {
+      await ref
+          .read(salesProvider.notifier)
+          .confirmMeetup(widget.sale.orderItemId, sellerId);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _confirming = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final sale = widget.sale;
     final titleColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final listing = sale.listing;
+    final isPendingMeetup =
+        sale.shippingMethod == ShippingMethod.meetup && !sale.meetupConfirmed;
 
     // No background/border/margin/separator line — sale rows sit flush
     // against each other with nothing between them.
@@ -324,73 +357,148 @@ class _SaleListRow extends StatelessWidget {
     // (this only surfaced once a test actually reached a populated Sales
     // list — an empty list never renders the row at all). The fixed-
     // height cover already sets the row's height; no stretch needed.
-    return Row(
-        children: [
-          // Cover
-          Container(
-            width: 64,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  listing.type.badgeColor.withValues(alpha: 0.8),
-                  listing.type.badgeColor.withValues(alpha: 0.3),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // Cover
+            Container(
+              width: 64,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    listing.type.badgeColor.withValues(alpha: 0.8),
+                    listing.type.badgeColor.withValues(alpha: 0.3),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
+              child: Icon(listing.type.icon, size: 26, color: Colors.white),
             ),
-            child: Icon(listing.type.icon, size: 26, color: Colors.white),
-          ),
 
-          // Details
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    listing.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor,
+            // Details
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      listing.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Sold to ${sale.buyerName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    timeago.format(sale.soldAt),
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      'Sold to ${sale.buyerName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      timeago.format(sale.soldAt),
+                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Amount
-          Padding(
-            padding: const EdgeInsets.only(right: 14, left: 4),
-            child: Text(
-              '+\$${sale.amount.toStringAsFixed(2)}',
-              style: GoogleFonts.lato(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF5C7A5C),
+            // Amount
+            Padding(
+              padding: const EdgeInsets.only(right: 14, left: 4),
+              child: Text(
+                '+\$${sale.amount.toStringAsFixed(2)}',
+                style: GoogleFonts.lato(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF5C7A5C),
+                ),
               ),
             ),
+          ],
+        ),
+        if (sale.shippingMethod == ShippingMethod.meetup)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 14, 12),
+            child: Row(
+              children: [
+                const SizedBox(width: 64),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (sale.meetupPlace != null)
+                        Text(
+                          'Meetup: ${sale.meetupPlace}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.lato(
+                            fontSize: 11.5,
+                            color: mutedColor,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_confirming)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (isPendingMeetup)
+                  TextButton(
+                    onPressed: _confirmMeetup,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Confirm meetup',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  )
+                else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 14,
+                        color: Color(0xFF5C7A5C),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Confirmed',
+                        style: GoogleFonts.lato(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF5C7A5C),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
-        ],
+      ],
     );
   }
 }

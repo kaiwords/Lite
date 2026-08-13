@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
+import '../../theme/app_theme.dart';
 import 'list_item_sheet.dart';
 import 'marketplace_shared_widgets.dart';
 
@@ -17,12 +18,7 @@ class MyListingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _MyListingsTab(
     isDark: isDark,
-    onListBook: () => showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ListItemSheet(isDark: isDark),
-    ),
+    onListBook: () => showListItemSheet(context),
   );
 }
 
@@ -39,12 +35,7 @@ class _MyListingsTabState extends ConsumerState<_MyListingsTab> {
   ListingType? _filter;
 
   void _showEditSheet(MarketplaceListing listing) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ListItemSheet(isDark: widget.isDark, existing: listing),
-    );
+    showListItemSheet(context, existing: listing);
   }
 
   Future<void> _confirmDelete(MarketplaceListing listing) async {
@@ -84,7 +75,6 @@ class _MyListingsTabState extends ConsumerState<_MyListingsTab> {
   @override
   Widget build(BuildContext context) {
     final myListings = ref.watch(myListingsProvider);
-    final sales = ref.watch(salesProvider);
     final isDark = widget.isDark;
 
     final filtered = _filter == null
@@ -104,21 +94,19 @@ class _MyListingsTabState extends ConsumerState<_MyListingsTab> {
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            // A fixed `mainAxisExtent` (rather than `childAspectRatio`) keeps
-            // each card's height constant regardless of screen width — see
-            // library_tab.dart's identical grid for why.
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: 225,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 14),
             itemCount: itemCount,
+            // A faint (near-invisible) hairline between rows — enough to
+            // separate one listing from the next without a hard visible line.
+            separatorBuilder: (_, _) => Divider(
+              height: 1,
+              color: (isDark ? AppColors.darkDivider : AppColors.divider)
+                  .withValues(alpha: 0.4),
+            ),
             itemBuilder: (_, i) {
               if (i == 0) {
-                return AddTile(
+                return AddListRow(
                   isDark: isDark,
                   title: 'List a Book',
                   subtitle: 'Sell your work',
@@ -126,13 +114,9 @@ class _MyListingsTabState extends ConsumerState<_MyListingsTab> {
                 );
               }
               final listing = filtered[i - 1];
-              final sold = sales
-                  .where((s) => s.listing.id == listing.id)
-                  .length;
-              return BookGridCard(
+              return BookListRow(
                 listing: listing,
                 isDark: isDark,
-                salesCount: sold,
                 onEdit: () => _showEditSheet(listing),
                 onDelete: () => _confirmDelete(listing),
               );

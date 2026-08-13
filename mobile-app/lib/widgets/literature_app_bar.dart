@@ -31,7 +31,7 @@ class LiteratureAppBar extends ConsumerWidget implements PreferredSizeWidget {
         IconButton(
           icon: Icon(Icons.add_circle_outline_rounded, color: iconColor, size: 26),
           tooltip: 'Create',
-          onPressed: () => _showCreateChooser(context, isDark),
+          onPressed: () => showCreateChooser(context, isDark),
         ),
         IconButton(
           icon: Icon(Icons.search_rounded, color: iconColor, size: 26),
@@ -53,7 +53,7 @@ class LiteratureAppBar extends ConsumerWidget implements PreferredSizeWidget {
 // Create chooser — asks what the user wants to upload
 // ─────────────────────────────────────────────────────────────────────────────
 
-void _showCreateChooser(BuildContext context, bool isDark) {
+void showCreateChooser(BuildContext context, bool isDark) {
   final bg = isDark ? AppColors.darkSurface : AppColors.surface;
   final div = isDark ? AppColors.darkDivider : AppColors.divider;
   final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;

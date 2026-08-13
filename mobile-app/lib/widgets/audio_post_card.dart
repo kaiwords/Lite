@@ -9,6 +9,7 @@ import '../models/post.dart';
 import '../providers/audio_provider.dart';
 import '../providers/feed_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/marketplace_lookup.dart';
 import 'audio_marketplace_badge.dart';
 import 'comments_sheet.dart';
 import 'share_sheet.dart';
@@ -22,95 +23,35 @@ class AudioPostCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
     final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
-    // Resolve linked audio listing (only if type is audio)
-    final linkedListing = post.linkedListingId != null
-        ? mockListings
-            .where((l) =>
-                l.id == post.linkedListingId && l.type == ListingType.audio)
-            .firstOrNull
+    // Resolve linked audio listing (only if type is audio) from the live
+    // catalogue/purchases, not a static list.
+    final resolvedListing = post.linkedListingId != null
+        ? findListingById(ref, post.linkedListingId!)
         : null;
+    final linkedListing =
+        resolvedListing?.type == ListingType.audio ? resolvedListing : null;
 
     // Live post (for reactive engagement state)
     final livePost = ref
         .watch(postsNotifierProvider)
         .firstWhere((p) => p.id == post.id, orElse: () => post);
 
+    // No background/border/margin — posts run edge-to-edge and sit flush
+    // against each other, separated only by the bottom line (no gap).
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Category badge ──────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurfaceVariant
-                        : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${post.category.emoji} ${post.category.label}',
-                    style: GoogleFonts.lato(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkAccent : AppColors.accent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Audio marketplace badge ─────────────────────────────────────
-          if (linkedListing != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-              child: AudioMarketplaceBadge(
-                listingId: linkedListing.id,
-                isDark: isDark,
-              ),
-            ),
-
-          // ── Title ───────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-            child: Text(
-              post.title,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: titleColor,
-                height: 1.3,
-              ),
-            ),
-          ),
-
-          // ── Mini audio player ───────────────────────────────────────────
-          _MiniPlayer(post: post, isDark: isDark),
-
-          Divider(height: 1, color: borderColor),
-
-          // ── Engagement row ──────────────────────────────────────────────
-          _EngagementRow(post: livePost, isDark: isDark, ref: ref),
-
-          Divider(height: 1, color: borderColor),
-
-          // ── Author row ──────────────────────────────────────────────────
+          // ── Author row ─────────────────────────────────────────────────
+          // Profile first (Support stays right next to the author's name),
+          // then category, then the post itself — engagement buttons last.
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             child: Row(
@@ -202,6 +143,62 @@ class AudioPostCard extends ConsumerWidget {
               ],
             ),
           ),
+
+          // ── Category badge ──────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${post.category.emoji} ${post.category.label}',
+                    style: GoogleFonts.lato(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkAccent : AppColors.accent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Audio marketplace badge ─────────────────────────────────────
+          if (linkedListing != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+              child: AudioMarketplaceBadge(
+                listingId: linkedListing.id,
+                isDark: isDark,
+              ),
+            ),
+
+          // ── Title ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            child: Text(
+              post.title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: titleColor,
+                height: 1.3,
+              ),
+            ),
+          ),
+
+          // ── Mini audio player ───────────────────────────────────────────
+          _MiniPlayer(post: post, isDark: isDark),
+
+          // ── Engagement row (last — no line between it and the post) ─────
+          _EngagementRow(post: livePost, isDark: isDark, ref: ref),
         ],
       ),
     );

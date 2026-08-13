@@ -8,6 +8,7 @@ import '../../models/marketplace.dart';
 import '../../models/post.dart';
 import '../../providers/marketplace_account_provider.dart';
 import '../../providers/marketplace_provider.dart';
+import '../../services/local_store.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/cover_image.dart';
 import '../../utils/marketplace_lookup.dart';
@@ -107,8 +108,11 @@ class ListingDetailScreen extends ConsumerWidget {
       if (content != null && content.isNotEmpty) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) =>
-                _EbookReadScreen(title: listing.title, content: content),
+            builder: (_) => _EbookReadScreen(
+              listingId: listing.id,
+              title: listing.title,
+              content: content,
+            ),
           ),
         );
       } else if (listing.pdfFileName != null) {
@@ -185,6 +189,13 @@ class ListingDetailScreen extends ConsumerWidget {
                         label: listing.type.label,
                         color: listing.type.badgeColor,
                       ),
+                      if (listing.offer != ListingOffer.sale) ...[
+                        const SizedBox(width: 8),
+                        _Badge(
+                          label: listing.offer.label,
+                          color: _offerAccentColor(listing.offer),
+                        ),
+                      ],
                       if (listing.contentCategory != null) ...[
                         const SizedBox(width: 8),
                         _Badge(
@@ -312,6 +323,23 @@ class ListingDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 28),
+
+                  // Details — ISBN/publisher/pub-date (Physical + E-Book) and
+                  // condition/quantity/edition (Physical only), whichever of
+                  // these the seller actually filled in.
+                  if (_hasDetails(listing)) ...[
+                    Text(
+                      'Details',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    _DetailsSection(
+                      listing: listing,
+                      isDark: isDark,
+                      canAccess: canAccess,
+                    ),
+                    const SizedBox(height: 28),
+                  ],
 
                   // Contents — what the author uploaded / wrote
                   if (_hasUploadedContent(listing)) ...[
@@ -618,9 +646,74 @@ class _PriceCartRow extends ConsumerWidget {
     }
 
     // accentOnFill (darker than accent) keeps the white label at WCAG AA
-    // contrast for the solid "Add to Cart" / "Buy Now" fills.
+    // contrast for the solid "Add to Cart" / "Buy Now" / "Claim" fills.
     final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
     final outline = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    // Free/Swap — no cart, no Stripe. A single Claim button (or, once
+    // someone else has claimed it, a disabled "Already Claimed" state).
+    if (listing.offer != ListingOffer.sale) {
+      if (listing.isSoldOut) {
+        final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+        return Row(
+          children: [
+            Icon(Icons.check_circle_rounded, size: 18, color: mutedColor),
+            const SizedBox(width: 8),
+            Text(
+              'Already claimed',
+              style: GoogleFonts.lato(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: mutedColor,
+              ),
+            ),
+          ],
+        );
+      }
+
+      Future<void> claim() async {
+        await runClaimFlow(context, ref, listing);
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            listing.price,
+            style: GoogleFonts.lato(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: _offerAccentColor(listing.offer),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: GestureDetector(
+              onTap: claim,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: fill,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: Text(
+                  listing.offer == ListingOffer.free
+                      ? 'Claim for Free'
+                      : 'Claim This Swap',
+                  style: GoogleFonts.lato(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     Future<void> buyNow() async {
       final ok = await runPurchaseFlow(context, ref, [listing]);
@@ -803,6 +896,126 @@ class _PrimaryAction extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Contents — surfaces the uploaded PDF / written book / audio volumes
 // ─────────────────────────────────────────────────────────────────────────────
+
+bool _hasDetails(MarketplaceListing l) =>
+    l.isbn != null ||
+    l.publisher != null ||
+    l.publicationDate != null ||
+    l.condition != null ||
+    l.quantity != null ||
+    l.edition != null ||
+    l.shippingMethods.isNotEmpty ||
+    (l.offer == ListingOffer.swap && l.swapWantedFor != null);
+
+const _detailsMonthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+class _DetailsSection extends StatelessWidget {
+  final MarketplaceListing listing;
+  final bool isDark;
+  // Pickup's phone number is only shown once the listing is actually
+  // owned (or it's the seller's own) — a general location/area is fine to
+  // browse, but a phone number is more sensitive contact info.
+  final bool canAccess;
+  const _DetailsSection({
+    required this.listing,
+    required this.isDark,
+    required this.canAccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(String, String)>[
+      if (listing.condition != null) ('Condition', listing.condition!.label),
+      if (listing.quantity != null) ('Quantity available', '${listing.quantity}'),
+      if (listing.edition != null) ('Edition / Language', listing.edition!),
+      if (listing.offer == ListingOffer.swap && listing.swapWantedFor != null)
+        ('Wants in exchange', listing.swapWantedFor!),
+      if (listing.shippingMethods.isNotEmpty)
+        (
+          'Shipping',
+          listing.shippingMethods.map((m) => m.label).join(', '),
+        ),
+      if (listing.pickupLocation != null)
+        ('Pickup Location', listing.pickupLocation!),
+      if (listing.pickupPhone != null && canAccess)
+        ('Pickup Phone', listing.pickupPhone!),
+      if (listing.meetupLocation != null)
+        ('Meetup Location', listing.meetupLocation!),
+      if (listing.meetupPhone != null && canAccess)
+        ('Meetup Phone', listing.meetupPhone!),
+      if (listing.publisher != null) ('Publisher', listing.publisher!),
+      if (listing.publicationDate != null)
+        (
+          'Publication date',
+          '${_detailsMonthNames[listing.publicationDate!.month - 1]} ${listing.publicationDate!.day}, ${listing.publicationDate!.year}',
+        ),
+      if (listing.isbn != null) ('ISBN', listing.isbn!),
+    ];
+
+    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDark
+        ? AppColors.darkCardBorder
+        : AppColors.cardBorder;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              Divider(height: 1, color: borderColor),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    rows[i].$1,
+                    style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                  ),
+                  Flexible(
+                    child: Text(
+                      rows[i].$2,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// Matches the Books section's offer filter chip colors (see
+// marketplace_screen.dart's _offerChipColors) so Free/Swap read the same
+// wherever they show up.
+Color _offerAccentColor(ListingOffer offer) => switch (offer) {
+      ListingOffer.sale => AppColors.accent,
+      ListingOffer.free => const Color(0xFF2E8B57),
+      ListingOffer.swap => const Color(0xFFD4870F),
+    };
 
 bool _hasUploadedContent(MarketplaceListing l) =>
     l.pdfFileName != null ||
@@ -997,9 +1210,14 @@ class _ContentRow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EbookReadScreen extends StatefulWidget {
+  final String listingId;
   final String title;
   final String content;
-  const _EbookReadScreen({required this.title, required this.content});
+  const _EbookReadScreen({
+    required this.listingId,
+    required this.title,
+    required this.content,
+  });
 
   @override
   State<_EbookReadScreen> createState() => _EbookReadScreenState();
@@ -1010,6 +1228,14 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
   List<String> _pages = const [];
   Size? _size;
   int _index = 0;
+  bool _offeredResume = false;
+
+  // A single pinned page — simpler than BookReaderScreen's multi-bookmark
+  // list, since this legacy flat-blob reading path (superseded by
+  // ebookChapters, see MarketplaceListing.ebookContent) doesn't have a
+  // bookmarks-list sheet to browse several. Reuses the same LocalStore
+  // storage either way.
+  int? _pinnedIndex;
 
   static const _hPad = 24.0;
   static const _vPad = 24.0;
@@ -1017,9 +1243,58 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
   TextStyle get _baseStyle => GoogleFonts.lora(fontSize: 17, height: 1.7);
 
   @override
+  void initState() {
+    super.initState();
+    final saved = LocalStore.instance.loadBookBookmarks(widget.listingId);
+    _pinnedIndex = saved.isEmpty ? null : saved.first;
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _togglePin() {
+    setState(() => _pinnedIndex = _pinnedIndex == _index ? null : _index);
+    LocalStore.instance.saveBookBookmarks(
+      widget.listingId,
+      _pinnedIndex == null ? [] : [_pinnedIndex!],
+    );
+  }
+
+  /// If this book was previously left partway through, asks whether to pick
+  /// up from there or start over. Only offered once per screen open — called
+  /// after every [_paginate] since that can re-run on a size change, but a
+  /// guard flag stops it asking twice.
+  Future<void> _maybeOfferResume() async {
+    if (_offeredResume || !mounted) return;
+    _offeredResume = true;
+    final saved = LocalStore.instance.loadBookLastPosition(widget.listingId);
+    if (saved == null || saved <= 0 || saved >= _pages.length) return;
+    final resume = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Continue reading?'),
+        content: const Text(
+          "You've already started this book. Pick up where you left off, or start from the beginning?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Start Over'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (resume == true && mounted && _controller.hasClients) {
+      _controller.jumpToPage(saved);
+      setState(() => _index = saved);
+    }
   }
 
   void _paginate(Size size) {
@@ -1031,6 +1306,7 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
       if (_index >= pages.length) _index = pages.length - 1;
       if (_index < 0) _index = 0;
     });
+    _maybeOfferResume();
   }
 
   void _go(int delta) {
@@ -1153,6 +1429,20 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
           widget.title,
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
+        actions: [
+          IconButton(
+            tooltip: _pinnedIndex == _index
+                ? 'Remove bookmark'
+                : 'Bookmark this page',
+            icon: Icon(
+              _pinnedIndex == _index
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: _pinnedIndex == _index ? AppColors.accent : null,
+            ),
+            onPressed: _togglePin,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -1176,7 +1466,13 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
                 return PageView.builder(
                   controller: _controller,
                   itemCount: _pages.length,
-                  onPageChanged: (i) => setState(() => _index = i),
+                  onPageChanged: (i) {
+                    setState(() => _index = i);
+                    LocalStore.instance.saveBookLastPosition(
+                      widget.listingId,
+                      i,
+                    );
+                  },
                   itemBuilder: (context, i) => Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: _hPad,

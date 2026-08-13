@@ -28,35 +28,11 @@ class MktNotif {
 
 final _now = DateTime.now();
 
-final mockMktNotifs = <MktNotif>[
-  MktNotif(id: 'n1', type: MktNotifType.sale, title: 'New Sale!',
-      body: 'Priya Nair purchased "The Glass House" for \$14.99',
-      at: _now.subtract(const Duration(minutes: 8))),
-  MktNotif(id: 'n2', type: MktNotifType.sale, title: 'New Sale!',
-      body: 'Anonymous purchased "Echoes in the Dark" for \$9.99',
-      at: _now.subtract(const Duration(hours: 2))),
-  MktNotif(id: 'n3', type: MktNotifType.shipped, title: 'Order Shipped',
-      body: 'Your order #ORD-48291 is on its way — expected in 3–5 days',
-      at: _now.subtract(const Duration(hours: 5))),
-  MktNotif(id: 'n4', type: MktNotifType.review, title: 'New Review',
-      body: 'Marcus Osei left ★★★★★ on "The Glass House"',
-      at: _now.subtract(const Duration(hours: 7)), isRead: true),
-  MktNotif(id: 'n5', type: MktNotifType.priceDrop, title: 'Price Drop Alert',
-      body: '"Salt & Smoke" by Marcus Osei dropped to \$9.99',
-      at: _now.subtract(const Duration(hours: 10)), isRead: true),
-  MktNotif(id: 'n6', type: MktNotifType.trending, title: 'Trending Now',
-      body: '"The Glass House" is in the top 10 this week',
-      at: _now.subtract(const Duration(days: 1)), isRead: true),
-  MktNotif(id: 'n7', type: MktNotifType.purchase, title: 'Purchase Confirmed',
-      body: 'You purchased "Between the Lines" — check your Library',
-      at: _now.subtract(const Duration(days: 2)), isRead: true),
-  MktNotif(id: 'n8', type: MktNotifType.sale, title: 'New Sale!',
-      body: 'luna_reads purchased "Midnight Verses" for \$11.99',
-      at: _now.subtract(const Duration(days: 3)), isRead: true),
-  MktNotif(id: 'n9', type: MktNotifType.refund, title: 'Refund Processed',
-      body: 'Refund of \$6.99 for "Solitudes" has been issued',
-      at: _now.subtract(const Duration(days: 4)), isRead: true),
-];
+// No marketplace-notifications backend exists yet (no Supabase table) — the
+// app has no real data source for these, so this starts empty rather than
+// fabricated. See demo_data/demo_mkt_notifications.dart for sample content,
+// kept for reference/tests only.
+final mockMktNotifs = <MktNotif>[];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -251,7 +227,10 @@ class _NotifTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          color: notif.isRead ? surfaceBg : unreadBg,
+          decoration: BoxDecoration(
+            color: notif.isRead ? surfaceBg : unreadBg,
+            border: Border(bottom: BorderSide(color: divColor, width: 1)),
+          ),
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(

@@ -35,20 +35,19 @@ class MarketplaceBadge extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: AppColors.accent.withValues(alpha: isDark ? 0.18 : 0.12),
+          // Solid fill (accentOnFill, darker than accent) + white text/icon
+          // keeps this at WCAG AA contrast — the previous translucent tint
+          // read as washed-out.
+          color: isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.35),
-            width: 1,
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.storefront_rounded,
               size: 12,
-              color: isDark ? AppColors.darkAccent : AppColors.accent,
+              color: Colors.white,
             ),
             const SizedBox(width: 5),
             Flexible(
@@ -58,8 +57,8 @@ class MarketplaceBadge extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.lato(
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.darkAccent : AppColors.accent,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),

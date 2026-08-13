@@ -7,9 +7,6 @@ import '../services/local_store.dart';
 class CommentsNotifier extends StateNotifier<List<Comment>> {
   CommentsNotifier(super.initial);
 
-  /// Default comments seeded on first launch.
-  static List<Comment> seed() => List<Comment>.from(mockComments);
-
   /// Prepends [comment] locally right away; returns whether the backend
   /// insert also succeeded so the UI can tell the user when it didn't sync.
   Future<bool> add(Comment comment) async {
@@ -52,8 +49,7 @@ class CommentsNotifier extends StateNotifier<List<Comment>> {
 
 final commentsProvider =
     StateNotifierProvider<CommentsNotifier, List<Comment>>((ref) {
-  final notifier = CommentsNotifier(
-      LocalStore.instance.loadComments() ?? CommentsNotifier.seed());
+  final notifier = CommentsNotifier(LocalStore.instance.loadComments() ?? const []);
   notifier.addListener(LocalStore.instance.saveComments, fireImmediately: false);
   notifier.loadFromSupabase();
   return notifier;

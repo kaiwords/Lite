@@ -75,7 +75,7 @@ class ConversationsNotifier extends StateNotifier<List<Conversation>> {
 
 final conversationsProvider =
     StateNotifierProvider<ConversationsNotifier, List<Conversation>>((ref) {
-  final notifier = ConversationsNotifier(List<Conversation>.from(mockConversations));
+  final notifier = ConversationsNotifier(const []);
   notifier.loadFromSupabase();
   return notifier;
 });
