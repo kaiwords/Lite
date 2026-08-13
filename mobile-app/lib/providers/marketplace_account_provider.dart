@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/marketplace.dart';
+import '../services/commerce_repository.dart';
 import '../services/local_store.dart';
 import '../services/marketplace_repository.dart';
+import '../services/stripe_service.dart';
+import '../services/supabase_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cart
@@ -63,58 +66,52 @@ class Purchase {
 class PurchasesNotifier extends StateNotifier<List<Purchase>> {
   PurchasesNotifier(super.initial);
 
-  /// Default purchases seeded on first launch (before any persistence exists).
-  static List<Purchase> seed() => [
-        Purchase(
-          listing: mockListings.last, // The Ember Throne (eBook)
-          purchasedAt: DateTime.now().subtract(const Duration(days: 1)),
-          orderId: 'ORD-00422',
-        ),
-        Purchase(
-          listing: mockListings[4], // The Iron Kingdom (Physical)
-          purchasedAt: DateTime.now().subtract(const Duration(days: 3)),
-          orderId: 'ORD-00421',
-        ),
-        Purchase(
-          listing: mockListings[8], // Before the Storm Breaks
-          purchasedAt: DateTime.now().subtract(const Duration(days: 10)),
-          orderId: 'ORD-00389',
-        ),
-        Purchase(
-          listing: mockListings[0], // The Glass House (Physical)
-          purchasedAt: DateTime.now().subtract(const Duration(days: 21)),
-          orderId: 'ORD-00301',
-        ),
-      ];
-
-  void add(Purchase purchase) => state = [purchase, ...state];
-
-  void remove(String listingId) =>
-      state = state.where((p) => p.listing.id != listingId).toList();
-
   bool contains(String listingId) =>
       state.any((p) => p.listing.id == listingId);
 
-  /// Completes a purchase for [listing] immediately — creates the [Purchase]
-  /// record and adds it to the user's library. This is the single place that
-  /// "buys" a listing: cart checkout, the listing-detail "Buy Now" button,
-  /// and the feed's post-level buy sheet all call this instead of each
-  /// building their own `Purchase`.
-  void buyNow(MarketplaceListing listing) {
-    add(Purchase(
-      listing: listing,
-      purchasedAt: DateTime.now(),
-      orderId: 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}',
-    ));
+  /// Replaces local state with the buyer's real paid orders from Supabase
+  /// (`orders`/`order_items`, joined back to their listings — see
+  /// CommerceRepository.fetchPurchases). Swallows errors, same as the rest
+  /// of the app's `loadFromSupabase()` methods: offline or a transient
+  /// failure just means the previously-shown/local data stays up.
+  Future<void> loadFromSupabase(String buyerId) async {
+    try {
+      final records = await CommerceRepository.fetchPurchases(buyerId);
+      state = records
+          .map((r) => Purchase(
+                listing: r.listing,
+                purchasedAt: r.purchasedAt,
+                orderId: r.orderId,
+              ))
+          .toList();
+    } catch (_) {
+      // See doc comment above.
+    }
+  }
+
+  /// Runs real Stripe checkout for [listings] (one item for "Buy Now",
+  /// several for cart checkout) via [StripeService.buyListings], then
+  /// refreshes from Supabase once the payment succeeds. Throws
+  /// [StripeCheckoutException] on failure or cancellation — see
+  /// utils/purchase_flow.dart for the shared UI handling every buy entry
+  /// point uses.
+  Future<void> buyListings(
+    List<MarketplaceListing> listings, {
+    required String buyerId,
+  }) async {
+    await StripeService.buyListings(listings.map((l) => l.id).toList());
+    await loadFromSupabase(buyerId);
   }
 }
 
 final purchasesProvider =
     StateNotifierProvider<PurchasesNotifier, List<Purchase>>((ref) {
   final notifier =
-      PurchasesNotifier(LocalStore.instance.loadPurchases() ?? PurchasesNotifier.seed());
+      PurchasesNotifier(LocalStore.instance.loadPurchases() ?? const []);
   notifier.addListener(LocalStore.instance.savePurchases,
       fireImmediately: false);
+  final buyerId = SupabaseService.client.auth.currentUser?.id;
+  if (buyerId != null) notifier.loadFromSupabase(buyerId);
   return notifier;
 });
 
@@ -136,47 +133,60 @@ class Sale {
 }
 
 class SalesNotifier extends StateNotifier<List<Sale>> {
-  SalesNotifier()
-      : super([
-          // Seed mock sales for Eleanor Voss (current user)
-          Sale(
-            listing: mockListings[8], // Between the Lines (Audio)
-            soldAt: DateTime.now().subtract(const Duration(hours: 4)),
-            buyerName: 'Priya Nair',
-            amount: 8.99,
-          ),
-          Sale(
-            listing: mockListings[0], // The Glass House (Physical)
-            soldAt: DateTime.now().subtract(const Duration(days: 1)),
-            buyerName: 'marcus_ink',
-            amount: 14.99,
-          ),
-          Sale(
-            listing: mockListings[2], // Midnight Verses (Physical)
-            soldAt: DateTime.now().subtract(const Duration(days: 2)),
-            buyerName: 'luna_reads',
-            amount: 11.99,
-          ),
-          Sale(
-            listing: mockListings[8], // Between the Lines (Audio)
-            soldAt: DateTime.now().subtract(const Duration(days: 4)),
-            buyerName: 'javier_poetic',
-            amount: 8.99,
-          ),
-          Sale(
-            listing: mockListings[0], // The Glass House (Physical)
-            soldAt: DateTime.now().subtract(const Duration(days: 7)),
-            buyerName: 'ink_and_fire',
-            amount: 14.99,
-          ),
-        ]);
+  SalesNotifier() : super(const []);
 
-  void add(Sale sale) => state = [sale, ...state];
+  /// Loads the seller's real paid sales from Supabase (`order_items` where
+  /// `seller_id` is this user, joined to the buyer's name and the listing —
+  /// see CommerceRepository.fetchSales). `amount` is the seller's actual
+  /// take (unit price minus the platform fee taken in stripe-webhook).
+  Future<void> loadFromSupabase(String sellerId) async {
+    try {
+      final records = await CommerceRepository.fetchSales(sellerId);
+      state = records
+          .map((r) => Sale(
+                listing: r.listing,
+                soldAt: r.soldAt,
+                buyerName: r.buyerName,
+                amount: r.amount,
+              ))
+          .toList();
+    } catch (_) {
+      // Offline or request failed — keep whatever was last shown.
+    }
+  }
 }
 
-final salesProvider =
-    StateNotifierProvider<SalesNotifier, List<Sale>>(
-        (ref) => SalesNotifier());
+final salesProvider = StateNotifierProvider<SalesNotifier, List<Sale>>((ref) {
+  final notifier = SalesNotifier();
+  final sellerId = SupabaseService.client.auth.currentUser?.id;
+  if (sellerId != null) notifier.loadFromSupabase(sellerId);
+  return notifier;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seller Stripe Connect status — drives the "Set up payouts" prompt
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SellerStripeStatusNotifier extends StateNotifier<SellerStripeStatus> {
+  SellerStripeStatusNotifier() : super(SellerStripeStatus.notStarted);
+
+  Future<void> refresh(String userId) async {
+    try {
+      state = await CommerceRepository.fetchSellerStripeStatus(userId);
+    } catch (_) {
+      // Offline or request failed — keep the last known status.
+    }
+  }
+}
+
+final sellerStripeStatusProvider =
+    StateNotifierProvider<SellerStripeStatusNotifier, SellerStripeStatus>(
+        (ref) {
+  final notifier = SellerStripeStatusNotifier();
+  final userId = SupabaseService.client.auth.currentUser?.id;
+  if (userId != null) notifier.refresh(userId);
+  return notifier;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // My Listings (books the current user has listed for sale)
@@ -185,12 +195,9 @@ final salesProvider =
 class MyListingsNotifier extends StateNotifier<List<MarketplaceListing>> {
   MyListingsNotifier(super.initial);
 
-  /// Eleanor Voss's existing listings, seeded on first launch.
-  static List<MarketplaceListing> seed() => [
-        mockListings[0], // The Glass House
-        mockListings[2], // Midnight Verses
-        mockListings[8], // Between the Lines (Audio)
-      ];
+  /// No initial-listings backend exists yet — starts empty rather than
+  /// fabricated. Listings added via [add] do sync to the real backend.
+  static List<MarketplaceListing> seed() => const [];
 
   /// Prepends [listing] locally right away; returns whether the backend
   /// insert also succeeded so the UI can tell the user when it didn't sync.

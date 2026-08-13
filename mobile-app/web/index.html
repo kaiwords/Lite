@@ -31,6 +31,11 @@
 
   <title>literature</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Required by flutter_stripe on web — without this, StripeService.init()
+       (called before runApp() in main.dart) throws and the app never
+       renders anything. -->
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

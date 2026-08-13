@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:literature/demo_data/demo_comments.dart';
+import 'package:literature/demo_data/demo_marketplace.dart';
+import 'package:literature/demo_data/demo_posts.dart';
 import 'package:literature/models/comment.dart';
 import 'package:literature/models/marketplace.dart';
 import 'package:literature/models/post.dart';
@@ -108,26 +111,28 @@ void main() {
   });
 
   group('PurchasesNotifier', () {
-    test('buyNow adds a purchase with an ORD- order id', () {
-      final purchases = PurchasesNotifier([]);
-      purchases.buyNow(mockListings.first);
-      expect(purchases.state.length, 1);
-      expect(purchases.state.first.listing.id, mockListings.first.id);
-      expect(purchases.state.first.orderId, startsWith('ORD-'));
+    // Real purchases now go through Stripe checkout (buyListings, an async
+    // call to a Supabase Edge Function + the native Payment Sheet), so
+    // there's no pure local mutation left to unit test without mocking the
+    // network — just that `contains` reads the current state correctly.
+    test('contains reflects the current state', () {
+      final purchase = Purchase(
+        listing: mockListings.first,
+        purchasedAt: DateTime.now(),
+        orderId: 'order-1',
+      );
+      final purchases = PurchasesNotifier([purchase]);
       expect(purchases.contains(mockListings.first.id), isTrue);
-    });
-
-    test('remove drops the purchase by listing id', () {
-      final purchases = PurchasesNotifier([]);
-      purchases.buyNow(mockListings.first);
-      purchases.remove(mockListings.first.id);
-      expect(purchases.state, isEmpty);
+      expect(purchases.contains(mockListings[1].id), isFalse);
     });
   });
 
   group('MyListingsNotifier', () {
+    // seed() itself is empty (no real "initial listings" backend) — these
+    // exercise the notifier's own update/remove logic against an explicit
+    // fixture instead.
     test('update replaces the listing with a matching id in place', () {
-      final mine = MyListingsNotifier(List.of(MyListingsNotifier.seed()));
+      final mine = MyListingsNotifier(mockListings.take(3).toList());
       final original = mine.state[1];
       final edited = MarketplaceListing(
         id: original.id,
@@ -141,11 +146,11 @@ void main() {
       mine.update(edited);
       expect(mine.state[1].title, 'Edited Title');
       expect(mine.state[1].price, '\$1.23');
-      expect(mine.state.length, MyListingsNotifier.seed().length);
+      expect(mine.state.length, 3);
     });
 
     test('remove drops by id', () {
-      final mine = MyListingsNotifier(List.of(MyListingsNotifier.seed()));
+      final mine = MyListingsNotifier(mockListings.take(3).toList());
       final id = mine.state.first.id;
       mine.remove(id);
       expect(mine.state.any((l) => l.id == id), isFalse);

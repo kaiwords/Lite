@@ -217,6 +217,8 @@ void _showLogOutConfirm(BuildContext context, WidgetRef ref) {
             ref.invalidate(commentsProvider);
             ref.invalidate(cartProvider);
             ref.invalidate(purchasesProvider);
+            ref.invalidate(salesProvider);
+            ref.invalidate(sellerStripeStatusProvider);
             ref.invalidate(myListingsProvider);
             ref.invalidate(followNotifierProvider);
             ref.invalidate(visibleCategoriesProvider);

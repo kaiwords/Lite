@@ -6,15 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/book.dart';
 import '../../models/marketplace.dart';
 import '../../models/post.dart';
-import '../../models/user.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/follow_provider.dart';
 import '../../providers/marketplace_account_provider.dart';
 import '../../providers/marketplace_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/cover_image.dart';
 import '../../utils/marketplace_lookup.dart';
 import '../../utils/post_paginator.dart';
-import '../../utils/sync_feedback.dart';
+import '../../utils/purchase_flow.dart';
 import '../../widgets/share_sheet.dart';
 import '../audio/audiobook_player_screen.dart';
 import '../reader/book_reader_screen.dart';
@@ -395,39 +393,48 @@ class _CoverHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final coverImage = coverImageFile(listing.coverImageUrl);
+    final coverColor = listing.coverColor != null
+        ? Color(listing.coverColor!)
+        : listing.type.badgeColor;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            listing.type.badgeColor,
-            listing.type.badgeColor.withValues(alpha: 0.4),
-          ],
+          colors: [coverColor, coverColor.withValues(alpha: 0.4)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
       child: Stack(
         children: [
-          // Background pattern (subtle large initial)
-          Positioned.fill(
-            child: Center(
-              child: Text(
-                listing.title.isEmpty ? '?' : listing.title[0],
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 160,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white.withValues(alpha: 0.08),
+          // Seller-picked cover photo, if any, full-bleed behind the icon.
+          if (coverImage != null)
+            Positioned.fill(child: Image.file(coverImage, fit: BoxFit.cover)),
+          // Background pattern (subtle large initial) — skipped over a real
+          // photo, which already carries the book's identity.
+          if (coverImage == null)
+            Positioned.fill(
+              child: Center(
+                child: Text(
+                  listing.title.isEmpty ? '?' : listing.title[0],
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 160,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                 ),
               ),
             ),
-          ),
           // Type icon
           Center(
             child: Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withValues(
+                  alpha: coverImage != null ? 0.3 : 0.2,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(listing.type.icon, size: 40, color: Colors.white),
@@ -615,16 +622,10 @@ class _PriceCartRow extends ConsumerWidget {
     final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
     final outline = isDark ? AppColors.darkAccent : AppColors.accent;
 
-    void buyNow() {
-      ref.read(purchasesProvider.notifier).buyNow(listing);
+    Future<void> buyNow() async {
+      final ok = await runPurchaseFlow(context, ref, [listing]);
       // The listing is now owned — no need for it to linger in the cart too.
-      if (inCart) ref.read(cartProvider.notifier).remove(listing.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('"${listing.title}" purchased! Check your Library.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (ok && inCart) ref.read(cartProvider.notifier).remove(listing.id);
     }
 
     return Column(
@@ -813,13 +814,16 @@ bool _hasUploadedContent(MarketplaceListing l) =>
 /// with [BookReaderScreen]'s proper chapter navigation/pagination instead of
 /// building a separate reading UI just for marketplace listings.
 Book _bookFromListing(MarketplaceListing listing) {
-  final coverColor = listing.genre?.colors.first ?? listing.type.badgeColor;
+  final coverColor = listing.coverColor != null
+      ? Color(listing.coverColor!)
+      : listing.genre?.colors.first ?? listing.type.badgeColor;
   return Book(
     id: listing.id,
     title: listing.title,
     authorName: listing.authorName,
     coverColor: coverColor,
     coverTextColor: Colors.white,
+    coverImagePath: listing.coverImageUrl,
     pages: [
       const BookPage(type: BookPageType.cover),
       BookPage(
@@ -1579,50 +1583,15 @@ class _Badge extends StatelessWidget {
   }
 }
 
-// Resolves the listing's author display name against [mockUsers]. Hides itself
-// if the author can't be matched, or if they're the current user.
-class _AuthorFollowChip extends ConsumerWidget {
+// MarketplaceListing only stores the author's display name as free text, not
+// a real user id — there's no reliable way to resolve that back to an actual
+// account to follow, so this always hides. Wiring it up for real needs an
+// authorId field on the listing itself.
+class _AuthorFollowChip extends StatelessWidget {
   final String authorName;
   final bool isDark;
   const _AuthorFollowChip({required this.authorName, required this.isDark});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final matches = mockUsers.where((u) => u.displayName == authorName);
-    if (matches.isEmpty) return const SizedBox.shrink();
-    final author = matches.first;
-
-    final currentUser = ref.watch(currentUserProvider);
-    if (currentUser?.id == author.id) return const SizedBox.shrink();
-
-    final isFollowing = ref.watch(followNotifierProvider).contains(author.id);
-    final accent = isDark ? AppColors.darkAccent : AppColors.accent;
-
-    return GestureDetector(
-      onTap: () async {
-        final notifier = ref.read(followNotifierProvider.notifier);
-        final ok = isFollowing
-            ? await notifier.unfollow(author.id)
-            : await notifier.follow(author.id);
-        if (!ok && context.mounted) notifySyncFailure(context);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isFollowing ? Colors.transparent : accent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accent, width: 1),
-        ),
-        child: Text(
-          isFollowing ? 'Following' : 'Follow',
-          style: GoogleFonts.lato(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: isFollowing ? accent : Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

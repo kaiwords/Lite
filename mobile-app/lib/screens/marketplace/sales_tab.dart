@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../models/marketplace.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/marketplace_account_provider.dart';
+import '../../services/stripe_service.dart';
 import '../../theme/app_theme.dart';
 import 'marketplace_shared_widgets.dart';
 
@@ -33,38 +35,48 @@ class _SalesTab extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
-        // ── Stats row ───────────────────────────────────────────────────
+        // ── Stats row — no card backgrounds, just thin divider lines
+        // between cells (same pattern as the profile screen's stats row) ──
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              children: [
-                _StatCard(
-                  label: 'Total Earned',
-                  value: '\$${totalEarned.toStringAsFixed(2)}',
-                  icon: Icons.monetization_on_rounded,
-                  color: AppColors.accent,
-                  isDark: isDark,
-                ),
-                const SizedBox(width: 10),
-                _StatCard(
-                  label: 'Items Sold',
-                  value: '${sales.length}',
-                  icon: Icons.shopping_bag_rounded,
-                  color: const Color(0xFF5C7A5C),
-                  isDark: isDark,
-                ),
-                const SizedBox(width: 10),
-                _StatCard(
-                  label: 'Listings',
-                  value: '${myListings.length}',
-                  icon: Icons.list_alt_rounded,
-                  color: const Color(0xFF4A6FA5),
-                  isDark: isDark,
-                ),
-              ],
-            ),
+            child: Builder(builder: (context) {
+              final div =
+                  isDark ? AppColors.darkDivider : AppColors.divider;
+              return Row(
+                children: [
+                  _StatCard(
+                    label: 'Total Earned',
+                    value: '\$${totalEarned.toStringAsFixed(2)}',
+                    icon: Icons.monetization_on_rounded,
+                    color: AppColors.accent,
+                    isDark: isDark,
+                  ),
+                  Container(width: 1, height: 48, color: div),
+                  _StatCard(
+                    label: 'Items Sold',
+                    value: '${sales.length}',
+                    icon: Icons.shopping_bag_rounded,
+                    color: const Color(0xFF5C7A5C),
+                    isDark: isDark,
+                  ),
+                  Container(width: 1, height: 48, color: div),
+                  _StatCard(
+                    label: 'Listings',
+                    value: '${myListings.length}',
+                    icon: Icons.list_alt_rounded,
+                    color: const Color(0xFF4A6FA5),
+                    isDark: isDark,
+                  ),
+                ],
+              );
+            }),
           ),
+        ),
+
+        // ── Stripe payouts setup — shown until Connect onboarding clears ──
+        SliverToBoxAdapter(
+          child: _PayoutSetupBanner(isDark: isDark),
         ),
 
         // ── Section header ──────────────────────────────────────────────
@@ -92,15 +104,146 @@ class _SalesTab extends ConsumerWidget {
           )
         else
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.only(bottom: 24),
+            // A faint (near-invisible) hairline between rows — matches
+            // Cart/Library/My Listings. SliverList has no `.separated`
+            // constructor, so the divider is interleaved by hand: even
+            // indices are rows, odd indices are the divider between them.
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => _SaleListRow(sale: sales[i], isDark: isDark),
-                childCount: sales.length,
-              ),
+              delegate: SliverChildBuilderDelegate((_, i) {
+                if (i.isOdd) {
+                  return Divider(
+                    height: 1,
+                    color: (isDark ? AppColors.darkDivider : AppColors.divider)
+                        .withValues(alpha: 0.4),
+                  );
+                }
+                return _SaleListRow(sale: sales[i ~/ 2], isDark: isDark);
+              }, childCount: sales.length * 2 - 1),
             ),
           ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payout setup banner — prompts Stripe Connect onboarding until the
+// seller's connected account can actually receive transfers. Buying a
+// listing from this seller is blocked server-side
+// (stripe-create-checkout) until charges_enabled is true, so this is the
+// entry point that unblocks their own sales.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PayoutSetupBanner extends ConsumerStatefulWidget {
+  final bool isDark;
+  const _PayoutSetupBanner({required this.isDark});
+
+  @override
+  ConsumerState<_PayoutSetupBanner> createState() => _PayoutSetupBannerState();
+}
+
+class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
+  bool _busy = false;
+
+  Future<void> _startOnboarding() async {
+    setState(() => _busy = true);
+    try {
+      await StripeService.startSellerOnboarding();
+    } on StripeCheckoutException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _refreshStatus() async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    setState(() => _busy = true);
+    await ref.read(sellerStripeStatusProvider.notifier).refresh(userId);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = ref.watch(sellerStripeStatusProvider);
+    if (status.chargesEnabled) return const SizedBox.shrink();
+
+    final isDark = widget.isDark;
+    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.account_balance_rounded, color: AppColors.accent, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status.hasAccount ? 'Finish setting up payouts' : 'Set up payouts',
+                  style: GoogleFonts.lato(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  status.hasAccount
+                      ? "You've started Stripe onboarding — finish it to receive payouts."
+                      : 'Connect a Stripe account to get paid when your books sell.',
+                  style: GoogleFonts.lato(fontSize: 11.5, color: mutedColor),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (_busy)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (status.hasAccount)
+            TextButton(
+              onPressed: _refreshStatus,
+              child: const Text("I'm done"),
+            )
+          else
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: fill,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: _startOnboarding,
+              child: const Text('Connect'),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -121,20 +264,11 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark
-        ? AppColors.darkCardBorder
-        : AppColors.cardBorder;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
-        ),
         child: Column(
           children: [
             Container(
@@ -175,52 +309,38 @@ class _SaleListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark
-        ? AppColors.darkCardBorder
-        : AppColors.cardBorder;
     final titleColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final listing = sale.listing;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      // `crossAxisAlignment.stretch` needs a bounded incoming height to
-      // work — but this Row is a ListView item, which gives its children
-      // unbounded height, so `stretch` here throws "BoxConstraints forces
-      // an infinite height" once the list actually has a row to lay out
-      // (this only surfaced once a test actually reached a populated Sales
-      // list — an empty list never renders the row at all). The fixed-
-      // height cover already sets the row's height; no stretch needed.
-      child: Row(
+    // No background/border/margin/separator line — sale rows sit flush
+    // against each other with nothing between them.
+    // `crossAxisAlignment.stretch` needs a bounded incoming height to
+    // work — but this Row is a ListView item, which gives its children
+    // unbounded height, so `stretch` here throws "BoxConstraints forces
+    // an infinite height" once the list actually has a row to lay out
+    // (this only surfaced once a test actually reached a populated Sales
+    // list — an empty list never renders the row at all). The fixed-
+    // height cover already sets the row's height; no stretch needed.
+    return Row(
         children: [
           // Cover
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(14),
-            ),
-            child: Container(
-              width: 64,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    listing.type.badgeColor.withValues(alpha: 0.8),
-                    listing.type.badgeColor.withValues(alpha: 0.3),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+          Container(
+            width: 64,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  listing.type.badgeColor.withValues(alpha: 0.8),
+                  listing.type.badgeColor.withValues(alpha: 0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Icon(listing.type.icon, size: 26, color: Colors.white),
             ),
+            child: Icon(listing.type.icon, size: 26, color: Colors.white),
           ),
 
           // Details
@@ -271,7 +391,6 @@ class _SaleListRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

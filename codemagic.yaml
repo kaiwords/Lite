@@ -5,10 +5,14 @@ workflows:
     instance_type: linux_x2
     environment:
       # Create this group in Codemagic → Environment variables, with
-      # SUPABASE_URL and SUPABASE_ANON_KEY (the real values from your local
-      # mobile-app/.env), both marked Secure, and attach it to this
-      # workflow. See docs/database.md / mobile-app/.env.example for what
-      # these are.
+      # SUPABASE_URL, SUPABASE_ANON_KEY, and STRIPE_PUBLISHABLE_KEY (the
+      # real values from your local mobile-app/.env), all marked Secure,
+      # and attach it to this workflow. See docs/database.md /
+      # mobile-app/.env.example for what these are. STRIPE_PUBLISHABLE_KEY
+      # is safe to expose client-side (it's a publishable key, not the
+      # secret key — that one only ever lives in Supabase Edge Function
+      # secrets, never here) but still has to come from CI secrets like the
+      # others, since it's still gitignored out of mobile-app/.env.
       groups:
         - supabase
       flutter: stable
@@ -33,6 +37,7 @@ workflows:
           cat > .env << EOF
           SUPABASE_URL=$SUPABASE_URL
           SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          STRIPE_PUBLISHABLE_KEY=$STRIPE_PUBLISHABLE_KEY
           EOF
 
       - name: Get Flutter packages

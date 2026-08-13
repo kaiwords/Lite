@@ -8,6 +8,26 @@ import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/marketplace_account_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/cover_image.dart';
+
+// Curated deep-toned palette for the "design a cover" mode — borrows the
+// same saturated colors Genre already uses for gradient tiles/heroes
+// elsewhere, so a designed cover reads consistently with the rest of the
+// marketplace.
+const _coverDesignColors = [
+  Color(0xFF3D2B6B), // fantasy purple
+  Color(0xFF8B2E45), // romance rose
+  Color(0xFF0D3559), // sci-fi blue
+  Color(0xFF1A1A35), // mystery indigo
+  Color(0xFF2D0D0D), // horror red-black
+  Color(0xFF4A3518), // historical brown
+  Color(0xFF0D3530), // literary teal
+  Color(0xFF4A3568), // poetry violet
+  Color(0xFF2D4A1A), // self-help green
+  Color(0xFF2D3D4A), // biography slate
+  Color(0xFF4A2D0D), // thriller amber
+  Color(0xFF8B6800), // humor gold
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "List a Book" sell-flow bottom sheet + its write-online editor.
@@ -55,6 +75,11 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
   late ListingType _type;
   late ContentCategory _category;
 
+  // Cover art — a picked photo takes precedence over the designed
+  // (color + title/author/decorative-line) cover when both are set.
+  String? _coverImagePath;
+  Color? _coverColor;
+
   // E-book source
   _EbookSource _ebookSource = _EbookSource.pdf;
   String? _pdfFileName;
@@ -77,6 +102,8 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
     );
     _type = e?.type ?? widget.initialType ?? ListingType.ebook;
     _category = e?.contentCategory ?? ContentCategory.novel;
+    _coverImagePath = e?.coverImageUrl;
+    _coverColor = e?.coverColor != null ? Color(e!.coverColor!) : null;
     _pdfFileName = e?.pdfFileName;
     _ebookChapters = List.of(e?.ebookChapters ?? const []);
     if (_ebookChapters.isEmpty &&
@@ -106,6 +133,20 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickCoverPhoto() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: false,
+    );
+    if (!mounted) return;
+    if (result != null && result.files.isNotEmpty) {
+      final path = result.files.single.path;
+      if (path != null) {
+        setState(() => _coverImagePath = path);
+      }
+    }
   }
 
   Future<void> _pickPdf() async {
@@ -240,6 +281,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       authorName:
           e?.authorName ?? ref.read(currentUserProvider)?.displayName ?? '',
       price: '\$${price.toStringAsFixed(2)}',
+      priceCents: (price * 100).round(),
       type: _type,
       rating: e?.rating ?? 0,
       reviewCount: e?.reviewCount ?? 0,
@@ -253,6 +295,8 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       ebookContent: null,
       ebookChapters: chapters,
       audioVolumes: audioVolumes,
+      coverImageUrl: _coverImagePath,
+      coverColor: _coverColor?.toARGB32(),
     );
     // Capture the (root) messenger before popping so the sync-failure snack
     // can still be shown after the sheet is gone.
@@ -336,6 +380,31 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               controller: _titleCtrl,
               hint: 'e.g. Midnight Verses',
               isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+
+            // Cover — a picked photo, or a designed color + title/author +
+            // decorative-line cover (this is what actually renders behind
+            // the book's cover page and its listing tiles).
+            _FieldLabel('Cover', isDark: isDark),
+            const SizedBox(height: 8),
+            AnimatedBuilder(
+              // Keeps the live preview's title text in sync as the seller
+              // types, without needing a setState wired through _TextField.
+              animation: _titleCtrl,
+              builder: (context, _) => _CoverPicker(
+                title: _titleCtrl.text,
+                authorName:
+                    widget.existing?.authorName ??
+                    ref.watch(currentUserProvider)?.displayName ??
+                    '',
+                imagePath: _coverImagePath,
+                color: _coverColor,
+                isDark: isDark,
+                onPickPhoto: _pickCoverPhoto,
+                onRemovePhoto: () => setState(() => _coverImagePath = null),
+                onPickColor: (c) => setState(() => _coverColor = c),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -1007,6 +1076,241 @@ class _ChaptersBox extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cover picker — photo upload + "design a cover" color palette, with a live
+// preview matching the actual cover the book reader will show.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CoverPicker extends StatelessWidget {
+  final String title;
+  final String authorName;
+  final String? imagePath;
+  final Color? color;
+  final bool isDark;
+  final VoidCallback onPickPhoto;
+  final VoidCallback onRemovePhoto;
+  final ValueChanged<Color> onPickColor;
+
+  const _CoverPicker({
+    required this.title,
+    required this.authorName,
+    required this.imagePath,
+    required this.color,
+    required this.isDark,
+    required this.onPickPhoto,
+    required this.onRemovePhoto,
+    required this.onPickColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CoverPreview(
+          title: title,
+          authorName: authorName,
+          imagePath: imagePath,
+          color: color ?? _coverDesignColors.first,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: onPickPhoto,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 18,
+                      color: AppColors.accent,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        imagePath != null ? 'Replace photo' : 'Choose photo',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.lato(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (imagePath != null) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onRemovePhoto,
+                  child: Text(
+                    'Remove photo',
+                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                'Or design a cover',
+                style: GoogleFonts.lato(fontSize: 11, color: labelColor),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _coverDesignColors.map((c) {
+                  final sel = color?.toARGB32() == c.toARGB32();
+                  return GestureDetector(
+                    onTap: () => onPickColor(c),
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: sel
+                            ? Border.all(color: Colors.white, width: 2)
+                            : null,
+                        boxShadow: sel
+                            ? [
+                                BoxShadow(
+                                  color: c.withValues(alpha: 0.6),
+                                  blurRadius: 4,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: sel
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Miniature rendering of the actual book-cover design (photo-or-gradient +
+/// decorative lines + title + author) so what the seller picks here is
+/// exactly what readers will see on the cover page and listing tiles.
+class _CoverPreview extends StatelessWidget {
+  final String title;
+  final String authorName;
+  final String? imagePath;
+  final Color color;
+
+  const _CoverPreview({
+    required this.title,
+    required this.authorName,
+    required this.imagePath,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final coverImage = coverImageFile(imagePath);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 92,
+        height: 128,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, Color.lerp(color, Colors.black, 0.5)!],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Stack(
+          children: [
+            if (coverImage != null)
+              Positioned.fill(
+                child: Image.file(coverImage, fit: BoxFit.cover),
+              ),
+            if (coverImage != null)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.3),
+                        Colors.black.withValues(alpha: 0.6),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title.isEmpty ? 'Your Book Title' : title,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                  const Spacer(),
+                  if (authorName.isNotEmpty)
+                    Text(
+                      authorName,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        letterSpacing: 1,
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

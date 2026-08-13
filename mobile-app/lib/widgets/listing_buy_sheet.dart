@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/marketplace.dart';
 import '../providers/marketplace_account_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/purchase_flow.dart';
 
 /// Bottom sheet shown when tapping a post's marketplace badge — lets a
 /// reader buy the linked listing right from the feed, or jump to the full
@@ -42,14 +43,12 @@ class _ListingBuySheet extends ConsumerWidget {
       context.push('/marketplace/listing/${listing.id}');
     }
 
-    void buyNow() {
-      ref.read(purchasesProvider.notifier).buyNow(listing);
-      ref.read(cartProvider.notifier).remove(listing.id);
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('"${listing.title}" purchased! Check your Library.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+    Future<void> buyNow() async {
+      final ok = await runPurchaseFlow(context, ref, [listing]);
+      if (ok && context.mounted) {
+        ref.read(cartProvider.notifier).remove(listing.id);
+        Navigator.pop(context);
+      }
     }
 
     return SafeArea(

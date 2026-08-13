@@ -14,7 +14,7 @@ class MarketplaceRepository {
         .from('marketplace_listings')
         .select('*, ebook_chapters(*), audio_volumes(*)');
     return (rows as List)
-        .map((r) => _listingFromRow((r as Map).cast<String, dynamic>()))
+        .map((r) => listingFromRow((r as Map).cast<String, dynamic>()))
         .toList();
   }
 
@@ -64,6 +64,7 @@ class MarketplaceRepository {
         'title': listing.title,
         'author_name': listing.authorName,
         'price': listing.price,
+        'price_cents': listing.priceCents,
         'type': listing.type.name,
         'rating': listing.rating,
         'review_count': listing.reviewCount,
@@ -73,9 +74,15 @@ class MarketplaceRepository {
         'description': listing.description,
         'pdf_file_name': listing.pdfFileName,
         'ebook_content': listing.ebookContent,
+        'cover_image_url': listing.coverImageUrl,
+        'cover_color': listing.coverColor,
       };
 
-  static MarketplaceListing _listingFromRow(Map<String, dynamic> row) {
+  /// Maps a raw `marketplace_listings` row (with its embedded
+  /// `ebook_chapters`/`audio_volumes`) to a [MarketplaceListing]. Public so
+  /// [CommerceRepository] can reuse it when embedding listings under
+  /// `order_items` rows.
+  static MarketplaceListing listingFromRow(Map<String, dynamic> row) {
     final chapterRows = ((row['ebook_chapters'] as List?) ?? const [])
         .map((e) => (e as Map).cast<String, dynamic>())
         .toList()
@@ -90,6 +97,7 @@ class MarketplaceRepository {
       title: row['title'] as String,
       authorName: row['author_name'] as String,
       price: row['price'] as String,
+      priceCents: (row['price_cents'] as num?)?.toInt() ?? 0,
       type: ListingType.values.firstWhere(
         (t) => t.name == row['type'],
         orElse: () => ListingType.physical,
@@ -109,6 +117,8 @@ class MarketplaceRepository {
       description: (row['description'] as String?) ?? '',
       pdfFileName: row['pdf_file_name'] as String?,
       ebookContent: row['ebook_content'] as String?,
+      coverImageUrl: row['cover_image_url'] as String?,
+      coverColor: (row['cover_color'] as num?)?.toInt(),
       ebookChapters: chapterRows
           .map((c) => EbookChapter(
                 title: c['title'] as String,

@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
+import '../../providers/marketplace_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/purchase_flow.dart';
 import 'marketplace_shared_widgets.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,23 +82,19 @@ class _LibraryTabState extends ConsumerState<_LibraryTab> {
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            // A fixed `mainAxisExtent` (rather than `childAspectRatio`) keeps
-            // each card's height constant regardless of screen width — with
-            // an aspect ratio, cards get shorter as the screen narrows even
-            // though their content (cover + type chip + 2-line title +
-            // author + price row) doesn't, which overflowed on narrow phones.
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: 225,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 14),
             itemCount: itemCount,
+            // A faint (near-invisible) hairline between rows — enough to
+            // separate one book from the next without a hard visible line.
+            separatorBuilder: (_, _) => Divider(
+              height: 1,
+              color: (isDark ? AppColors.darkDivider : AppColors.divider)
+                  .withValues(alpha: 0.4),
+            ),
             itemBuilder: (_, i) {
               if (i == 0) {
-                return AddTile(
+                return AddListRow(
                   isDark: isDark,
                   title: 'Add Book',
                   subtitle: 'Add to your library',
@@ -109,12 +107,10 @@ class _LibraryTabState extends ConsumerState<_LibraryTab> {
                   : l.type == ListingType.ebook
                   ? 'Read'
                   : 'View';
-              return BookGridCard(
+              return BookListRow(
                 listing: l,
                 isDark: isDark,
                 accessLabel: label,
-                onRemove: () =>
-                    ref.read(purchasesProvider.notifier).remove(l.id),
               );
             },
           ),
@@ -136,7 +132,8 @@ class _AddToLibrarySheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final purchases = ref.watch(purchasesProvider);
     final owned = purchases.map((p) => p.listing.id).toSet();
-    final available = mockListings.where((l) => !owned.contains(l.id)).toList();
+    final catalogue = ref.watch(marketplaceListingsProvider);
+    final available = catalogue.where((l) => !owned.contains(l.id)).toList();
 
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final div = isDark ? AppColors.darkDivider : AppColors.divider;
@@ -250,26 +247,7 @@ class _AddToLibrarySheet extends ConsumerWidget {
                             ),
                           ),
                           trailing: GestureDetector(
-                            onTap: () {
-                              ref
-                                  .read(purchasesProvider.notifier)
-                                  .add(
-                                    Purchase(
-                                      listing: l,
-                                      purchasedAt: DateTime.now(),
-                                      orderId:
-                                          'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}',
-                                    ),
-                                  );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '"${l.title}" added to library',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            onTap: () => runPurchaseFlow(context, ref, [l]),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
@@ -284,7 +262,7 @@ class _AddToLibrarySheet extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                'Add',
+                                l.price,
                                 style: GoogleFonts.lato(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,

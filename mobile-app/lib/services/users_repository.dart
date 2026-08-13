@@ -14,14 +14,26 @@ class UsersRepository {
     return row == null ? null : LitUser.fromSupabaseRow(row);
   }
 
-  /// Pushes the locally-edited profile fields (username / display name / bio)
-  /// to the user's row.
+  /// Batch-fetches users by id — used to resolve buyer display names for
+  /// the Sales tab without one query per sale.
+  static Future<List<LitUser>> fetchByIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    final rows = await _client.from('users').select().inFilter('id', ids);
+    return (rows as List)
+        .map((r) => LitUser.fromSupabaseRow((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Pushes the locally-edited profile fields (username / display name /
+  /// bio / avatar / cover photo) to the user's row.
   static Future<void> updateProfile(LitUser user) => _client
       .from('users')
       .update({
         'username': user.username,
         'display_name': user.displayName,
         'bio': user.bio,
+        'avatar_url': user.avatarUrl,
+        'cover_image_url': user.coverImageUrl,
       })
       .eq('id', user.id);
 }

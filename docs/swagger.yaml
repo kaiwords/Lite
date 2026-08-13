@@ -50,6 +50,16 @@ tags:
   - name: follows
   - name: conversations
   - name: messages
+  - name: user_stripe_accounts
+  - name: orders
+  - name: order_items
+  - name: Stripe Edge Functions
+    description: >-
+      The app's only server-side code (Deno, in supabase/functions/) —
+      everything else is direct PostgREST/Auth access. These exist because
+      Stripe's secret key, checkout amount validation, and Connect payout
+      splitting can't live in the client. See CLAUDE.md's swagger.yaml
+      sync rule and docs/database.md.
 
 paths:
   # ── Auth ─────────────────────────────────────────────────────────────────
@@ -519,6 +529,140 @@ paths:
       responses:
         "201": { description: Created }
 
+  # ── user_stripe_accounts ────────────────────────────────────────────────
+  /rest/v1/user_stripe_accounts:
+    get:
+      tags: [user_stripe_accounts]
+      summary: Get the signed-in user's Stripe identity (buyer + seller)
+      description: >-
+        RLS: only the row where user_id = auth.uid(). No insert/update/
+        delete policy for any client role — every row is written by the
+        Edge Functions below using the service-role key, which bypasses
+        RLS. See CommerceRepository.fetchSellerStripeStatus and the
+        migration comment in supabase/migrations/20260813000001_add_stripe_commerce.sql
+        for why this isn't just columns on public.users.
+      parameters: [{ $ref: "#/components/parameters/select" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/UserStripeAccount" } }
+
+  # ── orders ───────────────────────────────────────────────────────────────
+  /rest/v1/orders:
+    get:
+      tags: [orders]
+      summary: List the signed-in buyer's orders
+      description: >-
+        RLS: only rows where buyer_id = auth.uid(). Read-only from the
+        client — created and updated only by stripe-create-checkout and
+        stripe-webhook (service role). See CommerceRepository.fetchPurchases.
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Order" } }
+
+  # ── order_items ──────────────────────────────────────────────────────────
+  /rest/v1/order_items:
+    get:
+      tags: [order_items]
+      summary: List order line items visible to the signed-in user
+      description: >-
+        RLS: rows where seller_id = auth.uid(), OR where the parent order's
+        buyer_id = auth.uid() — so this one table serves both
+        CommerceRepository.fetchPurchases (buyer side) and
+        CommerceRepository.fetchSales (seller side). Read-only from the
+        client.
+      parameters: [{ $ref: "#/components/parameters/select" }, { $ref: "#/components/parameters/idFilter" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/OrderItem" } }
+
+  # ── Stripe Edge Functions ───────────────────────────────────────────────
+  /functions/v1/stripe-connect-onboarding:
+    post:
+      tags: [Stripe Edge Functions]
+      summary: Start (or resume) the signed-in user's seller Connect onboarding
+      description: >-
+        Creates a Stripe Express connected account for the user if one
+        doesn't exist yet, then returns a one-time Stripe-hosted onboarding
+        URL (an Account Link). The client opens it in the system browser —
+        Stripe-hosted onboarding doesn't work in an embedded webview. See
+        StripeService.startSellerOnboarding and
+        supabase/functions/stripe-connect-onboarding.
+      security: [{ apiKeyAuth: [], bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, description: "One-time Stripe-hosted onboarding URL." }
+        "401": { description: Missing/invalid session }
+
+  /functions/v1/stripe-create-checkout:
+    post:
+      tags: [Stripe Edge Functions]
+      summary: Create an order + PaymentIntent for one or more listings
+      description: >-
+        Validates every listing server-side (authoritative price_cents,
+        not-your-own-listing, not-already-purchased, seller has finished
+        Connect onboarding), creates the orders/order_items rows, and
+        returns a PaymentIntent client secret for the Flutter Payment
+        Sheet. One PaymentIntent covers the whole cart even across
+        multiple sellers ("separate charges and transfers" — see the
+        function's doc comment); stripe-webhook creates the per-seller
+        Transfers afterward. See StripeService.buyListings.
+      security: [{ apiKeyAuth: [], bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingIds]
+              properties:
+                listingIds: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clientSecret: { type: string }
+                  orderId: { type: string, format: uuid }
+                  amountTotalCents: { type: integer }
+        "400": { description: "Validation error (e.g. seller hasn't finished payment setup, already purchased) — surfaced to the user as-is." }
+        "401": { description: Missing/invalid session }
+
+  /functions/v1/stripe-webhook:
+    post:
+      tags: [Stripe Edge Functions]
+      summary: Stripe webhook — reconciles orders/order_items/user_stripe_accounts
+      description: >-
+        Not called by the app — called by Stripe. Two webhook endpoints
+        point here with two different signing secrets (payment_intent.*
+        fires on the platform account; account.updated fires on connected
+        accounts, which requires a separate `connect: true` endpoint).
+        Verified via the Stripe-Signature header, not Supabase auth
+        (verify_jwt=false). Idempotent on payment_intent.succeeded — see
+        supabase/functions/stripe-webhook.
+      security: []
+      responses:
+        "200": { description: Event handled (or intentionally ignored — unhandled event types are a no-op) }
+        "400": { description: Signature verification failed }
+
 components:
   securitySchemes:
     apiKeyAuth:
@@ -607,7 +751,8 @@ components:
         id: { type: string }
         title: { type: string }
         author_name: { type: string }
-        price: { type: string, description: "Stored as text, not a numeric/currency type — see database.md." }
+        price: { type: string, description: "Display string, e.g. \"$12.99\" — kept for existing UI code. price_cents is the source of truth for anything that touches money." }
+        price_cents: { type: integer, default: 0, description: "Added 2026-08-13. Canonical amount in cents — what stripe-create-checkout actually charges. Backfilled from price for pre-existing rows." }
         type: { type: string, enum: [physical, ebook, audio] }
         rating: { type: number, default: 0 }
         review_count: { type: integer, default: 0 }
@@ -618,7 +763,8 @@ components:
         pdf_file_name: { type: string, nullable: true, description: "Filename only — the file itself is never uploaded anywhere." }
         ebook_content: { type: string, nullable: true, description: "Legacy flat blob, superseded by ebook_chapters." }
         seller_id: { type: string, nullable: true, description: "Defaults to auth.uid(); NULL on the original seed rows." }
-        cover_image_url: { type: string, nullable: true, description: "Added 2026-08-07 for the legacy Firebase import (scripts/firebase-migration/) — no upload flow sets this yet, see database.md's 'no file storage' note." }
+        cover_image_url: { type: string, nullable: true, description: "Added 2026-08-07 for the legacy Firebase import; now also set by the List a Book sheet's Cover step (picked photo) — a local file path on device, not an uploaded URL, see database.md's 'no file storage' note." }
+        cover_color: { type: integer, nullable: true, description: "Added 2026-08-10. ARGB int for the Cover step's 'design a cover' alternative — the gradient cover color used when no photo was picked." }
         qty: { type: integer, nullable: true, description: "Added 2026-08-07. Stock count carried over from legacy listings; not read/written by any current app flow." }
         is_sold_out: { type: boolean, default: false, description: "Added 2026-08-07. Not read/written by any current app flow." }
         created_at: { type: string, format: date-time, description: "Added 2026-08-07." }
@@ -675,3 +821,42 @@ components:
         sent_at: { type: string, format: date-time }
         is_read: { type: boolean, default: false }
         sender_id: { type: string, nullable: true, description: "Defaults to auth.uid()." }
+
+    UserStripeAccount:
+      type: object
+      required: [user_id]
+      properties:
+        user_id: { type: string, description: "Primary key, references users(id)." }
+        stripe_customer_id: { type: string, nullable: true, description: "Set by stripe-create-checkout the first time this user buys something." }
+        stripe_connect_account_id: { type: string, nullable: true, description: "Set by stripe-connect-onboarding the first time this user starts seller onboarding." }
+        charges_enabled: { type: boolean, default: false, description: "Kept in sync by stripe-webhook's account.updated handler. stripe-create-checkout refuses to sell a listing whose seller isn't charges_enabled." }
+        details_submitted: { type: boolean, default: false }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Order:
+      type: object
+      required: [id, buyer_id, amount_total_cents]
+      properties:
+        id: { type: string, format: uuid }
+        buyer_id: { type: string }
+        status: { type: string, enum: [pending, paid, failed, refunded], default: pending }
+        stripe_payment_intent_id: { type: string, nullable: true }
+        amount_total_cents: { type: integer, description: "Sum of every order_items.unit_price_cents in this order." }
+        currency: { type: string, default: usd }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    OrderItem:
+      type: object
+      required: [id, order_id, listing_id, seller_id, unit_price_cents]
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        listing_id: { type: string }
+        seller_id: { type: string, description: "Snapshot of the listing's seller_id at purchase time — protects order history if the listing is later edited/deleted." }
+        unit_price_cents: { type: integer, description: "Snapshot of the listing's price_cents at purchase time." }
+        platform_fee_cents: { type: integer, default: 0, description: "Flat 10% today (PLATFORM_FEE_BPS in stripe-create-checkout) — taken out of the seller's Transfer, not billed separately." }
+        stripe_transfer_id: { type: string, nullable: true, description: "Set once stripe-webhook successfully transfers this item's payout to the seller's connected account." }
+        transfer_status: { type: string, enum: [pending, transferred, failed], default: pending }
+        created_at: { type: string, format: date-time }
