@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
@@ -20,12 +19,11 @@ enum FollowListKind { followers, following }
 /// to full [LitUser] records via the `users` table. There is no reverse
 /// "who follows me" tracking in the backend, so the Followers list has no
 /// real-data equivalent and is always empty.
-final _followingUsersProvider = FutureProvider.family<List<LitUser>, Set<String>>(
-  (ref, ids) async {
-    final users = await Future.wait(ids.map(UsersRepository.fetchById));
-    return users.whereType<LitUser>().toList();
-  },
-);
+final _followingUsersProvider =
+    FutureProvider.family<List<LitUser>, Set<String>>((ref, ids) async {
+      final users = await Future.wait(ids.map(UsersRepository.fetchById));
+      return users.whereType<LitUser>().toList();
+    });
 
 class FollowListScreen extends ConsumerStatefulWidget {
   final FollowListKind kind;
@@ -70,7 +68,12 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
     final followingAsync = ref.watch(_followingUsersProvider(followed));
     return followingAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: Text(title, style: Theme.of(context).appBarTheme.titleTextStyle)),
+        appBar: AppBar(
+          title: Text(
+            title,
+            style: Theme.of(context).appBarTheme.titleTextStyle,
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (_, _) => _body(context, isDark, title, followed, const []),
@@ -184,10 +187,10 @@ class _SearchField extends StatelessWidget {
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: GoogleFonts.lato(fontSize: 14, color: text),
+              style: AppFonts.ui(fontSize: 14, color: text),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: GoogleFonts.lato(fontSize: 14, color: muted),
+                hintStyle: AppFonts.ui(fontSize: 14, color: muted),
                 filled: false,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -199,6 +202,7 @@ class _SearchField extends StatelessWidget {
           ),
           if (controller.text.isNotEmpty)
             IconButton(
+              tooltip: 'Clear search',
               icon: Icon(Icons.close_rounded, size: 18, color: muted),
               onPressed: () {
                 controller.clear();
@@ -228,7 +232,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
-            style: GoogleFonts.playfairDisplay(
+            style: AppFonts.display(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
@@ -236,10 +240,7 @@ class _EmptyState extends StatelessWidget {
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 6),
-            Text(
-              subtitle!,
-              style: GoogleFonts.lato(fontSize: 13, color: muted),
-            ),
+            Text(subtitle!, style: AppFonts.ui(fontSize: 13, color: muted)),
           ],
         ],
       ),
@@ -270,7 +271,7 @@ class _UserRow extends ConsumerWidget {
             : AppColors.surfaceVariant,
         child: Text(
           user.displayName.isEmpty ? '?' : user.displayName[0].toUpperCase(),
-          style: GoogleFonts.playfairDisplay(
+          style: AppFonts.display(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             color: AppColors.accent,
@@ -283,7 +284,7 @@ class _UserRow extends ConsumerWidget {
             child: Text(
               user.displayName,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -300,7 +301,7 @@ class _UserRow extends ConsumerWidget {
       ),
       subtitle: Text(
         '@${user.username}',
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 12,
           color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
         ),
@@ -323,7 +324,7 @@ class _UserRow extends ConsumerWidget {
           ),
           child: Text(
             isFollowing ? 'Following' : 'Follow',
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: isFollowing

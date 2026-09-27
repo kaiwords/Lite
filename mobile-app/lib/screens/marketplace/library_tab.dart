@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
@@ -170,7 +169,7 @@ class _AddToLibrarySheet extends ConsumerWidget {
                 children: [
                   Text(
                     'Add to Library',
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: titleColor,
@@ -188,10 +187,7 @@ class _AddToLibrarySheet extends ConsumerWidget {
                         child: Text(
                           'You already own every title in the marketplace.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.lato(
-                            fontSize: 13,
-                            color: mutedColor,
-                          ),
+                          style: AppFonts.ui(fontSize: 13, color: mutedColor),
                         ),
                       ),
                     )
@@ -231,7 +227,7 @@ class _AddToLibrarySheet extends ConsumerWidget {
                             l.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.lato(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: titleColor,
@@ -241,35 +237,20 @@ class _AddToLibrarySheet extends ConsumerWidget {
                             '${l.authorName} · ${l.price}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.lato(
-                              fontSize: 12,
-                              color: mutedColor,
-                            ),
+                            style: AppFonts.ui(fontSize: 12, color: mutedColor),
                           ),
-                          trailing: GestureDetector(
-                            onTap: () => runPurchaseFlow(context, ref, [l]),
-                            child: Container(
+                          trailing: FilledButton(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(64, 40),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                // accentOnFill (darker than accent) keeps the
-                                // white label at WCAG AA contrast.
-                                color: isDark
-                                    ? AppColors.darkAccentOnFill
-                                    : AppColors.accentOnFill,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                l.price,
-                                style: GoogleFonts.lato(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
                               ),
                             ),
+                            // Free and Swap listings are claimed, not paid for.
+                            onPressed: () => l.offer == ListingOffer.sale
+                                ? runPurchaseFlow(context, ref, [l])
+                                : runClaimFlow(context, ref, l),
+                            child: Text(l.price),
                           ),
                         );
                       },
@@ -371,7 +352,7 @@ class _GenreChip extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 label,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: selected ? color : mutedColor,

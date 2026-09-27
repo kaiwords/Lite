@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../providers/feed_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -12,7 +11,9 @@ class CategoryBottomSheet extends ConsumerWidget {
     final selected = ref.watch(feedCategoryProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final bgColor = isDark ? AppColors.darkSurface : AppColors.surface;
 
@@ -47,14 +48,17 @@ class CategoryBottomSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
               child: Text(
                 'Filter by Category',
-                style: GoogleFonts.playfairDisplay(
+                style: AppFonts.display(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
               ),
             ),
-            Divider(height: 16, color: isDark ? AppColors.darkDivider : AppColors.divider),
+            Divider(
+              height: 16,
+              color: isDark ? AppColors.darkDivider : AppColors.divider,
+            ),
             Expanded(
               child: ListView(
                 controller: scrollController,
@@ -67,21 +71,30 @@ class CategoryBottomSheet extends ConsumerWidget {
                       Navigator.pop(context);
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
                             child: Text(
                               cat.label,
-                              style: GoogleFonts.lato(
+                              style: AppFonts.ui(
                                 fontSize: 15,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
                                 color: isSelected ? activeColor : textColor,
                               ),
                             ),
                           ),
                           if (isSelected)
-                            Icon(Icons.check_rounded, color: activeColor, size: 20),
+                            Icon(
+                              Icons.check_rounded,
+                              color: activeColor,
+                              size: 20,
+                            ),
                         ],
                       ),
                     ),

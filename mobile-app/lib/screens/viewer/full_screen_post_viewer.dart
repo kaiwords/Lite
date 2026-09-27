@@ -3,46 +3,30 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/post.dart';
 import '../../providers/feed_provider.dart';
+import '../../services/local_store.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/post_paginator.dart';
 import '../../utils/rich_text.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen — immersive, chrome-free reading view. No back button, no author
-// row, no engagement footer — those all live on the post card back on Home.
-// A single tap anywhere on a post closes the viewer and returns to Home.
+// Screen — immersive, chrome-free reading view, book-style: no scrolling and
+// no swiping vertically at all — only a static, page-by-page horizontal
+// swipe through this one post's own content (see _PostFullPage below). No
+// back button, no author row, no engagement footer beyond a bookmark
+// toggle — the rest lives on the post card back on Home. A single tap
+// anywhere closes the viewer and returns to Home; to read a different post,
+// close and tap it from there.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class FullScreenPostViewer extends ConsumerStatefulWidget {
+class FullScreenPostViewer extends ConsumerWidget {
   final int initialIndex;
   const FullScreenPostViewer({super.key, required this.initialIndex});
 
   @override
-  ConsumerState<FullScreenPostViewer> createState() =>
-      _FullScreenPostViewerState();
-}
-
-class _FullScreenPostViewerState extends ConsumerState<FullScreenPostViewer> {
-  late final PageController _vController;
-
-  @override
-  void initState() {
-    super.initState();
-    _vController = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _vController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final posts = ref.watch(filteredPostsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0D0A07) : AppColors.background;
@@ -51,17 +35,9 @@ class _FullScreenPostViewerState extends ConsumerState<FullScreenPostViewer> {
       backgroundColor: bg,
       body: SafeArea(
         bottom: false,
-        child: posts.isEmpty
+        child: (initialIndex < 0 || initialIndex >= posts.length)
             ? const _EmptyState()
-            : PageView.builder(
-                controller: _vController,
-                scrollDirection: Axis.vertical,
-                itemCount: posts.length,
-                itemBuilder: (_, i) => _PostFullPage(
-                  post: posts[i],
-                  isDark: isDark,
-                ),
-              ),
+            : _PostFullPage(post: posts[initialIndex], isDark: isDark),
       ),
     );
   }
@@ -91,25 +67,26 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// One post — title + horizontal page swiper; tap anywhere closes the viewer
+// One post — title + horizontal, static page swiper (book-style: no
+// scrolling, each swipe snaps to a whole page). Tap anywhere closes the
+// viewer. The last page you were on is remembered per post and silently
+// restored as the starting page next time you open it — swiping back to
+// page one is one gesture away if you'd rather start over.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostFullPage extends StatefulWidget {
+class _PostFullPage extends ConsumerStatefulWidget {
   final Post post;
   final bool isDark;
 
-  const _PostFullPage({
-    required this.post,
-    required this.isDark,
-  });
+  const _PostFullPage({required this.post, required this.isDark});
 
   @override
-  State<_PostFullPage> createState() => _PostFullPageState();
+  ConsumerState<_PostFullPage> createState() => _PostFullPageState();
 }
 
-class _PostFullPageState extends State<_PostFullPage> {
+class _PostFullPageState extends ConsumerState<_PostFullPage> {
   final PageController _hController = PageController();
-  int _pageIndex = 0;
+  late int _pageIndex;
   List<String> _pages = const [];
   Size? _bodySize;
   Size? _pendingSize;
@@ -120,8 +97,14 @@ class _PostFullPageState extends State<_PostFullPage> {
       widget.post.category == ContentCategory.haiku;
 
   TextStyle get _bodyStyle => _isPoetic
-      ? GoogleFonts.lora(fontSize: 18, fontStyle: FontStyle.italic, height: 2.0)
-      : GoogleFonts.lora(fontSize: 16, height: 1.85);
+      ? AppFonts.reading(fontSize: 18, fontStyle: FontStyle.italic, height: 2.0)
+      : AppFonts.reading(fontSize: 16, height: 1.85);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageIndex = LocalStore.instance.loadPostLastPageIndex(widget.post.id) ?? 0;
+  }
 
   @override
   void dispose() {
@@ -168,65 +151,105 @@ class _PostFullPageState extends State<_PostFullPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => context.pop(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Title. On short screens (e.g. iPhone SE) the paginated body
-          // below needs most of the vertical room — capping the title's
-          // height and letting it scroll internally means a long title
-          // degrades to a short scroll instead of hard-overflowing.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(26, 24, 26, 8),
-              child: _PostHeader(title: _currentPageTitle, isDark: widget.isDark),
-            ),
-          ),
+    final mutedColor = widget.isDark
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
+    return Stack(
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => context.pop(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title — _PostHeader itself caps at 2 lines with an ellipsis,
+              // so a long title never needs to scroll or overflow.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(26, 24, 44, 8),
+                child: _PostHeader(
+                  title: _currentPageTitle,
+                  isDark: widget.isDark,
+                ),
+              ),
 
-          // Paged body — measured so overflow flows to the next page
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final size = Size(
-                  constraints.maxWidth - 52, // 26 padding each side
-                  constraints.maxHeight - 36, // 20 top + 16 bottom
-                );
-                if (_bodySize != size) {
-                  if (_bodySize == null) {
-                    // First layout → paginate immediately.
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _applyPages(size);
-                    });
-                  } else {
-                    // Size changed (e.g. rotation) → debounce so we only
-                    // re-paginate once it settles.
-                    _pendingSize = size;
-                    _reflowTimer?.cancel();
-                    _reflowTimer = Timer(const Duration(milliseconds: 300), () {
-                      if (mounted) _applyPages(_pendingSize!);
-                    });
-                  }
-                }
-                if (_pages.isEmpty) return const SizedBox.shrink();
-                return PageView.builder(
-                  controller: _hController,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _pages.length,
-                  onPageChanged: (i) => setState(() => _pageIndex = i),
-                  itemBuilder: (_, i) => _BodyPage(
-                    text: _pages[i],
-                    isPoetic: _isPoetic,
-                    isDark: widget.isDark,
-                  ),
-                );
-              },
+              // Paged body — measured so overflow flows to the next page
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = Size(
+                      constraints.maxWidth - 52, // 26 padding each side
+                      constraints.maxHeight - 36, // 20 top + 16 bottom
+                    );
+                    if (_bodySize != size) {
+                      if (_bodySize == null) {
+                        // First layout → paginate immediately.
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _applyPages(size);
+                        });
+                      } else {
+                        // Size changed (e.g. rotation) → debounce so we only
+                        // re-paginate once it settles.
+                        _pendingSize = size;
+                        _reflowTimer?.cancel();
+                        _reflowTimer = Timer(
+                          const Duration(milliseconds: 300),
+                          () {
+                            if (mounted) _applyPages(_pendingSize!);
+                          },
+                        );
+                      }
+                    }
+                    if (_pages.isEmpty) return const SizedBox.shrink();
+                    return BookPageView(
+                      controller: _hController,
+                      itemCount: _pages.length,
+                      onPageChanged: (i) {
+                        setState(() => _pageIndex = i);
+                        LocalStore.instance.savePostLastPageIndex(
+                          widget.post.id,
+                          i,
+                        );
+                      },
+                      itemBuilder: (_, i) => _BodyPage(
+                        text: _pages[i],
+                        isPoetic: _isPoetic,
+                        isDark: widget.isDark,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Bookmark toggle — the same favourite/bookmark feature already on
+        // the feed's post card (post.isFavourited / toggleFavourite), also
+        // reachable from this immersive reading view.
+        Positioned(
+          top: 4,
+          right: 4,
+          child: SafeArea(
+            bottom: false,
+            child: IconButton(
+              tooltip: widget.post.isFavourited
+                  ? 'Remove bookmark'
+                  : 'Bookmark this post',
+              icon: Icon(
+                widget.post.isFavourited
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                color: widget.post.isFavourited
+                    ? AppColors.bookmark
+                    : mutedColor,
+              ),
+              onPressed: () => ref
+                  .read(postsNotifierProvider.notifier)
+                  .toggleFavourite(widget.post.id),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -252,7 +275,7 @@ class _PostHeader extends StatelessWidget {
       title!,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: GoogleFonts.playfairDisplay(
+      style: AppFonts.display(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: titleColor,
@@ -283,13 +306,13 @@ class _BodyPage extends StatelessWidget {
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
     final bodyStyle = isPoetic
-        ? GoogleFonts.lora(
+        ? AppFonts.reading(
             fontSize: 18,
             fontStyle: FontStyle.italic,
             height: 2.0,
             color: bodyColor,
           )
-        : GoogleFonts.lora(fontSize: 16, height: 1.85, color: bodyColor);
+        : AppFonts.reading(fontSize: 16, height: 1.85, color: bodyColor);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(26, 20, 26, 16),

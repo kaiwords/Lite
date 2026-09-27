@@ -2,15 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 const _tabs = [
-  _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home', path: '/'),
-  _NavItem(icon: Icons.headphones_outlined, activeIcon: Icons.headphones_rounded, label: 'Audio', path: '/audio'),
-  _NavItem(icon: Icons.storefront_outlined, activeIcon: Icons.storefront_rounded, label: 'Market', path: '/marketplace'),
-  _NavItem(icon: Icons.notifications_outlined, activeIcon: Icons.notifications_rounded, label: 'Alerts', path: '/alerts'),
-  _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Profile', path: '/profile'),
+  _NavItem(
+    icon: Icons.home_outlined,
+    activeIcon: Icons.home_rounded,
+    label: 'Home',
+    path: '/',
+  ),
+  _NavItem(
+    icon: Icons.headphones_outlined,
+    activeIcon: Icons.headphones_rounded,
+    label: 'Audio',
+    path: '/audio',
+  ),
+  _NavItem(
+    icon: Icons.storefront_outlined,
+    activeIcon: Icons.storefront_rounded,
+    label: 'Market',
+    path: '/marketplace',
+  ),
+  _NavItem(
+    icon: Icons.notifications_outlined,
+    activeIcon: Icons.notifications_rounded,
+    label: 'Alerts',
+    path: '/alerts',
+  ),
+  _NavItem(
+    icon: Icons.person_outline_rounded,
+    activeIcon: Icons.person_rounded,
+    label: 'Profile',
+    path: '/profile',
+  ),
 ];
 
 class LiteratureBottomNavBar extends ConsumerStatefulWidget {
@@ -61,9 +85,11 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final activeColor = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final inactiveColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final activeBg = activeColor.withValues(alpha: isDark ? 0.18 : 0.10);
+    final activeColor = isDark ? AppColors.darkAccent : AppColors.accent;
+    final inactiveColor = isDark
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
+    final ribbonColor = isDark ? AppColors.darkBookmark : AppColors.bookmark;
 
     return Container(
       decoration: BoxDecoration(
@@ -78,7 +104,7 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 60,
+          height: 64,
           child: Row(
             children: List.generate(_tabs.length, (i) {
               final tab = _tabs[i];
@@ -106,48 +132,62 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
                     child: AnimatedBuilder(
                       animation: _popCtrl,
                       builder: (context, _) {
-                        // Monotonic 0→1 fade/grow for the pill background;
-                        // a springy overshoot-then-settle for the icon so
-                        // landing on a tab feels like it "arrives" rather
-                        // than just appearing.
-                        final entrance = Curves.easeOut.transform(_popCtrl.value);
-                        final bounce = Curves.easeOutBack.transform(_popCtrl.value);
+                        // The active tab's ribbon bookmark drops down from
+                        // the top edge; the icon gets a springy
+                        // overshoot-then-settle so landing on a tab feels
+                        // like it "arrives" rather than just appearing.
+                        final entrance = Curves.easeOut.transform(
+                          _popCtrl.value,
+                        );
+                        final bounce = Curves.easeOutBack.transform(
+                          _popCtrl.value,
+                        );
                         final iconScale = isActive ? (0.6 + 0.4 * bounce) : 1.0;
-                        final pillOpacity = isActive ? entrance : 0.0;
 
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        return Stack(
+                          alignment: Alignment.topCenter,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
+                            if (isActive)
+                              _Ribbon(
+                                color: ribbonColor,
+                                height: 12 * entrance,
                               ),
-                              decoration: BoxDecoration(
-                                color: activeBg.withValues(
-                                  alpha: activeBg.a * pillOpacity,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                    ),
+                                    child: Transform.scale(
+                                      scale: iconScale,
+                                      child: Icon(
+                                        isActive ? tab.activeIcon : tab.icon,
+                                        color: isActive
+                                            ? activeColor
+                                            : inactiveColor,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  AnimatedDefaultTextStyle(
+                                    duration: const Duration(milliseconds: 200),
+                                    style: AppFonts.ui(
+                                      fontSize: 10,
+                                      fontWeight: isActive
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
+                                      color: isActive
+                                          ? activeColor
+                                          : inactiveColor,
+                                    ),
+                                    child: Text(tab.label),
+                                  ),
+                                ],
                               ),
-                              child: Transform.scale(
-                                scale: iconScale,
-                                child: Icon(
-                                  isActive ? tab.activeIcon : tab.icon,
-                                  color: isActive ? activeColor : inactiveColor,
-                                  size: 24,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 200),
-                              style: GoogleFonts.lato(
-                                fontSize: 10,
-                                fontWeight:
-                                    isActive ? FontWeight.w700 : FontWeight.w400,
-                                color: isActive ? activeColor : inactiveColor,
-                              ),
-                              child: Text(tab.label),
                             ),
                           ],
                         );
@@ -162,6 +202,39 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
       ),
     );
   }
+}
+
+/// A cloth ribbon bookmark with a notched tail, hanging from the top edge.
+class _Ribbon extends StatelessWidget {
+  final Color color;
+  final double height;
+  const _Ribbon({required this.color, required this.height});
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(14, height), painter: _RibbonPainter(color));
+}
+
+class _RibbonPainter extends CustomPainter {
+  final Color color;
+  _RibbonPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.height <= 0) return;
+    final notch = size.height * 0.3;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(size.width / 2, size.height - notch)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_RibbonPainter old) => old.color != color;
 }
 
 class _NavItem {

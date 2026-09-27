@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/book.dart';
 import '../../models/marketplace.dart';
@@ -25,7 +24,8 @@ class BookListRow extends StatelessWidget {
   final VoidCallback? onRemove; // library: remove from library
   final VoidCallback? onEdit; // my listings: edit via ⋮ menu
   final VoidCallback? onDelete; // my listings: delete via ⋮ menu
-  final String? accessLabel; // 'Read' opens the book reader instead of the listing detail
+  final String?
+  accessLabel; // 'Read' opens the book reader instead of the listing detail
 
   const BookListRow({
     super.key,
@@ -67,79 +67,79 @@ class BookListRow extends StatelessWidget {
         }
       },
       child: Row(
-          children: [
-            // Cover
-            _RowCover(listing: listing),
-            const SizedBox(width: 12),
+        children: [
+          // Cover
+          _RowCover(listing: listing),
+          const SizedBox(width: 12),
 
-            // Title only
-            Expanded(
-              child: Text(
-                listing.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: titleColor,
-                ),
+          // Title only
+          Expanded(
+            child: Text(
+              listing.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.display(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: titleColor,
               ),
             ),
+          ),
 
-            // Trailing action
-            if (onRemove != null)
-              IconButton(
-                icon: Icon(Icons.close_rounded, size: 20, color: mutedColor),
-                tooltip: 'Remove',
-                onPressed: onRemove,
-              )
-            else if (onEdit != null || onDelete != null)
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, color: mutedColor),
-                tooltip: 'Options',
-                onSelected: (v) {
-                  if (v == 'edit') onEdit?.call();
-                  if (v == 'delete') onDelete?.call();
-                },
-                itemBuilder: (_) => [
-                  if (onEdit != null)
-                    PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.edit_outlined, size: 18),
-                          const SizedBox(width: 10),
-                          Text('Edit', style: GoogleFonts.lato(fontSize: 13)),
-                        ],
-                      ),
+          // Trailing action
+          if (onRemove != null)
+            IconButton(
+              icon: Icon(Icons.close_rounded, size: 20, color: mutedColor),
+              tooltip: 'Remove',
+              onPressed: onRemove,
+            )
+          else if (onEdit != null || onDelete != null)
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert_rounded, color: mutedColor),
+              tooltip: 'Options',
+              onSelected: (v) {
+                if (v == 'edit') onEdit?.call();
+                if (v == 'delete') onDelete?.call();
+              },
+              itemBuilder: (_) => [
+                if (onEdit != null)
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_outlined, size: 18),
+                        const SizedBox(width: 10),
+                        Text('Edit', style: AppFonts.ui(fontSize: 13)),
+                      ],
                     ),
-                  if (onDelete != null)
-                    PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: Color(0xFFC0392B),
+                  ),
+                if (onDelete != null)
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: Color(0xFFC0392B),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Delete',
+                          style: AppFonts.ui(
+                            fontSize: 13,
+                            color: const Color(0xFFC0392B),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Delete',
-                            style: GoogleFonts.lato(
-                              fontSize: 13,
-                              color: const Color(0xFFC0392B),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                ],
-              )
-            else
-              const SizedBox(width: 12),
-          ],
-        ),
+                  ),
+              ],
+            )
+          else
+            const SizedBox(width: 12),
+        ],
+      ),
     );
   }
 }
@@ -157,12 +157,7 @@ class _RowCover extends StatelessWidget {
     if (coverImage != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.file(
-          coverImage,
-          width: 56,
-          height: 72,
-          fit: BoxFit.cover,
-        ),
+        child: Image.file(coverImage, width: 56, height: 72, fit: BoxFit.cover),
       );
     }
     final color = listing.coverColor != null
@@ -207,52 +202,52 @@ class AddListRow extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Row(
-          children: [
-            SizedBox(
-              width: 56,
-              height: 72,
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    size: 22,
-                    color: AppColors.accent,
-                  ),
+        children: [
+          SizedBox(
+            width: 56,
+            height: 72,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  size: 22,
+                  color: AppColors.accent,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.lato(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.accent,
-                    ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppFonts.ui(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accent,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppFonts.ui(fontSize: 12, color: mutedColor),
+                ),
+              ],
             ),
-            Icon(Icons.chevron_right_rounded, color: mutedColor),
-            const SizedBox(width: 8),
-          ],
-        ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: mutedColor),
+          const SizedBox(width: 8),
+        ],
+      ),
     );
   }
 }
@@ -343,7 +338,7 @@ class _FilterChip extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 label,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: selected ? color : mutedColor,
@@ -404,7 +399,7 @@ class StripedCover extends StatelessWidget {
               ? Center(
                   child: Text(
                     'cover',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 10,
                       color: color.withValues(alpha: 0.9),
                     ),
@@ -509,7 +504,7 @@ class TypeChip extends StatelessWidget {
       ),
       child: Text(
         type.label,
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 10,
           fontWeight: FontWeight.w700,
           color: type.badgeColor,
@@ -545,7 +540,7 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               message,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: isDark
@@ -557,7 +552,7 @@ class EmptyState extends StatelessWidget {
             Text(
               sub,
               textAlign: TextAlign.center,
-              style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+              style: AppFonts.ui(fontSize: 13, color: mutedColor),
             ),
           ],
         ),

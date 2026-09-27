@@ -15,16 +15,18 @@ String humanizeAuthError(AuthException e) {
     return 'Incorrect email or password.';
   }
   if (msg.contains('email not confirmed')) {
-    return 'Please confirm your email first — check your inbox for the confirmation link.';
+    return 'Please confirm your email first. Check your inbox for the confirmation link.';
   }
-  if (msg.contains('password should be at least') || msg.contains('at least 6')) {
+  if (msg.contains('password should be at least') ||
+      msg.contains('at least 6')) {
     return 'Password must be at least 6 characters.';
   }
-  if (msg.contains('unable to validate email') || msg.contains('invalid email')) {
+  if (msg.contains('unable to validate email') ||
+      msg.contains('invalid email')) {
     return 'Enter a valid email address.';
   }
   if (msg.contains('rate limit')) {
-    return 'Too many attempts — please wait a moment and try again.';
+    return 'Too many attempts. Please wait a moment and try again.';
   }
   return e.message;
 }

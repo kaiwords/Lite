@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -27,13 +26,13 @@ class AlertItem {
   });
 
   AlertItem copyWith({bool? isRead}) => AlertItem(
-        type: type,
-        actor: actor,
-        detail: detail,
-        ago: ago,
-        isRead: isRead ?? this.isRead,
-        postId: postId,
-      );
+    type: type,
+    actor: actor,
+    detail: detail,
+    ago: ago,
+    isRead: isRead ?? this.isRead,
+    postId: postId,
+  );
 }
 
 // No notifications backend exists yet (no Supabase table) — the app has no
@@ -121,16 +120,21 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Alerts', style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          'Alerts',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         actions: [
           if (unread > 0)
             TextButton(
               onPressed: _markAllRead,
-              child: Text('Mark all read',
-                  style: GoogleFonts.lato(
-                    fontSize: 13,
-                    color: isDark ? AppColors.darkAccent : AppColors.accent,
-                  )),
+              child: Text(
+                'Mark all read',
+                style: AppFonts.ui(
+                  fontSize: 13,
+                  color: isDark ? AppColors.darkAccent : AppColors.accent,
+                ),
+              ),
             ),
         ],
       ),
@@ -138,15 +142,23 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       body: Builder(
         builder: (context) {
           if (_items.isEmpty) {
-            final muted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+            final muted = isDark
+                ? AppColors.darkTextMuted
+                : AppColors.textMuted;
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.notifications_none_rounded, size: 48, color: muted),
+                  Icon(
+                    Icons.notifications_none_rounded,
+                    size: 48,
+                    color: muted,
+                  ),
                   const SizedBox(height: 12),
-                  Text('No notifications yet',
-                      style: GoogleFonts.lato(fontSize: 14, color: muted)),
+                  Text(
+                    'No notifications yet',
+                    style: AppFonts.ui(fontSize: 14, color: muted),
+                  ),
                 ],
               ),
             );
@@ -157,21 +169,29 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             itemBuilder: (context, rowIndex) {
               final row = rows[rowIndex];
               if (row is _HeaderRow) {
-                return _WeekHeader(label: _weekLabel(row.weeksAgo), isDark: isDark);
+                return _WeekHeader(
+                  label: _weekLabel(row.weeksAgo),
+                  isDark: isDark,
+                );
               }
               final i = (row as _ItemRow).index;
               return _AlertTile(
-                alert: _items[i],
-                isDark: isDark,
-                onTap: () {
-                  _markRead(i);
-                  final postId = _items[i].postId;
-                  if (postId != null) _openPost(postId);
-                },
-              )
+                    alert: _items[i],
+                    isDark: isDark,
+                    onTap: () {
+                      _markRead(i);
+                      final postId = _items[i].postId;
+                      if (postId != null) _openPost(postId);
+                    },
+                  )
                   .animate()
                   .fadeIn(duration: 260.ms, delay: 30.ms * (rowIndex % 8))
-                  .slideY(begin: 0.06, end: 0, duration: 260.ms, curve: Curves.easeOut);
+                  .slideY(
+                    begin: 0.06,
+                    end: 0,
+                    duration: 260.ms,
+                    curve: Curves.easeOut,
+                  );
             },
           );
         },
@@ -199,7 +219,7 @@ class _WeekHeader extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: muted,
@@ -218,8 +238,11 @@ class _AlertTile extends StatelessWidget {
   final AlertItem alert;
   final bool isDark;
   final VoidCallback onTap;
-  const _AlertTile(
-      {required this.alert, required this.isDark, required this.onTap});
+  const _AlertTile({
+    required this.alert,
+    required this.isDark,
+    required this.onTap,
+  });
 
   IconData get _icon => switch (alert.type) {
     AlertType.like => Icons.favorite_rounded,
@@ -246,80 +269,84 @@ class _AlertTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
-    final unreadBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final unreadBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return InkWell(
       onTap: onTap,
       child: AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOut,
-      color: alert.isRead ? bg : unreadBg,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _iconColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(_icon, color: _iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${alert.actor} ',
-                        style: GoogleFonts.lato(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                      TextSpan(
-                        text: alert.detail,
-                        style: GoogleFonts.lato(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: textColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _timeAgo(alert.ago),
-                  style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
-                ),
-              ],
-            ),
-          ),
-          AnimatedScale(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            scale: alert.isRead ? 0.0 : 1.0,
-            child: Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6, left: 8),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+        color: alert.isRead ? bg : unreadBg,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkAccent : AppColors.accent,
+                color: _iconColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
+              child: Icon(_icon, color: _iconColor, size: 20),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${alert.actor} ',
+                          style: AppFonts.ui(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        TextSpan(
+                          text: alert.detail,
+                          style: AppFonts.ui(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timeAgo(alert.ago),
+                    style: AppFonts.ui(fontSize: 12, color: mutedColor),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedScale(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              scale: alert.isRead ? 0.0 : 1.0,
+              child: Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 6, left: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkAccent : AppColors.accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
@@ -45,12 +44,12 @@ class PostScreen extends ConsumerStatefulWidget {
   });
 
   factory PostScreen.fromArgs(PostScreenArgs args) => PostScreen(
-        startWithAudio: args.startWithAudio,
-        initialTitle: args.initialTitle,
-        initialContent: args.initialContent,
-        uploadedFileName: args.uploadedFileName,
-        uploadedAudioName: args.uploadedAudioName,
-      );
+    startWithAudio: args.startWithAudio,
+    initialTitle: args.initialTitle,
+    initialContent: args.initialContent,
+    uploadedFileName: args.uploadedFileName,
+    uploadedAudioName: args.uploadedAudioName,
+  );
 
   @override
   ConsumerState<PostScreen> createState() => _PostScreenState();
@@ -70,8 +69,12 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialTitle != null) _titleController.text = widget.initialTitle!;
-    if (widget.initialContent != null) _contentController.text = widget.initialContent!;
+    if (widget.initialTitle != null) {
+      _titleController.text = widget.initialTitle!;
+    }
+    if (widget.initialContent != null) {
+      _contentController.text = widget.initialContent!;
+    }
     if (widget.uploadedFileName != null) {
       _coverFileName = widget.uploadedFileName;
     }
@@ -113,8 +116,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     final refTitle = _extraPages.isEmpty
         ? _titleController.text.trim()
         : (_extraPages.last.showTitle
-            ? _extraPages.last.titleController.text.trim()
-            : '');
+              ? _extraPages.last.titleController.text.trim()
+              : '');
 
     var showTitle = false;
     var initialTitle = '';
@@ -122,10 +125,14 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       final keep = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('Add page',
-              style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
-          content: Text('Show "$refTitle" as the title on this page too?',
-              style: GoogleFonts.lato(fontSize: 14)),
+          title: Text(
+            'Add page',
+            style: AppFonts.display(fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'Show "$refTitle" as the title on this page too?',
+            style: AppFonts.ui(fontSize: 14),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -146,7 +153,9 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     }
 
     setState(() {
-      _extraPages.add(_PageDraft(showTitle: showTitle, initialTitle: initialTitle));
+      _extraPages.add(
+        _PageDraft(showTitle: showTitle, initialTitle: initialTitle),
+      );
     });
   }
 
@@ -164,7 +173,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
 
     final selected = text.substring(sel.start, sel.end);
-    final newText = text.replaceRange(sel.start, sel.end, '$token$selected$token');
+    final newText = text.replaceRange(
+      sel.start,
+      sel.end,
+      '$token$selected$token',
+    );
     final newSel = selected.isEmpty
         ? TextSelection.collapsed(offset: sel.start + token.length)
         : TextSelection(
@@ -187,21 +200,25 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     var sel = _contentController.selection;
     if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
 
-    final lineStart =
-        sel.start == 0 ? 0 : text.lastIndexOf('\n', sel.start - 1) + 1;
+    final lineStart = sel.start == 0
+        ? 0
+        : text.lastIndexOf('\n', sel.start - 1) + 1;
     var lineEnd = text.indexOf('\n', sel.end);
     if (lineEnd == -1) lineEnd = text.length;
 
     final lines = text.substring(lineStart, lineEnd).split('\n');
-    final allPrefixed =
-        lines.every((l) => l.trim().isEmpty || l.startsWith(prefix));
-    final newBlock = lines.map((l) {
-      if (l.trim().isEmpty) return l;
-      if (allPrefixed) {
-        return l.startsWith(prefix) ? l.substring(prefix.length) : l;
-      }
-      return l.startsWith(prefix) ? l : '$prefix$l';
-    }).join('\n');
+    final allPrefixed = lines.every(
+      (l) => l.trim().isEmpty || l.startsWith(prefix),
+    );
+    final newBlock = lines
+        .map((l) {
+          if (l.trim().isEmpty) return l;
+          if (allPrefixed) {
+            return l.startsWith(prefix) ? l.substring(prefix.length) : l;
+          }
+          return l.startsWith(prefix) ? l : '$prefix$l';
+        })
+        .join('\n');
 
     _contentController.value = _contentController.value.copyWith(
       text: text.replaceRange(lineStart, lineEnd, newBlock),
@@ -227,9 +244,9 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   }
 
   void _removeAudio() => setState(() {
-        _audioFileName = null;
-        _hasAudio = false;
-      });
+    _audioFileName = null;
+    _hasAudio = false;
+  });
 
   Future<void> _pickCover() async {
     final result = await FilePicker.pickFiles(
@@ -298,7 +315,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   }
 
   Future<void> _publish() async {
-    if (_titleController.text.trim().isEmpty || _contentController.text.trim().isEmpty) {
+    if (_titleController.text.trim().isEmpty ||
+        _contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please add a title and content before publishing.'),
@@ -329,12 +347,14 @@ class _PostScreenState extends ConsumerState<PostScreen> {
           : null,
       coverImageUrl: _coverFileName,
       pages: _extraPages
-          .map((p) => PostPage(
-                title: p.showTitle && p.titleController.text.trim().isNotEmpty
-                    ? p.titleController.text.trim()
-                    : null,
-                content: p.contentController.text.trim(),
-              ))
+          .map(
+            (p) => PostPage(
+              title: p.showTitle && p.titleController.text.trim().isNotEmpty
+                  ? p.titleController.text.trim()
+                  : null,
+              content: p.contentController.text.trim(),
+            ),
+          )
           .where((p) => p.content.isNotEmpty)
           .toList(),
     );
@@ -352,7 +372,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     if (!await synced) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("Saved locally — couldn't sync to server"),
+          content: Text("Saved on this device. Couldn't sync to the server."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -369,11 +389,14 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       appBar: AppBar(
         backgroundColor: bg,
         leading: IconButton(
+          tooltip: 'Close',
           icon: const Icon(Icons.close_rounded),
           onPressed: () => context.pop(),
         ),
-        title: Text(widget.startWithAudio ? 'New Audio' : 'New Post',
-            style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          widget.startWithAudio ? 'New Audio' : 'New Post',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -381,14 +404,23 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               style: FilledButton.styleFrom(
                 // accentOnFill (darker than accent) + explicit white
                 // foreground keeps this at WCAG AA contrast in both themes.
-                backgroundColor:
-                    isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+                backgroundColor: isDark
+                    ? AppColors.darkAccentOnFill
+                    : AppColors.accentOnFill,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
               ),
               onPressed: _publish,
-              child: Text('Publish', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+              child: Text(
+                'Publish',
+                style: AppFonts.ui(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -408,14 +440,16 @@ class _PostScreenState extends ConsumerState<PostScreen> {
             const SizedBox(height: 20),
             TextField(
               controller: _titleController,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: 'Title',
-                hintStyle: GoogleFonts.playfairDisplay(
+                hintStyle: AppFonts.display(
                   fontSize: 20,
                   color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                 ),
@@ -439,14 +473,16 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               maxLines: null,
               minLines: 12,
               keyboardType: TextInputType.multiline,
-              style: GoogleFonts.lora(
+              style: AppFonts.reading(
                 fontSize: 16,
                 height: 1.8,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
               ),
               decoration: InputDecoration(
                 hintText: 'Start writing...',
-                hintStyle: GoogleFonts.lora(
+                hintStyle: AppFonts.reading(
                   fontSize: 16,
                   color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                 ),
@@ -464,10 +500,12 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                   child: Text(
                     '$_wordCount word${_wordCount == 1 ? '' : 's'} · '
                     '~${(_wordCount / 200).ceil().clamp(1, 999)} min read',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 11,
                       fontStyle: FontStyle.italic,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.textMuted,
                     ),
                   ),
                 ),
@@ -509,7 +547,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                 isDark: isDark,
                 onRemove: () => _removePage(i),
                 onToggleTitle: () => setState(
-                    () => _extraPages[i].showTitle = !_extraPages[i].showTitle),
+                  () => _extraPages[i].showTitle = !_extraPages[i].showTitle,
+                ),
               ),
           ],
         ),
@@ -525,8 +564,8 @@ class _PageDraft {
   bool showTitle;
 
   _PageDraft({required this.showTitle, String initialTitle = ''})
-      : titleController = TextEditingController(text: initialTitle),
-        contentController = TextEditingController();
+    : titleController = TextEditingController(text: initialTitle),
+      contentController = TextEditingController();
 
   void dispose() {
     titleController.dispose();
@@ -554,8 +593,12 @@ class _PageEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final fill = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final fill = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -569,11 +612,19 @@ class _PageEditor extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Page ${index + 2}',
-                  style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w700, color: mutedColor)),
+              Text(
+                'Page ${index + 2}',
+                style: AppFonts.ui(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: mutedColor,
+                ),
+              ),
               const Spacer(),
               IconButton(
-                tooltip: page.showTitle ? 'Hide title on this page' : 'Show title on this page',
+                tooltip: page.showTitle
+                    ? 'Hide title on this page'
+                    : 'Show title on this page',
                 icon: Icon(
                   page.showTitle ? Icons.title_rounded : Icons.title_outlined,
                   size: 18,
@@ -591,10 +642,14 @@ class _PageEditor extends StatelessWidget {
           if (page.showTitle)
             TextField(
               controller: page.titleController,
-              style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700, fontSize: 16, color: textColor),
+              style: AppFonts.display(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: textColor,
+              ),
               decoration: InputDecoration(
                 hintText: 'Page title',
-                hintStyle: GoogleFonts.playfairDisplay(color: mutedColor),
+                hintStyle: AppFonts.display(color: mutedColor),
                 isDense: true,
                 border: InputBorder.none,
               ),
@@ -603,10 +658,14 @@ class _PageEditor extends StatelessWidget {
             controller: page.contentController,
             maxLines: null,
             minLines: 3,
-            style: GoogleFonts.lora(fontSize: 14, height: 1.6, color: textColor),
+            style: AppFonts.reading(
+              fontSize: 14,
+              height: 1.6,
+              color: textColor,
+            ),
             decoration: InputDecoration(
               hintText: 'Page content...',
-              hintStyle: GoogleFonts.lora(color: mutedColor),
+              hintStyle: AppFonts.reading(color: mutedColor),
               isDense: true,
               border: InputBorder.none,
             ),
@@ -642,21 +701,28 @@ class _CategorySelector extends StatelessWidget {
               onTap: () => onChanged(cat),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.accent
-                      : (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant),
+                      : (isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.surfaceVariant),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   '${cat.emoji} ${cat.label}',
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: isSelected
                         ? Colors.white
-                        : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                        : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -699,25 +765,29 @@ class _FormatBar extends StatelessWidget {
         child: Row(
           children: [
             _FormatButton(
-                icon: Icons.format_bold_rounded,
-                tooltip: 'Bold',
-                color: fg,
-                onTap: () => onWrap('**')),
+              icon: Icons.format_bold_rounded,
+              tooltip: 'Bold',
+              color: fg,
+              onTap: () => onWrap('**'),
+            ),
             _FormatButton(
-                icon: Icons.format_italic_rounded,
-                tooltip: 'Italic',
-                color: fg,
-                onTap: () => onWrap('*')),
+              icon: Icons.format_italic_rounded,
+              tooltip: 'Italic',
+              color: fg,
+              onTap: () => onWrap('*'),
+            ),
             _FormatButton(
-                icon: Icons.format_underlined_rounded,
-                tooltip: 'Underline',
-                color: fg,
-                onTap: () => onWrap('__')),
+              icon: Icons.format_underlined_rounded,
+              tooltip: 'Underline',
+              color: fg,
+              onTap: () => onWrap('__'),
+            ),
             _FormatButton(
-                icon: Icons.strikethrough_s_rounded,
-                tooltip: 'Strikethrough',
-                color: fg,
-                onTap: () => onWrap('~~')),
+              icon: Icons.strikethrough_s_rounded,
+              tooltip: 'Strikethrough',
+              color: fg,
+              onTap: () => onWrap('~~'),
+            ),
             Container(
               width: 1,
               height: 22,
@@ -725,15 +795,17 @@ class _FormatBar extends StatelessWidget {
               color: dividerColor,
             ),
             _FormatButton(
-                icon: Icons.format_quote_rounded,
-                tooltip: 'Quote',
-                color: fg,
-                onTap: () => onPrefix('> ')),
+              icon: Icons.format_quote_rounded,
+              tooltip: 'Quote',
+              color: fg,
+              onTap: () => onPrefix('> '),
+            ),
             _FormatButton(
-                icon: Icons.format_list_bulleted_rounded,
-                tooltip: 'Bullet list',
-                color: fg,
-                onTap: () => onPrefix('- ')),
+              icon: Icons.format_list_bulleted_rounded,
+              tooltip: 'Bullet list',
+              color: fg,
+              onTap: () => onPrefix('- '),
+            ),
           ],
         ),
       ),
@@ -859,7 +931,9 @@ class _AttachmentChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active
               ? AppColors.accent.withValues(alpha: 0.15)
-              : (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant),
+              : (isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.surfaceVariant),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: active ? AppColors.accent : Colors.transparent,
@@ -868,14 +942,22 @@ class _AttachmentChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: active ? AppColors.accent : (isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
+            Icon(
+              icon,
+              size: 16,
+              color: active
+                  ? AppColors.accent
+                  : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+            ),
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: active ? AppColors.accent : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                color: active
+                    ? AppColors.accent
+                    : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
               ),
             ),
           ],
@@ -894,8 +976,9 @@ class _TagsDialog extends StatefulWidget {
 }
 
 class _TagsDialogState extends State<_TagsDialog> {
-  late final TextEditingController _c =
-      TextEditingController(text: widget.initial.join(', '));
+  late final TextEditingController _c = TextEditingController(
+    text: widget.initial.join(', '),
+  );
 
   @override
   void dispose() {
@@ -915,15 +998,19 @@ class _TagsDialogState extends State<_TagsDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fill =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final fill = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return AlertDialog(
-      title: Text('Add tags',
-          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
+      title: Text(
+        'Add tags',
+        style: AppFonts.display(fontWeight: FontWeight.w700),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -931,30 +1018,35 @@ class _TagsDialogState extends State<_TagsDialog> {
           TextField(
             controller: _c,
             autofocus: true,
-            style: GoogleFonts.lato(fontSize: 14, color: textColor),
+            style: AppFonts.ui(fontSize: 14, color: textColor),
             decoration: InputDecoration(
               hintText: 'poetry, grief, sunday',
-              hintStyle: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+              hintStyle: AppFonts.ui(fontSize: 14, color: mutedColor),
               filled: true,
               fillColor: fill,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text('Separate tags with commas',
-              style: GoogleFonts.lato(fontSize: 11, color: mutedColor)),
+          Text(
+            'Separate tags with commas',
+            style: AppFonts.ui(fontSize: 11, color: mutedColor),
+          ),
         ],
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor:
-                isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+            backgroundColor: isDark
+                ? AppColors.darkAccentOnFill
+                : AppColors.accentOnFill,
             foregroundColor: Colors.white,
           ),
           onPressed: _save,

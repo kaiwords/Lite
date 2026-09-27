@@ -8,19 +8,28 @@ void main() {
     String h(String raw) => humanizeAuthError(AuthException(raw));
 
     test('rewrites the known awkward Supabase messages', () {
-      expect(h('User already registered'),
-          'An account with this email already exists. Try logging in instead.');
+      expect(
+        h('User already registered'),
+        'An account with this email already exists. Try logging in instead.',
+      );
       expect(h('Invalid login credentials'), 'Incorrect email or password.');
       expect(
-          h('Email not confirmed'),
-          'Please confirm your email first — check your inbox for the '
-          'confirmation link.');
-      expect(h('Password should be at least 6 characters'),
-          'Password must be at least 6 characters.');
-      expect(h('Unable to validate email address: invalid format'),
-          'Enter a valid email address.');
-      expect(h('Request rate limit reached'),
-          'Too many attempts — please wait a moment and try again.');
+        h('Email not confirmed'),
+        'Please confirm your email first. Check your inbox for the '
+        'confirmation link.',
+      );
+      expect(
+        h('Password should be at least 6 characters'),
+        'Password must be at least 6 characters.',
+      );
+      expect(
+        h('Unable to validate email address: invalid format'),
+        'Enter a valid email address.',
+      );
+      expect(
+        h('Request rate limit reached'),
+        'Too many attempts. Please wait a moment and try again.',
+      );
     });
 
     test('matching is case-insensitive', () {

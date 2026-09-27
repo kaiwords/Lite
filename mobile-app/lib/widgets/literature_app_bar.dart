@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 class LiteratureAppBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -13,23 +12,32 @@ class LiteratureAppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final iconColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final iconColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return AppBar(
       titleSpacing: 16,
       title: Text(
         'Literature',
-        style: GoogleFonts.playfairDisplay(
+        // Set like a title page: small capitals, generously spaced.
+        style: AppFonts.display(
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           color: textColor,
-          letterSpacing: 0.5,
-        ),
+          letterSpacing: 2,
+        ).copyWith(fontFeatures: const [FontFeature.enable('smcp')]),
       ),
       actions: [
         IconButton(
-          icon: Icon(Icons.add_circle_outline_rounded, color: iconColor, size: 26),
+          icon: Icon(
+            Icons.add_circle_outline_rounded,
+            color: iconColor,
+            size: 26,
+          ),
           tooltip: 'Create',
           onPressed: () => showCreateChooser(context, isDark),
         ),
@@ -79,21 +87,28 @@ void showCreateChooser(BuildContext context, bool isDark) {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: div, borderRadius: BorderRadius.circular(2)),
+                  color: div,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Text('What would you like to post?',
-                  style: GoogleFonts.playfairDisplay(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
+              child: Text(
+                'What would you like to post?',
+                style: AppFonts.display(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('Share writing or audio to your feed',
-                  style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
+              child: Text(
+                'Share writing or audio to your feed',
+                style: AppFonts.ui(fontSize: 13, color: mutedColor),
+              ),
             ),
             const SizedBox(height: 4),
             _CreateOption(
@@ -144,7 +159,9 @@ class _CreateOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return ListTile(
@@ -159,11 +176,18 @@ class _CreateOption extends StatelessWidget {
         ),
         child: Icon(icon, size: 22, color: color),
       ),
-      title: Text(title,
-          style: GoogleFonts.lato(
-              fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
-      subtitle: Text(subtitle,
-          style: GoogleFonts.lato(fontSize: 12, color: mutedColor)),
+      title: Text(
+        title,
+        style: AppFonts.ui(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppFonts.ui(fontSize: 12, color: mutedColor),
+      ),
       trailing: Icon(Icons.chevron_right_rounded, color: mutedColor),
     );
   }

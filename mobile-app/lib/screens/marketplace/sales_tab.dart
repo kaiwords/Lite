@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../models/marketplace.dart';
@@ -40,44 +39,43 @@ class _SalesTab extends ConsumerWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Builder(builder: (context) {
-              final div =
-                  isDark ? AppColors.darkDivider : AppColors.divider;
-              return Row(
-                children: [
-                  _StatCard(
-                    label: 'Total Earned',
-                    value: '\$${totalEarned.toStringAsFixed(2)}',
-                    icon: Icons.monetization_on_rounded,
-                    color: AppColors.accent,
-                    isDark: isDark,
-                  ),
-                  Container(width: 1, height: 48, color: div),
-                  _StatCard(
-                    label: 'Items Sold',
-                    value: '${sales.length}',
-                    icon: Icons.shopping_bag_rounded,
-                    color: const Color(0xFF5C7A5C),
-                    isDark: isDark,
-                  ),
-                  Container(width: 1, height: 48, color: div),
-                  _StatCard(
-                    label: 'Listings',
-                    value: '${myListings.length}',
-                    icon: Icons.list_alt_rounded,
-                    color: const Color(0xFF4A6FA5),
-                    isDark: isDark,
-                  ),
-                ],
-              );
-            }),
+            child: Builder(
+              builder: (context) {
+                final div = isDark ? AppColors.darkDivider : AppColors.divider;
+                return Row(
+                  children: [
+                    _StatCard(
+                      label: 'Total Earned',
+                      value: '\$${totalEarned.toStringAsFixed(2)}',
+                      icon: Icons.monetization_on_rounded,
+                      color: AppColors.accent,
+                      isDark: isDark,
+                    ),
+                    Container(width: 1, height: 48, color: div),
+                    _StatCard(
+                      label: 'Items Sold',
+                      value: '${sales.length}',
+                      icon: Icons.shopping_bag_rounded,
+                      color: const Color(0xFF5C7A5C),
+                      isDark: isDark,
+                    ),
+                    Container(width: 1, height: 48, color: div),
+                    _StatCard(
+                      label: 'Listings',
+                      value: '${myListings.length}',
+                      icon: Icons.list_alt_rounded,
+                      color: const Color(0xFF4A6FA5),
+                      isDark: isDark,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
 
         // ── Stripe payouts setup — shown until Connect onboarding clears ──
-        SliverToBoxAdapter(
-          child: _PayoutSetupBanner(isDark: isDark),
-        ),
+        SliverToBoxAdapter(child: _PayoutSetupBanner(isDark: isDark)),
 
         // ── Section header ──────────────────────────────────────────────
         if (sales.isNotEmpty)
@@ -94,6 +92,7 @@ class _SalesTab extends ConsumerWidget {
         // ── Sales grid ──────────────────────────────────────────────────
         if (sales.isEmpty)
           SliverFillRemaining(
+            hasScrollBody: false,
             child: EmptyState(
               isDark: isDark,
               icon: Icons.bar_chart_rounded,
@@ -153,7 +152,10 @@ class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
     } on StripeCheckoutException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text(e.message),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (_) {
@@ -184,9 +186,10 @@ class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
     if (status.chargesEnabled) return const SizedBox.shrink();
 
     final isDark = widget.isDark;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -197,15 +200,21 @@ class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
       ),
       child: Row(
         children: [
-          Icon(Icons.account_balance_rounded, color: AppColors.accent, size: 22),
+          Icon(
+            Icons.account_balance_rounded,
+            color: AppColors.accent,
+            size: 22,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  status.hasAccount ? 'Finish setting up payouts' : 'Set up payouts',
-                  style: GoogleFonts.lato(
+                  status.hasAccount
+                      ? 'Finish setting up payouts'
+                      : 'Set up payouts',
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: titleColor,
@@ -214,9 +223,9 @@ class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
                 const SizedBox(height: 2),
                 Text(
                   status.hasAccount
-                      ? "You've started Stripe onboarding — finish it to receive payouts."
+                      ? "You've started Stripe setup. Finish it to receive payouts."
                       : 'Connect a Stripe account to get paid when your books sell.',
-                  style: GoogleFonts.lato(fontSize: 11.5, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11.5, color: mutedColor),
                 ),
               ],
             ),
@@ -229,16 +238,9 @@ class _PayoutSetupBannerState extends ConsumerState<_PayoutSetupBanner> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else if (status.hasAccount)
-            TextButton(
-              onPressed: _refreshStatus,
-              child: const Text("I'm done"),
-            )
+            TextButton(onPressed: _refreshStatus, child: const Text("I'm done"))
           else
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: fill,
-                foregroundColor: Colors.white,
-              ),
               onPressed: _startOnboarding,
               child: const Text('Connect'),
             ),
@@ -283,7 +285,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               value,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: color,
@@ -293,7 +295,7 @@ class _StatCard extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+              style: AppFonts.ui(fontSize: 10, color: mutedColor),
             ),
           ],
         ),
@@ -322,6 +324,15 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
       await ref
           .read(salesProvider.notifier)
           .confirmMeetup(widget.sale.orderItemId, sellerId);
+    } on StripeCheckoutException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -391,7 +402,7 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
                       listing.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: titleColor,
@@ -402,12 +413,12 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
                       'Sold to ${sale.buyerName}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                      style: AppFonts.ui(fontSize: 12, color: mutedColor),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       timeago.format(sale.soldAt),
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                      style: AppFonts.ui(fontSize: 11, color: mutedColor),
                     ),
                   ],
                 ),
@@ -419,7 +430,7 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
               padding: const EdgeInsets.only(right: 14, left: 4),
               child: Text(
                 '+\$${sale.amount.toStringAsFixed(2)}',
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF5C7A5C),
@@ -444,10 +455,7 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
                           'Meetup: ${sale.meetupPlace}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.lato(
-                            fontSize: 11.5,
-                            color: mutedColor,
-                          ),
+                          style: AppFonts.ui(fontSize: 11.5, color: mutedColor),
                         ),
                     ],
                   ),
@@ -463,12 +471,11 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
                     onPressed: _confirmMeetup,
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(44, 44),
                     ),
                     child: Text(
                       'Confirm meetup',
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AppColors.accent,
@@ -487,7 +494,7 @@ class _SaleListRowState extends ConsumerState<_SaleListRow> {
                       const SizedBox(width: 4),
                       Text(
                         'Confirmed',
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFF5C7A5C),

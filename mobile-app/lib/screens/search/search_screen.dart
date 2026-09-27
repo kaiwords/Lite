@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/post.dart';
 import '../../providers/feed_provider.dart';
 import '../../theme/app_theme.dart';
@@ -44,6 +43,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
@@ -51,13 +51,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           controller: _controller,
           autofocus: true,
           onChanged: (v) => setState(() => _query = v),
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 16,
             color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: 'Search writers, posts, categories...',
-            hintStyle: GoogleFonts.lato(
+            hintStyle: AppFonts.ui(
               color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
             ),
             filled: false,
@@ -69,6 +69,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         actions: [
           if (_query.isNotEmpty)
             IconButton(
+              tooltip: 'Clear search',
               icon: const Icon(Icons.clear_rounded),
               onPressed: () {
                 _controller.clear();
@@ -146,7 +147,7 @@ class _SearchSuggestions extends StatelessWidget {
                   ),
                   child: Text(
                     t,
-                    style: GoogleFonts.lato(fontSize: 13, color: textColor),
+                    style: AppFonts.ui(fontSize: 13, color: textColor),
                   ),
                 ),
               )

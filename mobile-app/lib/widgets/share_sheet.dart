@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/post.dart';
 import '../providers/feed_provider.dart';
@@ -42,10 +41,9 @@ class _ShareSheet extends StatelessWidget {
     if (copy) Clipboard.setData(ClipboardData(text: link));
     Navigator.pop(context);
     onShared?.call();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   @override
@@ -53,8 +51,9 @@ class _ShareSheet extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final titleColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return SafeArea(
@@ -73,18 +72,23 @@ class _ShareSheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: divColor, borderRadius: BorderRadius.circular(2)),
+                  color: divColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Share',
-                    style: GoogleFonts.playfairDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor)),
+                child: Text(
+                  'Share',
+                  style: AppFonts.display(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                ),
               ),
             ),
             Padding(
@@ -95,7 +99,7 @@ class _ShareSheet extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 13, color: mutedColor),
                 ),
               ),
             ),
@@ -162,11 +166,13 @@ class _Target extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipBg =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final chipBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
     final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final labelColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final labelColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return GestureDetector(
       onTap: onTap,
@@ -187,7 +193,7 @@ class _Target extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.lato(fontSize: 11, color: labelColor),
+              style: AppFonts.ui(fontSize: 11, color: labelColor),
             ),
           ],
         ),

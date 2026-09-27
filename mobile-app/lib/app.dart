@@ -21,8 +21,10 @@ class LiteratureApp extends ConsumerWidget {
     // and clear it on sign-out. The router's own redirect logic (driven by
     // the same auth stream via its `refreshListenable`) handles bouncing the
     // user to/from `/login` — this listener only owns the profile data.
-    ref.listen<AsyncValue<AuthState>>(authStateChangesProvider,
-        (previous, next) {
+    ref.listen<AsyncValue<AuthState>>(authStateChangesProvider, (
+      previous,
+      next,
+    ) {
       final session = next.value?.session;
       if (session == null) {
         ref.read(currentUserProvider.notifier).state = null;
@@ -38,6 +40,8 @@ class LiteratureApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: appRouter,
+      // Every screen is printed on the same sheet of paper.
+      builder: (context, child) => PaperGrain(child: child ?? const SizedBox()),
     );
   }
 }
@@ -55,8 +59,9 @@ Future<void> _syncCurrentUser(WidgetRef ref, String userId) async {
         .eq('id', userId)
         .maybeSingle();
     if (row != null) {
-      ref.read(currentUserProvider.notifier).state =
-          LitUser.fromSupabaseRow(row);
+      ref.read(currentUserProvider.notifier).state = LitUser.fromSupabaseRow(
+        row,
+      );
     }
   } catch (_) {
     // See doc comment above.

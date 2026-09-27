@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/comment.dart';
@@ -56,20 +55,24 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     // Capture the (root) messenger up front — the sheet may be dismissed
     // before the backend write settles.
     final messenger = ScaffoldMessenger.of(context);
-    final synced = ref.read(commentsProvider.notifier).add(Comment(
-          id: 'c${DateTime.now().microsecondsSinceEpoch}',
-          postId: widget.postId,
-          author: user,
-          text: text,
-          createdAt: DateTime.now(),
-        ));
+    final synced = ref
+        .read(commentsProvider.notifier)
+        .add(
+          Comment(
+            id: 'c${DateTime.now().microsecondsSinceEpoch}',
+            postId: widget.postId,
+            author: user,
+            text: text,
+            createdAt: DateTime.now(),
+          ),
+        );
     ref.read(postsNotifierProvider.notifier).addComment(widget.postId);
     _controller.clear();
     _focus.unfocus();
     if (!await synced) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("Saved locally — couldn't sync to server"),
+          content: Text("Saved on this device. Couldn't sync to the server."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -81,8 +84,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final titleColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     final comments = ref.watch(commentsForPostProvider(widget.postId));
@@ -117,7 +121,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: divColor, borderRadius: BorderRadius.circular(2)),
+                  color: divColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             // Header
@@ -125,17 +131,22 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
               child: Row(
                 children: [
-                  Text('Comments',
-                      style: GoogleFonts.playfairDisplay(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: titleColor)),
+                  Text(
+                    'Comments',
+                    style: AppFonts.display(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Text(_fmt(count),
-                      style:
-                          GoogleFonts.lato(fontSize: 14, color: mutedColor)),
+                  Text(
+                    _fmt(count),
+                    style: AppFonts.ui(fontSize: 14, color: mutedColor),
+                  ),
                   const Spacer(),
                   IconButton(
+                    tooltip: 'Close',
                     icon: Icon(Icons.close_rounded, color: mutedColor),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -163,10 +174,15 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   }
 
   Widget _composer(
-      bool isDark, Color divColor, Color mutedColor, Color titleColor) {
+    bool isDark,
+    Color divColor,
+    Color mutedColor,
+    Color titleColor,
+  ) {
     final user = ref.watch(currentUserProvider);
-    final fieldBg =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final fieldBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
 
     return SafeArea(
       top: false,
@@ -186,15 +202,16 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                   minLines: 1,
                   maxLines: 5,
                   textCapitalization: TextCapitalization.sentences,
-                  style: GoogleFonts.lato(fontSize: 14, color: titleColor),
+                  style: AppFonts.ui(fontSize: 14, color: titleColor),
                   decoration: InputDecoration(
                     hintText: 'Add a comment…',
-                    hintStyle:
-                        GoogleFonts.lato(fontSize: 14, color: mutedColor),
+                    hintStyle: AppFonts.ui(fontSize: 14, color: mutedColor),
                     filled: true,
                     fillColor: fieldBg,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
@@ -204,8 +221,11 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               ),
             ),
             IconButton(
-              icon: Icon(Icons.send_rounded,
-                  color: _canSend ? AppColors.accent : mutedColor),
+              tooltip: 'Send',
+              icon: Icon(
+                Icons.send_rounded,
+                color: _canSend ? AppColors.accent : mutedColor,
+              ),
               onPressed: _canSend ? _send : null,
             ),
           ],
@@ -214,8 +234,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     );
   }
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 }
 
 String _initial(String? name) =>
@@ -228,10 +247,12 @@ class _CommentRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final titleColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final bodyColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final bodyColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Padding(
@@ -252,29 +273,36 @@ class _CommentRow extends ConsumerWidget {
                         comment.author.displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.lato(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: titleColor),
+                        style: AppFonts.ui(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: titleColor,
+                        ),
                       ),
                     ),
                     if (comment.author.isVerified) ...[
                       const SizedBox(width: 4),
-                      Icon(Icons.verified_rounded,
-                          size: 12, color: AppColors.accent),
+                      Icon(
+                        Icons.verified_rounded,
+                        size: 12,
+                        color: AppColors.accent,
+                      ),
                     ],
                     const SizedBox(width: 6),
                     Text(
                       timeago.format(comment.createdAt, locale: 'en_short'),
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                      style: AppFonts.ui(fontSize: 11, color: mutedColor),
                     ),
                   ],
                 ),
                 const SizedBox(height: 3),
                 Text(
                   comment.text,
-                  style: GoogleFonts.lato(
-                      fontSize: 14, height: 1.35, color: bodyColor),
+                  style: AppFonts.ui(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: bodyColor,
+                  ),
                 ),
               ],
             ),
@@ -299,9 +327,10 @@ class _CommentRow extends ConsumerWidget {
                   ),
                   if (comment.likesCount > 0) ...[
                     const SizedBox(height: 2),
-                    Text('${comment.likesCount}',
-                        style: GoogleFonts.lato(
-                            fontSize: 11, color: mutedColor)),
+                    Text(
+                      '${comment.likesCount}',
+                      style: AppFonts.ui(fontSize: 11, color: mutedColor),
+                    ),
                   ],
                 ],
               ),
@@ -330,10 +359,11 @@ class _Avatar extends StatelessWidget {
       child: Center(
         child: Text(
           initial,
-          style: GoogleFonts.playfairDisplay(
-              fontSize: size * 0.42,
-              fontWeight: FontWeight.w700,
-              color: AppColors.accent),
+          style: AppFonts.display(
+            fontSize: size * 0.42,
+            fontWeight: FontWeight.w700,
+            color: AppColors.accent,
+          ),
         ),
       ),
     );
@@ -352,14 +382,19 @@ class _EmptyComments extends StatelessWidget {
         children: [
           Icon(Icons.chat_bubble_outline_rounded, size: 48, color: mutedColor),
           const SizedBox(height: 10),
-          Text('No comments yet',
-              style: GoogleFonts.lato(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: mutedColor)),
+          Text(
+            'No comments yet',
+            style: AppFonts.ui(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: mutedColor,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text('Be the first to share what you think.',
-              style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
+          Text(
+            'Be the first to share what you think.',
+            style: AppFonts.ui(fontSize: 13, color: mutedColor),
+          ),
         ],
       ),
     );

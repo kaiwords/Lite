@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/conversation.dart';
 import '../../models/user.dart';
 import '../../providers/conversations_provider.dart';
@@ -34,8 +33,7 @@ class ConversationScreen extends ConsumerStatefulWidget {
   const ConversationScreen({super.key, required this.conversationId});
 
   @override
-  ConsumerState<ConversationScreen> createState() =>
-      _ConversationScreenState();
+  ConsumerState<ConversationScreen> createState() => _ConversationScreenState();
 }
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
@@ -58,7 +56,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // Capture the (root) messenger up front — this screen may be popped
     // before the backend write settles.
     final messenger = ScaffoldMessenger.of(context);
-    final synced = ref.read(conversationsProvider.notifier).sendMessage(
+    final synced = ref
+        .read(conversationsProvider.notifier)
+        .sendMessage(
           widget.conversationId,
           text: text,
           peerId: conversation?.peerId ?? widget.conversationId,
@@ -77,7 +77,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (!await synced) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("Saved locally — couldn't sync to server"),
+          content: Text("Saved on this device. Couldn't sync to the server."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -90,12 +90,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
 
     final conversation = _findConversation(
-        ref.watch(conversationsProvider), widget.conversationId);
-    final peerName = conversation?.peerName ??
+      ref.watch(conversationsProvider),
+      widget.conversationId,
+    );
+    final peerName =
+        conversation?.peerName ??
         findUser(widget.conversationId)?.displayName ??
         widget.conversationId;
     final contextLabel = conversation?.contextLabel;
-    final messages = conversation?.messages ??
+    final messages =
+        conversation?.messages ??
         [
           Message(
             text: 'Hi there! 👋',
@@ -124,16 +128,19 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   AppBar _buildAppBar(
-      BuildContext context, bool isDark, String peerName, String? contextLabel) {
-    final initial = peerName.isNotEmpty
-        ? peerName[0].toUpperCase()
-        : '?';
+    BuildContext context,
+    bool isDark,
+    String peerName,
+    String? contextLabel,
+  ) {
+    final initial = peerName.isNotEmpty ? peerName[0].toUpperCase() : '?';
 
     return AppBar(
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
+        tooltip: 'Back',
         icon: const Icon(Icons.arrow_back_rounded),
         onPressed: () => Navigator.of(context).pop(),
       ),
@@ -146,7 +153,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 : AppColors.surfaceVariant,
             child: Text(
               initial,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -162,7 +169,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 Text(
                   peerName,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: isDark
@@ -173,14 +180,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 if (contextLabel != null)
                   Row(
                     children: [
-                      Icon(Icons.auto_stories_rounded,
-                          size: 11, color: AppColors.accent),
+                      Icon(
+                        Icons.auto_stories_rounded,
+                        size: 11,
+                        color: AppColors.accent,
+                      ),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
                           contextLabel,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.lato(
+                          style: AppFonts.ui(
                             fontSize: 11,
                             color: AppColors.accent,
                             fontWeight: FontWeight.w600,
@@ -192,7 +202,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 else
                   Text(
                     'Active now',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 11,
                       color: const Color(0xFF5C7A5C),
                     ),
@@ -204,6 +214,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       ),
       actions: [
         IconButton(
+          tooltip: 'More options',
           icon: const Icon(Icons.more_vert_rounded),
           onPressed: () => showActionSheet(
             context,
@@ -218,8 +229,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                     ActionSheetItem(
                       icon: Icons.auto_stories_rounded,
                       label: 'View listing',
-                      onTap: () =>
-                          _snack(context, 'Opening $contextLabel…'),
+                      onTap: () => _snack(context, 'Opening $contextLabel…'),
                     ),
                     ActionSheetItem(
                       icon: Icons.block_rounded,
@@ -292,7 +302,7 @@ class _MessageList extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   _formatTime(msg.sentAt),
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     color: isDark
                         ? AppColors.darkTextMuted
@@ -379,7 +389,7 @@ class _Bubble extends StatelessWidget {
                           : AppColors.surfaceVariant,
                       child: Text(
                         initial,
-                        style: GoogleFonts.playfairDisplay(
+                        style: AppFonts.display(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppColors.accent,
@@ -412,11 +422,7 @@ class _Bubble extends StatelessWidget {
               ),
               child: Text(
                 message.text,
-                style: GoogleFonts.lato(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: textColor,
-                ),
+                style: AppFonts.ui(fontSize: 14, height: 1.4, color: textColor),
               ),
             ),
           ),
@@ -483,6 +489,7 @@ class _InputBar extends StatelessWidget {
         children: [
           // Attachment button
           IconButton(
+            tooltip: 'Attach',
             icon: Icon(
               Icons.add_circle_outline_rounded,
               size: 24,
@@ -527,10 +534,10 @@ class _InputBar extends StatelessWidget {
                 minLines: 1,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
-                style: GoogleFonts.lato(fontSize: 14, color: textColor),
+                style: AppFonts.ui(fontSize: 14, color: textColor),
                 decoration: InputDecoration(
                   hintText: 'Message...',
-                  hintStyle: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+                  hintStyle: AppFonts.ui(fontSize: 14, color: mutedColor),
                   filled: false,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(

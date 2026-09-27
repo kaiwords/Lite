@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../utils/marketplace_lookup.dart';
 import 'listing_buy_sheet.dart';
@@ -44,18 +43,14 @@ class MarketplaceBadge extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.storefront_rounded,
-              size: 12,
-              color: Colors.white,
-            ),
+            const Icon(Icons.storefront_rounded, size: 12, color: Colors.white),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
                 'Available in Marketplace',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,

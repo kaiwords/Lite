@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/local_store.dart';
@@ -54,10 +53,12 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     final username = _username.text.trim();
     final messenger = ScaffoldMessenger.of(context);
     if (name.isEmpty || username.isEmpty) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Name and username can\'t be empty'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Name and username can\'t be empty'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
     final updated = u.copyWith(
@@ -68,43 +69,56 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     ref.read(currentUserProvider.notifier).state = updated;
     LocalStore.instance.saveCurrentUser(updated);
     Navigator.pop(context);
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Profile updated'),
-      behavior: SnackBarBehavior.floating,
-    ));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Profile updated'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
     // Push the edit to the user's Supabase row; the local save above already
     // succeeded, so a failure here only means it didn't sync.
     try {
       await UsersRepository.updateProfile(updated);
     } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text("Saved locally — couldn't sync to server"),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Saved on this device. Couldn't sync to the server."),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
-  TextField _field(TextEditingController c, String label, bool isDark,
-      {String? prefix, int maxLines = 1}) {
-    final fill =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+  TextField _field(
+    TextEditingController c,
+    String label,
+    bool isDark, {
+    String? prefix,
+    int maxLines = 1,
+  }) {
+    final fill = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     return TextField(
       controller: c,
       maxLines: maxLines,
-      style: GoogleFonts.lato(fontSize: 14, color: textColor),
+      style: AppFonts.ui(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         labelText: label,
         prefixText: prefix,
         filled: true,
         fillColor: fill,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.accent)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.accent),
+        ),
       ),
     );
   }
@@ -114,11 +128,14 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final titleColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: bg,
@@ -135,16 +152,20 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: divColor,
-                      borderRadius: BorderRadius.circular(2)),
+                    color: divColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Edit Profile',
-                  style: GoogleFonts.playfairDisplay(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor)),
+              Text(
+                'Edit Profile',
+                style: AppFonts.display(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  color: titleColor,
+                ),
+              ),
               const SizedBox(height: 16),
               _field(_name, 'Display name', isDark),
               const SizedBox(height: 12),
@@ -154,17 +175,20 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
               const SizedBox(height: 20),
               FilledButton(
                 style: FilledButton.styleFrom(
-                    backgroundColor: isDark
-                        ? AppColors.darkAccentOnFill
-                        : AppColors.accentOnFill,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
+                  backgroundColor: isDark
+                      ? AppColors.darkAccentOnFill
+                      : AppColors.accentOnFill,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: _save,
-                child: Text('Save',
-                    style: GoogleFonts.lato(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                child: Text(
+                  'Save',
+                  style: AppFonts.ui(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),

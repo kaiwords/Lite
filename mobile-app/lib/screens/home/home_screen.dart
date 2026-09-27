@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/book.dart';
 import '../../models/post.dart';
@@ -73,7 +72,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final total = ref.read(filteredPostsProvider).length;
     if (_visibleCount < total) {
       setState(
-          () => _visibleCount = (_visibleCount + _kPageSize).clamp(0, total));
+        () => _visibleCount = (_visibleCount + _kPageSize).clamp(0, total),
+      );
     }
   }
 
@@ -109,8 +109,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
         return;
       }
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => BookReaderScreen(book: book)));
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => BookReaderScreen(book: book)));
     } else {
       context.push('/viewer/$index');
     }
@@ -141,90 +142,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         bottom: false,
         child: Column(
           children: [
-          // ── Top chrome: app bar + Following/Writers + category chips ───
-          // Lives outside the scroll view; collapses as one unit on
-          // scroll-down and reappears on scroll-up (see _onScroll).
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: !_showTopChrome
-                ? const SizedBox.shrink()
-                : const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LiteratureAppBar(),
-                      FeedFilterRow(),
-                    ],
-                  ),
-          ),
+            // ── Top chrome: app bar + Following/Writers + category chips ───
+            // Lives outside the scroll view; collapses as one unit on
+            // scroll-down and reappears on scroll-up (see _onScroll).
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: !_showTopChrome
+                  ? const SizedBox.shrink()
+                  : const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [LiteratureAppBar(), FeedFilterRow()],
+                    ),
+            ),
 
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                setState(() {
-                  _visibleCount = _kPageSize;
-                  _hasOpenedPost = false;
-                  _showTopChrome = true;
-                });
-                await Future.delayed(const Duration(milliseconds: 600));
-              },
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  // ── Posts ──────────────────────────────────────────────
-                  if (posts.isEmpty)
-                    const SliverFillRemaining(child: _EmptyFeed())
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) {
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {
+                    _visibleCount = _kPageSize;
+                    _hasOpenedPost = false;
+                    _showTopChrome = true;
+                  });
+                  await Future.delayed(const Duration(milliseconds: 600));
+                },
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // ── Posts ──────────────────────────────────────────────
+                    if (posts.isEmpty)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyFeed(),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate((context, i) {
                           final post = posts[i];
                           return PostCard(
-                            post: post,
-                            onContentTap: () => _openPost(post, i),
-                          )
+                                post: post,
+                                onContentTap: () => _openPost(post, i),
+                              )
                               // Subtle fade+slide-in as cards enter — staggered
                               // by position (capped so it never feels sluggish
                               // on a long feed) rather than by global index.
                               .animate()
-                              .fadeIn(
-                                duration: 280.ms,
-                                delay: 45.ms * (i % 6),
-                              )
+                              .fadeIn(duration: 280.ms, delay: 45.ms * (i % 6))
                               .slideY(
                                 begin: 0.06,
                                 end: 0,
                                 duration: 280.ms,
                                 curve: Curves.easeOut,
                               );
-                        },
-                        childCount: posts.length,
+                        }, childCount: posts.length),
                       ),
-                    ),
 
-                  // ── Load-more / end indicator ─────────────────────────
-                  SliverToBoxAdapter(
-                    child: hasMore
-                        ? _LoadMoreButton(isDark: isDark, onTap: _loadMore)
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Center(
-                              child: Text(
-                                '— end of feed —',
-                                style: GoogleFonts.lato(
-                                  fontSize: 12,
-                                  color: isDark
-                                      ? AppColors.darkTextMuted
-                                      : AppColors.textMuted,
-                                ),
+                    // ── Load-more / end indicator ─────────────────────────
+                    SliverToBoxAdapter(
+                      child: hasMore
+                          ? _LoadMoreButton(isDark: isDark, onTap: _loadMore)
+                          : Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                48,
+                                12,
+                                48,
+                                24,
+                              ),
+                              child: Column(
+                                children: [
+                                  const Ornament(),
+                                  Text(
+                                    'The end',
+                                    style: AppFonts.ui(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? AppColors.darkTextMuted
+                                          : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
           ],
         ),
       ),
@@ -248,12 +251,13 @@ class _LoadMoreButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             decoration: BoxDecoration(
               border: Border.all(
-                  color: isDark ? AppColors.darkDivider : AppColors.divider),
+                color: isDark ? AppColors.darkDivider : AppColors.divider,
+              ),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               'Load more',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -277,20 +281,21 @@ class _EmptyFeed extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.auto_stories_outlined,
-              size: 56, color: Colors.grey),
+          const Icon(Icons.auto_stories_outlined, size: 56, color: Colors.grey),
           const SizedBox(height: 12),
-          Text('No posts in this category',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: Colors.grey)),
+          Text(
+            'No posts in this category',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
+          ),
           const SizedBox(height: 6),
-          Text('Try a different filter or follow more writers',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey)),
+          Text(
+            'Try a different filter or follow more writers',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
         ],
       ),
     );

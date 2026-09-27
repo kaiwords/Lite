@@ -616,6 +616,24 @@ paths:
                   url: { type: string, description: "One-time Stripe-hosted onboarding URL." }
         "401": { description: Missing/invalid session }
 
+  /functions/v1/stripe-connect-return:
+    get:
+      tags: [Stripe Edge Functions]
+      summary: Browser landing page after Stripe Connect onboarding
+      description: >-
+        The return_url and refresh_url that stripe-connect-onboarding hands
+        to Stripe. Stripe redirects the seller's browser here with no
+        Authorization header, so it must be deployed with verify_jwt = false.
+        Returns a static HTML page telling the seller to go back to the app;
+        it reads and writes nothing.
+      security: []
+      responses:
+        "200":
+          description: Static HTML page
+          content:
+            text/html:
+              schema: { type: string }
+
   /functions/v1/stripe-create-checkout:
     post:
       tags: [Stripe Edge Functions]
@@ -665,7 +683,7 @@ paths:
                   clientSecret: { type: string }
                   orderId: { type: string, format: uuid }
                   amountTotalCents: { type: integer }
-        "400": { description: "Validation error (e.g. seller hasn't finished payment setup, already purchased) — surfaced to the user as-is." }
+        "400": { description: "Validation error (e.g. seller hasn't finished payment setup, already purchased) — surfaced to the user as-is (the client reads it from FunctionException.details, see invokeEdgeFunction in stripe_service.dart)." }
         "401": { description: Missing/invalid session }
 
   /functions/v1/stripe-webhook:

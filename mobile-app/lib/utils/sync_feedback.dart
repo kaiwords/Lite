@@ -10,7 +10,7 @@ void notifySyncFailure(BuildContext context) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
-      content: Text("Saved locally — couldn't sync to server"),
+      content: Text("Saved on this device. Couldn't sync to the server."),
       behavior: SnackBarBehavior.floating,
     ),
   );

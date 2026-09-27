@@ -48,13 +48,34 @@ void main() {
     });
   });
 
+  group('Post reading last page', () {
+    test('is null for a post never opened', () {
+      expect(LocalStore.instance.loadPostLastPageIndex('p1'), isNull);
+    });
+
+    test('save/load round-trips and keeps posts separate', () {
+      LocalStore.instance.savePostLastPageIndex('p1', 3);
+      LocalStore.instance.savePostLastPageIndex('p2', 0);
+      expect(LocalStore.instance.loadPostLastPageIndex('p1'), 3);
+      expect(LocalStore.instance.loadPostLastPageIndex('p2'), 0);
+    });
+
+    test('later saves overwrite the earlier position for the same post', () {
+      LocalStore.instance.savePostLastPageIndex('p1', 1);
+      LocalStore.instance.savePostLastPageIndex('p1', 4);
+      expect(LocalStore.instance.loadPostLastPageIndex('p1'), 4);
+    });
+  });
+
   group('clearAll', () {
-    test('wipes bookmarks and last-read position', () async {
+    test('wipes bookmarks, book last position, and post last page', () async {
       LocalStore.instance.saveBookBookmarks('b1', [1, 2]);
       LocalStore.instance.saveBookLastPosition('b1', 5);
+      LocalStore.instance.savePostLastPageIndex('p1', 2);
       await LocalStore.instance.clearAll();
       expect(LocalStore.instance.loadBookBookmarks('b1'), isEmpty);
       expect(LocalStore.instance.loadBookLastPosition('b1'), isNull);
+      expect(LocalStore.instance.loadPostLastPageIndex('p1'), isNull);
     });
   });
 }

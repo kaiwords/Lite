@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/audio_provider.dart';
@@ -144,7 +143,7 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
           Text(
             widget.listing.title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.playfairDisplay(
+            style: AppFonts.display(
               fontSize: 22,
               fontWeight: FontWeight.w700,
               color: titleColor,
@@ -154,7 +153,7 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
           Text(
             widget.listing.authorName,
             textAlign: TextAlign.center,
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: secondaryColor,
@@ -164,14 +163,14 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
           Text(
             volumeLabel,
             textAlign: TextAlign.center,
-            style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+            style: AppFonts.ui(fontSize: 12, color: mutedColor),
           ),
           if (error != null) ...[
             const SizedBox(height: 6),
             Text(
               '$error Tap play to retry.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.lato(fontSize: 12, color: AppColors.like),
+              style: AppFonts.ui(fontSize: 12, color: AppColors.like),
             ),
           ],
           const SizedBox(height: 20),
@@ -200,13 +199,13 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
               children: [
                 Text(
                   formatAudioTime(position),
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
                 ),
                 Text(
                   duration > Duration.zero
                       ? formatAudioTime(duration)
                       : '--:--',
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
                 ),
               ],
             ),
@@ -218,6 +217,7 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
+                tooltip: 'Previous',
                 icon: const Icon(Icons.skip_previous_rounded),
                 iconSize: 34,
                 color: secondaryColor,
@@ -258,6 +258,7 @@ class _AudiobookPlayerScreenState extends ConsumerState<AudiobookPlayerScreen> {
               ),
               const SizedBox(width: 8),
               IconButton(
+                tooltip: 'Next',
                 icon: const Icon(Icons.skip_next_rounded),
                 iconSize: 34,
                 color: secondaryColor,
@@ -350,7 +351,7 @@ class _VolumeRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: isActive ? AppColors.accent : titleColor,
@@ -361,16 +362,13 @@ class _VolumeRow extends StatelessWidget {
                     fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              duration,
-              style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
-            ),
+            Text(duration, style: AppFonts.ui(fontSize: 12, color: mutedColor)),
           ],
         ),
       ),

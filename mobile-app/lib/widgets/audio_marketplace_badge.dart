@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import '../theme/app_theme.dart';
 
 import '../utils/marketplace_lookup.dart';
 import 'listing_buy_sheet.dart';
@@ -33,7 +34,7 @@ class AudioMarketplaceBadge extends ConsumerWidget {
         if (listing != null) {
           showListingBuySheet(context, listing);
         } else {
-          context.push('/marketplace', extra: listingId);
+          context.push('/marketplace/listing/$listingId');
         }
       },
       child: Container(
@@ -56,7 +57,7 @@ class AudioMarketplaceBadge extends ConsumerWidget {
                 'Listen in Marketplace',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: _audioColor,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
@@ -78,7 +77,7 @@ class _CartTab extends ConsumerWidget {
                 children: [
                   Text(
                     'Subtotal',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       color: isDark
                           ? AppColors.darkTextMuted
@@ -88,7 +87,7 @@ class _CartTab extends ConsumerWidget {
                   const Spacer(),
                   Text(
                     '\$${total.toStringAsFixed(2)}',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: isDark
@@ -102,28 +101,22 @@ class _CartTab extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    // accentOnFill (darker than accent) keeps the white
-                    // label at WCAG AA contrast.
-                    backgroundColor: isDark
-                        ? AppColors.darkAccentOnFill
-                        : AppColors.accentOnFill,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                   onPressed: () async {
                     // One order, one Payment Sheet, for the whole cart —
                     // even when it spans multiple sellers (see
                     // supabase/functions/stripe-create-checkout).
                     final ok = await runPurchaseFlow(context, ref, cart);
-                    if (ok) ref.read(cartProvider.notifier).clear();
+                    if (!ok || !context.mounted) return;
+                    // Remove only what was paid for, so anything added to
+                    // the cart during checkout stays there.
+                    final notifier = ref.read(cartProvider.notifier);
+                    for (final item in cart) {
+                      notifier.remove(item.id);
+                    }
                   },
                   child: Text(
                     'Checkout',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
@@ -190,7 +183,7 @@ class _CartListRow extends ConsumerWidget {
                       listing.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: titleColor,
@@ -200,15 +193,12 @@ class _CartListRow extends ConsumerWidget {
                       listing.authorName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(
-                        fontSize: 12.5,
-                        color: mutedColor,
-                      ),
+                      style: AppFonts.ui(fontSize: 12.5, color: mutedColor),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       listing.price,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.accent,
@@ -271,7 +261,7 @@ class _EmptyCart extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Your cart is empty',
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 19,
                 fontWeight: FontWeight.w600,
                 color: titleColor,
@@ -279,38 +269,15 @@ class _EmptyCart extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Nothing here yet — add books to see them here.',
+              'Nothing here yet. Books you add will show up here.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.lato(
-                fontSize: 14,
-                color: mutedColor,
-                height: 1.5,
-              ),
+              style: AppFonts.ui(fontSize: 14, color: mutedColor, height: 1.5),
             ),
             if (onBrowseBooks != null) ...[
               const SizedBox(height: 18),
-              GestureDetector(
-                onTap: onBrowseBooks,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkAccentOnFill
-                        : AppColors.accentOnFill,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Text(
-                    'Browse Books',
-                    style: GoogleFonts.lato(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              FilledButton(
+                onPressed: onBrowseBooks,
+                child: const Text('Browse Books'),
               ),
             ],
           ],

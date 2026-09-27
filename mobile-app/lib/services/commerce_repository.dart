@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/marketplace.dart';
 import 'marketplace_repository.dart';
-import 'stripe_service.dart' show StripeCheckoutException;
+import 'stripe_service.dart' show StripeCheckoutException, invokeEdgeFunction;
 import 'supabase_service.dart';
 import 'users_repository.dart';
 
@@ -96,7 +96,8 @@ class CommerceRepository {
 
     return (rows as List).map((r) {
       final row = (r as Map).cast<String, dynamic>();
-      final listingRow = (row['marketplace_listings'] as Map).cast<String, dynamic>();
+      final listingRow = (row['marketplace_listings'] as Map)
+          .cast<String, dynamic>();
       final order = (row['orders'] as Map).cast<String, dynamic>();
       return PurchaseRecord(
         orderItemId: row['id'] as String,
@@ -123,7 +124,9 @@ class CommerceRepository {
         .eq('orders.status', 'paid')
         .order('created_at', ascending: false);
 
-    final items = (rows as List).map((r) => (r as Map).cast<String, dynamic>()).toList();
+    final items = (rows as List)
+        .map((r) => (r as Map).cast<String, dynamic>())
+        .toList();
     final buyerIds = items
         .map((r) => ((r['orders'] as Map)['buyer_id']) as String)
         .toSet()
@@ -132,7 +135,8 @@ class CommerceRepository {
     final buyerNameById = {for (final b in buyers) b.id: b.displayName};
 
     return items.map((row) {
-      final listingRow = (row['marketplace_listings'] as Map).cast<String, dynamic>();
+      final listingRow = (row['marketplace_listings'] as Map)
+          .cast<String, dynamic>();
       final order = (row['orders'] as Map).cast<String, dynamic>();
       final buyerId = order['buyer_id'] as String;
       final unitPriceCents = (row['unit_price_cents'] as num).toInt();
@@ -154,14 +158,10 @@ class CommerceRepository {
   /// supabase/functions/confirm-meetup for why this goes through an Edge
   /// Function rather than a direct table update.
   static Future<void> confirmMeetup(String orderItemId) async {
-    final response = await _client.functions.invoke(
+    await invokeEdgeFunction(
       'confirm-meetup',
       body: {'orderItemId': orderItemId},
     );
-    final data = response.data as Map<String, dynamic>?;
-    if (data?['error'] != null) {
-      throw Exception(data!['error'] as String);
-    }
   }
 
   /// Claims a Free or Swap listing — creates a $0 orders/order_items pair
@@ -174,20 +174,18 @@ class CommerceRepository {
     String listingId, {
     ShippingSelection? shipping,
   }) async {
-    final response = await _client.functions.invoke(
+    await invokeEdgeFunction(
       'claim-listing',
       body: {
         'listingId': listingId,
         if (shipping != null) 'shipping': shipping.toJson(),
       },
     );
-    final data = response.data as Map<String, dynamic>?;
-    if (data?['error'] != null) {
-      throw StripeCheckoutException(data!['error'] as String);
-    }
   }
 
-  static Future<SellerStripeStatus> fetchSellerStripeStatus(String userId) async {
+  static Future<SellerStripeStatus> fetchSellerStripeStatus(
+    String userId,
+  ) async {
     final row = await _client
         .from('user_stripe_accounts')
         .select('stripe_connect_account_id, charges_enabled')

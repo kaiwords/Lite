@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
@@ -71,13 +70,13 @@ class EarningsScreen extends ConsumerWidget {
                   child: Text(
                     'Total earned',
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 13, color: mutedColor),
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '\$${total.toStringAsFixed(2)}',
-                  style: GoogleFonts.playfairDisplay(
+                  style: AppFonts.display(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: AppColors.accent,
@@ -92,7 +91,7 @@ class EarningsScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 '${tips.length} tip${tips.length == 1 ? '' : 's'} · ${topTippers.length} supporter${topTippers.length == 1 ? '' : 's'}',
-                style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                style: AppFonts.ui(fontSize: 12, color: mutedColor),
               ),
             ),
           ),
@@ -104,7 +103,7 @@ class EarningsScreen extends ConsumerWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Top supporters',
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: mutedColor,
@@ -141,7 +140,7 @@ class EarningsScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Recent tips',
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: mutedColor,
@@ -155,7 +154,7 @@ class EarningsScreen extends ConsumerWidget {
                 ? Center(
                     child: Text(
                       'No tips yet',
-                      style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                      style: AppFonts.ui(fontSize: 13, color: mutedColor),
                     ),
                   )
                 : ListView.separated(
@@ -207,7 +206,7 @@ class _TopTipperChip extends ConsumerWidget {
                 user.displayName.isEmpty
                     ? '?'
                     : user.displayName[0].toUpperCase(),
-                style: GoogleFonts.playfairDisplay(
+                style: AppFonts.display(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.accent,
@@ -217,7 +216,7 @@ class _TopTipperChip extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(
               '\$${total.toStringAsFixed(0)}',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -227,7 +226,7 @@ class _TopTipperChip extends ConsumerWidget {
               '$count× · ${user.displayName.split(' ').first}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+              style: AppFonts.ui(fontSize: 10, color: mutedColor),
             ),
           ],
         ),
@@ -263,7 +262,7 @@ class _TipRow extends ConsumerWidget {
           tip.from.displayName.isEmpty
               ? '?'
               : tip.from.displayName[0].toUpperCase(),
-          style: GoogleFonts.playfairDisplay(
+          style: AppFonts.display(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: AppColors.accent,
@@ -276,7 +275,7 @@ class _TipRow extends ConsumerWidget {
             child: Text(
               tip.from.displayName,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -291,7 +290,7 @@ class _TipRow extends ConsumerWidget {
       ),
       subtitle: Text(
         '${_relative(tip.at)} · +\$${tip.amount.toStringAsFixed(2)}',
-        style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+        style: AppFonts.ui(fontSize: 12, color: mutedColor),
       ),
       trailing: isSelf
           ? null
@@ -343,7 +342,7 @@ class _SmallFollowPill extends StatelessWidget {
         ),
         child: Text(
           isFollowing ? 'Following' : 'Follow',
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: isFollowing ? accent : Colors.white,

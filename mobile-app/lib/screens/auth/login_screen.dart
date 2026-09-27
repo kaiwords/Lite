@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/supabase_service.dart';
@@ -51,8 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await SupabaseService.client.auth
-          .signInWithPassword(email: email, password: password);
+      await SupabaseService.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
       // On success, the router's auth-driven redirect (see app_router.dart)
       // takes over and navigates to '/' automatically — nothing to do here.
     } on AuthException catch (e) {
@@ -69,7 +70,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Scaffold(
@@ -84,18 +87,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'Literature',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: AppFonts.display(
                     fontSize: 34,
                     fontWeight: FontWeight.w700,
                     color: textColor,
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const Ornament(
+                  padding: EdgeInsets.symmetric(horizontal: 72, vertical: 6),
+                ),
                 Text(
                   'Welcome back',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+                  style: AppFonts.reading(
+                    fontSize: 16,
+                    fontStyle: FontStyle.italic,
+                    color: mutedColor,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 if (_error != null) ...[
@@ -121,12 +130,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor:
-                        isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+                    backgroundColor: isDark
+                        ? AppColors.darkAccentOnFill
+                        : AppColors.accentOnFill,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: _submitting ? null : _submit,
                   child: _submitting
@@ -134,26 +145,38 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : Text('Log In',
-                          style: GoogleFonts.lato(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
+                      : Text(
+                          'Log In',
+                          style: AppFonts.ui(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Don't have an account?",
-                        style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
+                    Text(
+                      "Don't have an account?",
+                      style: AppFonts.ui(fontSize: 13, color: mutedColor),
+                    ),
                     TextButton(
-                      onPressed: _submitting ? null : () => context.go('/signup'),
+                      onPressed: _submitting
+                          ? null
+                          : () => context.go('/signup'),
                       child: Text(
                         'Sign Up',
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.darkAccent : AppColors.accent,
+                          color: isDark
+                              ? AppColors.darkAccent
+                              : AppColors.accent,
                         ),
                       ),
                     ),

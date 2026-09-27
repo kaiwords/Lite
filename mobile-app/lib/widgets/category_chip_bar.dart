@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../providers/feed_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -16,8 +15,9 @@ class CategoryChipBar extends ConsumerWidget {
     // Always show "All" first, then visible categories in enum order
     final chips = [
       FeedCategory.all,
-      ...FeedCategory.values
-          .where((c) => c != FeedCategory.all && visible.contains(c)),
+      ...FeedCategory.values.where(
+        (c) => c != FeedCategory.all && visible.contains(c),
+      ),
     ];
 
     return SizedBox(
@@ -83,29 +83,28 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeBg = isDark ? AppColors.darkPrimary : AppColors.primary;
-    final inactiveBg =
-        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final activeText =
-        isDark ? AppColors.darkBackground : Colors.white;
-    final inactiveText =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final inactiveBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final activeText = isDark ? AppColors.darkBackground : Colors.white;
+    final inactiveText = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? activeBg : inactiveBg,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           category.label,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 13,
-            fontWeight:
-                isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected ? activeText : inactiveText,
           ),
         ),
@@ -128,8 +127,7 @@ class _AddChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isDark
               ? AppColors.darkSurfaceVariant
@@ -142,9 +140,7 @@ class _AddChip extends StatelessWidget {
         child: Icon(
           Icons.add_rounded,
           size: 18,
-          color: isDark
-              ? AppColors.darkTextSecondary
-              : AppColors.textSecondary,
+          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
         ),
       ),
     );
@@ -164,13 +160,14 @@ class _ManageCategoriesSheet extends ConsumerWidget {
     final visible = ref.watch(visibleCategoriesProvider);
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final mutedColor =
-        isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
-    final categories =
-        FeedCategory.values.where((c) => c != FeedCategory.all).toList();
+    final categories = FeedCategory.values
+        .where((c) => c != FeedCategory.all)
+        .toList();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -180,8 +177,7 @@ class _ManageCategoriesSheet extends ConsumerWidget {
       builder: (_, scrollCtrl) => Container(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -202,44 +198,46 @@ class _ManageCategoriesSheet extends ConsumerWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: Row(children: [
-                Expanded(
-                  child: Text(
-                    'Manage Categories',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Manage Categories',
+                      style: AppFonts.display(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Reset to all visible
-                    for (final c in categories) {
-                      if (!visible.contains(c)) {
-                        ref
-                            .read(visibleCategoriesProvider.notifier)
-                            .toggle(c);
+                  TextButton(
+                    onPressed: () {
+                      // Reset to all visible
+                      for (final c in categories) {
+                        if (!visible.contains(c)) {
+                          ref
+                              .read(visibleCategoriesProvider.notifier)
+                              .toggle(c);
+                        }
                       }
-                    }
-                  },
-                  child: Text(
-                    'Show all',
-                    style: GoogleFonts.lato(
+                    },
+                    child: Text(
+                      'Show all',
+                      style: AppFonts.ui(
                         fontSize: 13,
                         color: AppColors.accent,
-                        fontWeight: FontWeight.w600),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
                 'Choose which categories appear in your feed bar',
-                style:
-                    GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                style: AppFonts.ui(fontSize: 13, color: mutedColor),
               ),
             ),
             Divider(height: 1, color: divColor),
@@ -248,8 +246,7 @@ class _ManageCategoriesSheet extends ConsumerWidget {
                 controller: scrollCtrl,
                 padding: const EdgeInsets.only(bottom: 32),
                 itemCount: categories.length,
-                separatorBuilder: (_, _) =>
-                    Divider(height: 1, color: divColor),
+                separatorBuilder: (_, _) => Divider(height: 1, color: divColor),
                 itemBuilder: (_, i) {
                   final cat = categories[i];
                   final isOn = visible.contains(cat);
@@ -259,59 +256,62 @@ class _ManageCategoriesSheet extends ConsumerWidget {
                         .toggle(cat),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      child: Row(children: [
-                        Expanded(
-                          child: Text(
-                            cat.label,
-                            style: GoogleFonts.lato(
-                              fontSize: 15,
-                              fontWeight: isOn
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isOn ? textColor : mutedColor,
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              cat.label,
+                              style: AppFonts.ui(
+                                fontSize: 15,
+                                fontWeight: isOn
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isOn ? textColor : mutedColor,
+                              ),
                             ),
                           ),
-                        ),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 46,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: isOn
-                                ? AppColors.accent
-                                : (isDark
-                                    ? AppColors.darkSurfaceVariant
-                                    : AppColors.surfaceVariant),
-                            borderRadius: BorderRadius.circular(13),
-                            border: isOn
-                                ? null
-                                : Border.all(color: divColor),
-                          ),
-                          child: AnimatedAlign(
+                          AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
-                            alignment: isOn
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 3),
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: isOn
-                                      ? Colors.white
-                                      : (isDark
-                                          ? AppColors.darkTextMuted
-                                          : AppColors.textMuted),
-                                  shape: BoxShape.circle,
+                            width: 46,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: isOn
+                                  ? AppColors.accent
+                                  : (isDark
+                                        ? AppColors.darkSurfaceVariant
+                                        : AppColors.surfaceVariant),
+                              borderRadius: BorderRadius.circular(13),
+                              border: isOn ? null : Border.all(color: divColor),
+                            ),
+                            child: AnimatedAlign(
+                              duration: const Duration(milliseconds: 150),
+                              alignment: isOn
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: isOn
+                                        ? Colors.white
+                                        : (isDark
+                                              ? AppColors.darkTextMuted
+                                              : AppColors.textMuted),
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ]),
+                        ],
+                      ),
                     ),
                   );
                 },

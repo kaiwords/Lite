@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_theme.dart';
 
@@ -26,8 +25,7 @@ Future<void> showActionSheet(
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final bg = isDark ? AppColors.darkSurface : AppColors.surface;
   final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
-  final titleColor =
-      isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+  final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
   final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
   return showModalBottomSheet(
@@ -49,7 +47,9 @@ Future<void> showActionSheet(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: divColor, borderRadius: BorderRadius.circular(2)),
+                  color: divColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             if (title != null)
@@ -57,22 +57,28 @@ Future<void> showActionSheet(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(title,
-                      style: GoogleFonts.lato(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: mutedColor)),
+                  child: Text(
+                    title,
+                    style: AppFonts.ui(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: mutedColor,
+                    ),
+                  ),
                 ),
               ),
             ...items.map((item) {
               final color = item.destructive ? AppColors.like : titleColor;
               return ListTile(
                 leading: Icon(item.icon, color: color, size: 22),
-                title: Text(item.label,
-                    style: GoogleFonts.lato(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: color)),
+                title: Text(
+                  item.label,
+                  style: AppFonts.ui(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   item.onTap();

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../providers/marketplace_account_provider.dart';
@@ -99,7 +98,7 @@ class MarketplaceScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Marketplace',
-          style: GoogleFonts.playfairDisplay(
+          style: AppFonts.display(
             color: textColor,
             fontSize: 26,
             fontWeight: FontWeight.w600,
@@ -108,6 +107,7 @@ class MarketplaceScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            tooltip: 'Search',
             icon: const Icon(Icons.search_rounded),
             onPressed: () => context.push('/search'),
           ),
@@ -123,7 +123,7 @@ class MarketplaceScreen extends ConsumerWidget {
           children: [
             Text(
               'What would you like to do?',
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -132,11 +132,7 @@ class MarketplaceScreen extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               'Browse books, manage your cart, library, listings and sales',
-              style: GoogleFonts.lato(
-                fontSize: 14,
-                color: mutedColor,
-                height: 1.4,
-              ),
+              style: AppFonts.ui(fontSize: 14, color: mutedColor, height: 1.4),
             ),
             const SizedBox(height: 22),
             Expanded(
@@ -206,100 +202,109 @@ class _SectionTile extends StatelessWidget {
     final cardColor = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
 
-    // Card tile: white surface, hairline border, rounded corners — matches
-    // the marketplace redesign reference (soft pastel icon chip, serif
-    // title, muted subtitle, "View →" link pinned to the bottom).
-    return GestureDetector(
-      onTap: data.onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardColor,
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.all(18),
-        child: Stack(
-          children: [
-            // Badge
-            if (data.badge != null)
-              Positioned(
-                top: -4,
-                right: -4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: data.color,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    data.badge!,
-                    style: GoogleFonts.lato(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-            // Content — left-aligned, icon chip → title → subtitle → "View →"
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    // Plain card tile: surface, hairline border, rounded corners — icon
+    // chip, title, subtitle, "View →" pinned to the bottom.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: borderColor),
+    );
+    return Semantics(
+      button: true,
+      label: '${data.label}, ${data.subtitle}',
+      excludeSemantics: true,
+      child: Material(
+        color: cardColor,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: data.onTap,
+          customBorder: shape,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Stack(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: data.iconBg,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(data.icon, size: 22, color: data.color),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  data.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  data.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'View',
-                      style: GoogleFonts.lato(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                // Badge
+                if (data.badge != null)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
                         color: data.color,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        data.badge!,
+                        style: AppFonts.ui(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 14,
-                      color: data.color,
+                  ),
+
+                // Content — left-aligned, icon chip → title → subtitle → "View →"
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: data.iconBg,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(data.icon, size: 22, color: data.color),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      data.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.display(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      data.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(fontSize: 13, color: mutedColor),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'View',
+                          style: AppFonts.ui(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: data.color,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 14,
+                          color: data.color,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -412,12 +417,12 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
   }
 
   void _clearFilters() => setState(() {
-        _searchController.clear();
-        _query = '';
-        _genre = null;
-        _format = null;
-        _offer = null;
-      });
+    _searchController.clear();
+    _query = '';
+    _genre = null;
+    _format = null;
+    _offer = null;
+  });
 
   // Genres that have at least one listing
   List<Genre> _availableGenres(List<MarketplaceListing> allListings) {
@@ -457,10 +462,7 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
           toolbarHeight: 44,
           title: Text(
             'Books',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppFonts.display(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(64),
@@ -515,7 +517,7 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
                 Expanded(
                   child: Text(
                     'Showing ${listings.length} of ${allListings.length} titles',
-                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 12, color: mutedColor),
                   ),
                 ),
                 _LayoutToggleButton(
@@ -569,25 +571,20 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  if (i.isOdd) {
-                    return Divider(
-                      height: 1,
-                      color:
-                          isDark ? AppColors.darkDivider : AppColors.divider,
-                    );
-                  }
-                  final listing = listings[i ~/ 2];
-                  return _BookListTile(
-                    listing: listing,
-                    coverColor:
-                        coverPalette[(i ~/ 2) % coverPalette.length],
-                    isDark: isDark,
+              delegate: SliverChildBuilderDelegate((context, i) {
+                if (i.isOdd) {
+                  return Divider(
+                    height: 1,
+                    color: isDark ? AppColors.darkDivider : AppColors.divider,
                   );
-                },
-                childCount: listings.isEmpty ? 0 : listings.length * 2 - 1,
-              ),
+                }
+                final listing = listings[i ~/ 2];
+                return _BookListTile(
+                  listing: listing,
+                  coverColor: coverPalette[(i ~/ 2) % coverPalette.length],
+                  isDark: isDark,
+                );
+              }, childCount: listings.isEmpty ? 0 : listings.length * 2 - 1),
             ),
           ),
       ],
@@ -617,7 +614,11 @@ class _PinnedFiltersDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     // Opaque background needed — a pinned sliver otherwise lets the
     // scrolling content behind it show through.
     return ColoredBox(
@@ -871,7 +872,7 @@ class _FmtChip extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: selected ? color : mutedColor,
@@ -903,14 +904,16 @@ class _SearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     final fill = isDark ? AppColors.darkSurfaceVariant : AppColors.surface;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     return TextField(
       controller: controller,
       onChanged: onChanged,
-      style: GoogleFonts.lato(fontSize: 14, color: textColor),
+      style: AppFonts.ui(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         hintText: 'Search titles, authors...',
-        hintStyle: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+        hintStyle: AppFonts.ui(fontSize: 14, color: mutedColor),
         prefixIcon: Icon(Icons.search_rounded, color: mutedColor),
         filled: true,
         fillColor: fill,
@@ -940,7 +943,9 @@ class _BookGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return GestureDetector(
@@ -965,7 +970,7 @@ class _BookGridTile extends StatelessWidget {
             listing.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.playfairDisplay(
+            style: AppFonts.display(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               height: 1.25,
@@ -977,14 +982,14 @@ class _BookGridTile extends StatelessWidget {
             listing.authorName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+            style: AppFonts.ui(fontSize: 11, color: mutedColor),
           ),
           const SizedBox(height: 2),
           Text(
             listing.isSoldOut ? 'Claimed' : listing.price,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: listing.isSoldOut
@@ -1014,7 +1019,9 @@ class _BookListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return GestureDetector(
@@ -1042,7 +1049,7 @@ class _BookListTile extends StatelessWidget {
                     listing.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: titleColor,
@@ -1053,17 +1060,18 @@ class _BookListTile extends StatelessWidget {
                     listing.authorName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 12.5, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 12.5, color: mutedColor),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     listing.isSoldOut ? 'Claimed' : listing.price,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: listing.isSoldOut
                           ? mutedColor
-                          : (_offerChipColors[listing.offer] ?? AppColors.accent),
+                          : (_offerChipColors[listing.offer] ??
+                                AppColors.accent),
                     ),
                   ),
                 ],
@@ -1096,7 +1104,7 @@ class _EmptyBooks extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'No titles match',
-            style: GoogleFonts.playfairDisplay(
+            style: AppFonts.display(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
@@ -1105,14 +1113,14 @@ class _EmptyBooks extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Try a different search, genre, or format',
-            style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+            style: AppFonts.ui(fontSize: 13, color: mutedColor),
           ),
           const SizedBox(height: 16),
           TextButton(
             onPressed: onClear,
             child: Text(
               'Show all',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,

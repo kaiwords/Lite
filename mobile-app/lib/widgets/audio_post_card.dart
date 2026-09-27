@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/marketplace.dart';
@@ -23,8 +22,9 @@ class AudioPostCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.cardBorder;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     // Resolve linked audio listing (only if type is audio) from the live
@@ -32,20 +32,19 @@ class AudioPostCard extends ConsumerWidget {
     final resolvedListing = post.linkedListingId != null
         ? findListingById(ref, post.linkedListingId!)
         : null;
-    final linkedListing =
-        resolvedListing?.type == ListingType.audio ? resolvedListing : null;
+    final linkedListing = resolvedListing?.type == ListingType.audio
+        ? resolvedListing
+        : null;
 
     // Live post (for reactive engagement state)
     final livePost = ref
         .watch(postsNotifierProvider)
         .firstWhere((p) => p.id == post.id, orElse: () => post);
 
-    // No background/border/margin — posts run edge-to-edge and sit flush
-    // against each other, separated only by the bottom line (no gap).
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
-      ),
+    // Each post is a page lying on the pile of pages below it.
+    return PaperSheet(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -67,7 +66,7 @@ class AudioPostCard extends ConsumerWidget {
                       post.author.displayName.isEmpty
                           ? '?'
                           : post.author.displayName[0].toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: isDark ? AppColors.darkAccent : AppColors.accent,
@@ -80,46 +79,51 @@ class AudioPostCard extends ConsumerWidget {
                   child: GestureDetector(
                     onTap: () => context.push('/user/${post.author.id}'),
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            post.author.displayName,
-                            style: GoogleFonts.lato(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.textPrimary,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              post.author.displayName,
+                              style: AppFonts.ui(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.textPrimary,
+                              ),
                             ),
-                          ),
-                          if (post.author.isVerified) ...[
-                            const SizedBox(width: 4),
-                            Icon(Icons.verified_rounded,
+                            if (post.author.isVerified) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.verified_rounded,
                                 size: 12,
                                 color: isDark
                                     ? AppColors.darkAccent
-                                    : AppColors.accent),
+                                    : AppColors.accent,
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                      Text(
-                        timeago.format(post.createdAt),
-                        style: GoogleFonts.lato(
-                            fontSize: 11, color: mutedColor),
-                      ),
-                    ],
+                        ),
+                        Text(
+                          timeago.format(post.createdAt),
+                          style: AppFonts.ui(fontSize: 11, color: mutedColor),
+                        ),
+                      ],
                     ),
                   ),
                 ),
                 // Support button
                 GestureDetector(
-                  onTap: () =>
-                      TipSheet.show(context, authorName: post.author.displayName),
+                  onTap: () => TipSheet.show(
+                    context,
+                    authorName: post.author.displayName,
+                  ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: isDark
                           ? AppColors.darkSurfaceVariant
@@ -132,7 +136,7 @@ class AudioPostCard extends ConsumerWidget {
                     ),
                     child: Text(
                       'Support',
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: isDark ? AppColors.darkAccent : AppColors.accent,
@@ -150,7 +154,10 @@ class AudioPostCard extends ConsumerWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark
                         ? AppColors.darkSurfaceVariant
@@ -159,7 +166,7 @@ class AudioPostCard extends ConsumerWidget {
                   ),
                   child: Text(
                     '${post.category.emoji} ${post.category.label}',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: isDark ? AppColors.darkAccent : AppColors.accent,
@@ -185,7 +192,7 @@ class AudioPostCard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: Text(
               post.title,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: titleColor,
@@ -203,7 +210,6 @@ class AudioPostCard extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -276,21 +282,24 @@ class _MiniPlayer extends ConsumerWidget {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2.5,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 5),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 10),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 5,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 10,
+                    ),
                     activeTrackColor: AppColors.accent,
-                    inactiveTrackColor:
-                        isDark ? AppColors.darkDivider : AppColors.divider,
+                    inactiveTrackColor: isDark
+                        ? AppColors.darkDivider
+                        : AppColors.divider,
                     thumbColor: AppColors.accent,
                   ),
                   child: Slider(
                     value: progress.clamp(0.0, 1.0),
                     onChanged: isCurrent
                         ? (v) => ref
-                            .read(audioPlayerProvider.notifier)
-                            .seekFraction(v)
+                              .read(audioPlayerProvider.notifier)
+                              .seekFraction(v)
                         : null,
                   ),
                 ),
@@ -299,15 +308,16 @@ class _MiniPlayer extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(formatAudioTime(position),
-                          style:
-                              GoogleFonts.lato(fontSize: 10, color: mutedColor)),
                       Text(
-                          duration > Duration.zero
-                              ? formatAudioTime(duration)
-                              : '–:––',
-                          style:
-                              GoogleFonts.lato(fontSize: 10, color: mutedColor)),
+                        formatAudioTime(position),
+                        style: AppFonts.ui(fontSize: 10, color: mutedColor),
+                      ),
+                      Text(
+                        duration > Duration.zero
+                            ? formatAudioTime(duration)
+                            : '–:––',
+                        style: AppFonts.ui(fontSize: 10, color: mutedColor),
+                      ),
                     ],
                   ),
                 ),
@@ -328,11 +338,13 @@ class _EngagementRow extends StatelessWidget {
   final Post post;
   final bool isDark;
   final WidgetRef ref;
-  const _EngagementRow(
-      {required this.post, required this.isDark, required this.ref});
+  const _EngagementRow({
+    required this.post,
+    required this.isDark,
+    required this.ref,
+  });
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 
   @override
   Widget build(BuildContext context) {
@@ -384,11 +396,12 @@ class _Btn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _Btn(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  const _Btn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -410,11 +423,14 @@ class _Btn extends StatelessWidget {
                   Icon(icon, size: 20, color: color),
                   if (label.isNotEmpty) ...[
                     const SizedBox(width: 4),
-                    Text(label,
-                        style: GoogleFonts.lato(
-                            fontSize: 13,
-                            color: color,
-                            fontWeight: FontWeight.w500)),
+                    Text(
+                      label,
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        color: color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -425,4 +441,3 @@ class _Btn extends StatelessWidget {
     );
   }
 }
-

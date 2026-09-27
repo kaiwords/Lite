@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -32,7 +31,10 @@ Future<void> _pickProfileImage(
   WidgetRef ref, {
   required bool isCover,
 }) async {
-  final result = await FilePicker.pickFiles(type: FileType.image, withData: false);
+  final result = await FilePicker.pickFiles(
+    type: FileType.image,
+    withData: false,
+  );
   if (!context.mounted || result == null || result.files.isEmpty) return;
   final path = result.files.single.path;
   if (path == null) return;
@@ -49,10 +51,12 @@ Future<void> _pickProfileImage(
   try {
     await UsersRepository.updateProfile(updated);
   } catch (_) {
-    messenger.showSnackBar(const SnackBar(
-      content: Text("Saved locally — couldn't sync to server"),
-      behavior: SnackBarBehavior.floating,
-    ));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text("Saved on this device. Couldn't sync to the server."),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 }
 
@@ -191,7 +195,7 @@ class _ProfileHeader extends StatelessWidget {
                   Flexible(
                     child: Text(
                       user.displayName,
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: isDark
@@ -213,7 +217,7 @@ class _ProfileHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '@${user.username}',
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 13,
                   color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                 ),
@@ -225,7 +229,7 @@ class _ProfileHeader extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   user.bio,
-                  style: GoogleFonts.lora(
+                  style: AppFonts.reading(
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
                     color: isDark
@@ -287,11 +291,8 @@ class _PinnedTabBar extends SliverPersistentHeaderDelegate {
             controller: controller,
             indicatorColor: isDark ? AppColors.darkPrimary : AppColors.primary,
             indicatorWeight: 2,
-            labelStyle: GoogleFonts.lato(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-            unselectedLabelStyle: GoogleFonts.lato(
+            labelStyle: AppFonts.ui(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle: AppFonts.ui(
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -340,7 +341,10 @@ class _CoverWithAvatar extends ConsumerWidget {
               gradient: coverImage == null
                   ? LinearGradient(
                       colors: isDark
-                          ? [AppColors.darkSurfaceVariant, AppColors.darkBackground]
+                          ? [
+                              AppColors.darkSurfaceVariant,
+                              AppColors.darkBackground,
+                            ]
                           : [AppColors.accentSoft, AppColors.surfaceVariant],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -356,14 +360,17 @@ class _CoverWithAvatar extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.accent.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '✍️ Author',
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppColors.accent,
@@ -439,7 +446,7 @@ class _CoverWithAvatar extends ConsumerWidget {
                             user.displayName.isEmpty
                                 ? '?'
                                 : user.displayName[0].toUpperCase(),
-                            style: GoogleFonts.playfairDisplay(
+                            style: AppFonts.display(
                               fontSize: 30,
                               fontWeight: FontWeight.w700,
                               color: AppColors.accent,
@@ -553,7 +560,7 @@ class _StatCell extends StatelessWidget {
       children: [
         Text(
           value,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             color: highlight
@@ -563,7 +570,7 @@ class _StatCell extends StatelessWidget {
         ),
         Text(
           label,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 11,
             color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
           ),
@@ -616,10 +623,7 @@ class _ActionButtons extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined, size: 15),
               label: Text(
                 'Edit Profile',
-                style: GoogleFonts.lato(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppFonts.ui(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               style: OutlinedButton.styleFrom(
                 side: side,
@@ -636,16 +640,13 @@ class _ActionButtons extends ConsumerWidget {
                 showShareSheet(
                   context,
                   title: user?.displayName ?? 'My profile',
-                  link: 'https://literature.app/u/${user?.username ?? 'me'}',
+                  link: 'https://literature.app/user/${user?.id ?? ''}',
                 );
               },
               icon: const Icon(Icons.share_outlined, size: 15),
               label: Text(
                 'Share',
-                style: GoogleFonts.lato(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppFonts.ui(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               style: OutlinedButton.styleFrom(
                 side: side,
@@ -791,7 +792,7 @@ class _EmptyTab extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
               ),

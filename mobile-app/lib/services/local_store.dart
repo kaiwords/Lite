@@ -40,6 +40,7 @@ class LocalStore {
   static const _kVisibleCategories = 'visible_categories';
   static const _kBookBookmarks = 'book_bookmarks';
   static const _kBookLastPosition = 'book_last_position';
+  static const _kPostLastPageIndex = 'post_last_page_index';
   static const _kDemoCachePurged = 'demo_cache_purged_v2';
 
   /// One-time cleanup for installs that cached posts/comments/cart/purchases/
@@ -82,6 +83,7 @@ class LocalStore {
       _kVisibleCategories,
       _kBookBookmarks,
       _kBookLastPosition,
+      _kPostLastPageIndex,
     ]) {
       await _prefs.remove(key);
     }
@@ -93,9 +95,7 @@ class LocalStore {
     if (raw == null) return null;
     try {
       final decoded = jsonDecode(raw) as List;
-      return decoded
-          .map((e) => (e as Map).cast<String, dynamic>())
-          .toList();
+      return decoded.map((e) => (e as Map).cast<String, dynamic>()).toList();
     } catch (_) {
       return null; // corrupt data — fall back to seed defaults
     }
@@ -106,8 +106,7 @@ class LocalStore {
   }
 
   // ── Posts ───────────────────────────────────────────────────────────────────
-  List<Post>? loadPosts() =>
-      _readList(_kPosts)?.map(Post.fromJson).toList();
+  List<Post>? loadPosts() => _readList(_kPosts)?.map(Post.fromJson).toList();
   void savePosts(List<Post> posts) =>
       _writeList(_kPosts, posts.map((p) => p.toJson()).toList());
 
@@ -225,5 +224,37 @@ class LocalStore {
     }
     decoded[bookId] = pageIndex;
     unawaited(_prefs.setString(_kBookLastPosition, jsonEncode(decoded)));
+  }
+
+  // ── Post reading last page (postId -> paginated page index) — the
+  // full-screen post viewer's "continue reading" marker, same shape as the
+  // book one above. Restored silently as the horizontal pager's starting
+  // page when reopening the same post (no interruption dialog — swiping
+  // back to page one to start over is one gesture away). Updated on every
+  // page turn, see full_screen_post_viewer.dart.
+  int? loadPostLastPageIndex(String postId) {
+    final raw = _prefs.getString(_kPostLastPageIndex);
+    if (raw == null) return null;
+    try {
+      final decoded = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      final index = decoded[postId] as num?;
+      return index?.toInt();
+    } catch (_) {
+      return null; // corrupt data — fall back to no saved position
+    }
+  }
+
+  void savePostLastPageIndex(String postId, int pageIndex) {
+    final raw = _prefs.getString(_kPostLastPageIndex);
+    Map<String, dynamic> decoded;
+    try {
+      decoded = raw == null
+          ? {}
+          : (jsonDecode(raw) as Map).cast<String, dynamic>();
+    } catch (_) {
+      decoded = {};
+    }
+    decoded[postId] = pageIndex;
+    unawaited(_prefs.setString(_kPostLastPageIndex, jsonEncode(decoded)));
   }
 }

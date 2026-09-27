@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FunctionException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/marketplace.dart';
@@ -34,7 +35,14 @@ class StripeService {
     List<String> listingIds, {
     Map<String, ShippingSelection> shipping = const {},
   }) async {
-    final response = await SupabaseService.client.functions.invoke(
+    // Stripe is never initialised on web (see [init]), so the Payment Sheet
+    // can't open there.
+    if (kIsWeb) {
+      throw const StripeCheckoutException(
+        'Checkout works in the Literature app on your phone.',
+      );
+    }
+    final data = await invokeEdgeFunction(
       'stripe-create-checkout',
       body: {
         'listingIds': listingIds,
@@ -42,10 +50,6 @@ class StripeService {
           'shipping': shipping.map((id, sel) => MapEntry(id, sel.toJson())),
       },
     );
-    final data = response.data as Map<String, dynamic>;
-    if (data['error'] != null) {
-      throw StripeCheckoutException(data['error'] as String);
-    }
 
     final clientSecret = data['clientSecret'] as String;
     final orderId = data['orderId'] as String;
@@ -64,7 +68,8 @@ class StripeService {
         throw StripeCheckoutException('cancelled');
       }
       throw StripeCheckoutException(
-          e.error.localizedMessage ?? 'Payment failed. Please try again.');
+        e.error.localizedMessage ?? 'Payment failed. Please try again.',
+      );
     }
 
     return orderId;
@@ -79,19 +84,41 @@ class StripeService {
   /// fires after an `await` (the Edge Function call above) rather than
   /// perfectly synchronously inside the button tap.
   static Future<void> startSellerOnboarding() async {
-    final response = await SupabaseService.client.functions.invoke(
-      'stripe-connect-onboarding',
-    );
-    final data = response.data as Map<String, dynamic>;
-    if (data['error'] != null) {
-      throw StripeCheckoutException(data['error'] as String);
-    }
+    final data = await invokeEdgeFunction('stripe-connect-onboarding');
     final url = Uri.parse(data['url'] as String);
     final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!opened) {
       throw StripeCheckoutException(
-          "Couldn't open the Stripe setup page — your browser may have blocked the popup. Try allowing popups for this site and tap Connect again.");
+        "Couldn't open the Stripe setup page. Your browser may have blocked the popup. Allow popups for this site and tap Connect again.",
+      );
     }
+  }
+}
+
+/// Calls a Supabase Edge Function and returns its JSON body.
+///
+/// functions_client throws [FunctionException] for every non-2xx response,
+/// so the server's `{error: "..."}` message (e.g. "seller hasn't finished
+/// payment setup yet") only arrives in `e.details`. This rethrows it as a
+/// [StripeCheckoutException] the UI can show as-is.
+Future<Map<String, dynamic>> invokeEdgeFunction(
+  String name, {
+  Map<String, dynamic>? body,
+}) async {
+  try {
+    final response = await SupabaseService.client.functions.invoke(
+      name,
+      body: body,
+    );
+    final data = response.data;
+    return data is Map<String, dynamic> ? data : const {};
+  } on FunctionException catch (e) {
+    final details = e.details;
+    final message = details is Map ? details['error'] : null;
+    if (message is String && message.isNotEmpty) {
+      throw StripeCheckoutException(message);
+    }
+    rethrow;
   }
 }
 

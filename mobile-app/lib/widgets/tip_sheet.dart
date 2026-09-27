@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_theme.dart';
 
@@ -105,7 +104,7 @@ class _TipSheetState extends State<TipSheet> {
                           child: Center(
                             child: Text(
                               '\$$amt',
-                              style: GoogleFonts.lato(
+                              style: AppFonts.ui(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                                 color: sel ? Colors.white : textSecondary,
@@ -143,10 +142,7 @@ class _TipSheetState extends State<TipSheet> {
               },
               child: Text(
                 'Send \$$_amount tip',
-                style: GoogleFonts.lato(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
+                style: AppFonts.ui(fontWeight: FontWeight.w700, fontSize: 15),
               ),
             ),
           ),

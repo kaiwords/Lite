@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_theme.dart';
 
@@ -34,8 +33,12 @@ class AuthTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final fill = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     return TextField(
       controller: controller,
       obscureText: obscure,
@@ -43,7 +46,7 @@ class AuthTextField extends StatelessWidget {
       textInputAction: textInputAction,
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
-      style: GoogleFonts.lato(fontSize: 14, color: textColor),
+      style: AppFonts.ui(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         labelText: label,
         prefixText: prefix,
@@ -52,10 +55,13 @@ class AuthTextField extends StatelessWidget {
         filled: true,
         fillColor: fill,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.accent)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.accent),
+        ),
       ),
     );
   }
@@ -90,7 +96,9 @@ class AuthMessageBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            isError ? Icons.error_outline_rounded : Icons.mark_email_read_outlined,
+            isError
+                ? Icons.error_outline_rounded
+                : Icons.mark_email_read_outlined,
             size: 18,
             color: color,
           ),
@@ -98,7 +106,7 @@ class AuthMessageBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.lato(fontSize: 13, color: color, height: 1.4),
+              style: AppFonts.ui(fontSize: 13, color: color, height: 1.4),
             ),
           ),
         ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../providers/feed_provider.dart';
 import '../theme/app_theme.dart';
 import 'category_chip_bar.dart';
@@ -92,7 +91,7 @@ class _FilterTab extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 14,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected ? activeColor : inactiveColor,

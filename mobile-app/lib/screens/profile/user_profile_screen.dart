@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/post.dart';
 import '../../models/user.dart';
@@ -19,7 +18,8 @@ import '../../widgets/post_card.dart';
 
 /// Looks up `/user/:userId` against the real `users` table.
 final _remoteUserProvider = FutureProvider.family<LitUser?, String>(
-    (ref, id) => UsersRepository.fetchById(id));
+  (ref, id) => UsersRepository.fetchById(id),
+);
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -78,8 +78,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: Text(user.displayName,
-            style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          user.displayName,
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
       ),
       body: Column(
         children: [
@@ -171,10 +173,11 @@ class _UserHeader extends ConsumerWidget {
                     user.displayName.isEmpty
                         ? '?'
                         : user.displayName[0].toUpperCase(),
-                    style: GoogleFonts.playfairDisplay(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.accent),
+                    style: AppFonts.display(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accent,
+                    ),
                   ),
                 ),
               ),
@@ -188,40 +191,50 @@ class _UserHeader extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Flexible(
-                  child: Text(
-                    user.displayName,
-                    style: GoogleFonts.playfairDisplay(
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      user.displayName,
+                      style: AppFonts.display(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: isDark
                             ? AppColors.darkTextPrimary
-                            : AppColors.textPrimary),
+                            : AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
-                if (user.isVerified) ...[
-                  const SizedBox(width: 6),
-                  Icon(Icons.verified_rounded,
-                      size: 17, color: AppColors.accent),
+                  if (user.isVerified) ...[
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 17,
+                      color: AppColors.accent,
+                    ),
+                  ],
                 ],
-              ]),
+              ),
               const SizedBox(height: 2),
-              Text('@${user.username}',
-                  style: GoogleFonts.lato(
-                      fontSize: 13,
-                      color: isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.textMuted)),
+              Text(
+                '@${user.username}',
+                style: AppFonts.ui(
+                  fontSize: 13,
+                  color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                ),
+              ),
               if (user.bio.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(user.bio,
-                    style: GoogleFonts.lora(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary)),
+                Text(
+                  user.bio,
+                  style: AppFonts.reading(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
+                ),
               ],
             ],
           ),
@@ -244,13 +257,15 @@ class _UserHeader extends ConsumerWidget {
           controller: tabs,
           indicatorColor: isDark ? AppColors.darkPrimary : AppColors.primary,
           indicatorWeight: 2,
-          labelStyle:
-              GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w700),
-          unselectedLabelStyle:
-              GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w500),
+          labelStyle: AppFonts.ui(fontSize: 13, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: AppFonts.ui(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
           labelColor: isDark ? AppColors.darkPrimary : AppColors.primary,
-          unselectedLabelColor:
-              isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+          unselectedLabelColor: isDark
+              ? AppColors.darkTextMuted
+              : AppColors.textMuted,
           tabs: [
             Tab(text: 'Posts ($postCount)'),
             Tab(text: 'Audio ($audioCount)'),
@@ -270,30 +285,36 @@ class _StatsRow extends StatelessWidget {
   final LitUser user;
   final bool isDark;
   final int postCount;
-  const _StatsRow(
-      {required this.user, required this.isDark, required this.postCount});
+  const _StatsRow({
+    required this.user,
+    required this.isDark,
+    required this.postCount,
+  });
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 
   @override
   Widget build(BuildContext context) {
     final div = isDark ? AppColors.darkDivider : AppColors.divider;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(children: [
-        _StatCell(label: 'Posts', value: '$postCount', isDark: isDark),
-        Container(width: 1, height: 32, color: div),
-        _StatCell(
+      child: Row(
+        children: [
+          _StatCell(label: 'Posts', value: '$postCount', isDark: isDark),
+          Container(width: 1, height: 32, color: div),
+          _StatCell(
             label: 'Followers',
             value: _fmt(user.followersCount),
-            isDark: isDark),
-        Container(width: 1, height: 32, color: div),
-        _StatCell(
+            isDark: isDark,
+          ),
+          Container(width: 1, height: 32, color: div),
+          _StatCell(
             label: 'Following',
             value: '${user.followingCount}',
-            isDark: isDark),
-      ]),
+            isDark: isDark,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -302,27 +323,34 @@ class _StatCell extends StatelessWidget {
   final String label;
   final String value;
   final bool isDark;
-  const _StatCell(
-      {required this.label, required this.value, required this.isDark});
+  const _StatCell({
+    required this.label,
+    required this.value,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(children: [
-        Text(value,
-            style: GoogleFonts.lato(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary)),
-        Text(label,
-            style: GoogleFonts.lato(
-                fontSize: 11,
-                color: isDark
-                    ? AppColors.darkTextMuted
-                    : AppColors.textMuted)),
-      ]),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: AppFonts.ui(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            label,
+            style: AppFonts.ui(
+              fontSize: 11,
+              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -340,68 +368,84 @@ class _FollowButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final followed = ref.watch(followNotifierProvider);
     final isFollowing = followed.contains(user.id);
-    final side =
-        BorderSide(color: isDark ? AppColors.darkDivider : AppColors.divider);
-    final shape =
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
+    final side = BorderSide(
+      color: isDark ? AppColors.darkDivider : AppColors.divider,
+    );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(children: [
-        Expanded(
-          child: isFollowing
-              ? OutlinedButton.icon(
-                  onPressed: () async {
-                    final ok = await ref
-                        .read(followNotifierProvider.notifier)
-                        .unfollow(user.id);
-                    if (!ok && context.mounted) notifySyncFailure(context);
-                  },
-                  icon: const Icon(Icons.check_rounded, size: 15),
-                  label: Text('Following',
-                      style: GoogleFonts.lato(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
+      child: Row(
+        children: [
+          Expanded(
+            child: isFollowing
+                ? OutlinedButton.icon(
+                    onPressed: () async {
+                      final ok = await ref
+                          .read(followNotifierProvider.notifier)
+                          .unfollow(user.id);
+                      if (!ok && context.mounted) notifySyncFailure(context);
+                    },
+                    icon: const Icon(Icons.check_rounded, size: 15),
+                    label: Text(
+                      'Following',
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
                       side: side,
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: shape),
-                )
-              : FilledButton.icon(
-                  onPressed: () async {
-                    final ok = await ref
-                        .read(followNotifierProvider.notifier)
-                        .follow(user.id);
-                    if (!ok && context.mounted) notifySyncFailure(context);
-                  },
-                  icon: const Icon(Icons.add_rounded, size: 15),
-                  label: Text('Follow',
-                      style: GoogleFonts.lato(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  style: FilledButton.styleFrom(
+                      shape: shape,
+                    ),
+                  )
+                : FilledButton.icon(
+                    onPressed: () async {
+                      final ok = await ref
+                          .read(followNotifierProvider.notifier)
+                          .follow(user.id);
+                      if (!ok && context.mounted) notifySyncFailure(context);
+                    },
+                    icon: const Icon(Icons.add_rounded, size: 15),
+                    label: Text(
+                      'Follow',
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
                       backgroundColor: isDark
                           ? AppColors.darkAccentOnFill
                           : AppColors.accentOnFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: shape),
-                ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => context
-                .push('/messages/${Uri.encodeComponent(user.id)}'),
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-            label: Text('Message',
-                style: GoogleFonts.lato(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
+                      shape: shape,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  context.push('/messages/${Uri.encodeComponent(user.id)}'),
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+              label: Text(
+                'Message',
+                style: AppFonts.ui(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
                 side: side,
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: shape),
+                shape: shape,
+              ),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -419,9 +463,10 @@ class _PostsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (posts.isEmpty) {
       return _EmptyTab(
-          icon: Icons.auto_stories_outlined,
-          label: 'No posts yet',
-          isDark: isDark);
+        icon: Icons.auto_stories_outlined,
+        label: 'No posts yet',
+        isDark: isDark,
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 24),
@@ -440,9 +485,10 @@ class _AudioTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (posts.isEmpty) {
       return _EmptyTab(
-          icon: Icons.headphones_rounded,
-          label: 'No audio posts yet',
-          isDark: isDark);
+        icon: Icons.headphones_rounded,
+        label: 'No audio posts yet',
+        isDark: isDark,
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 24),
@@ -456,8 +502,11 @@ class _EmptyTab extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isDark;
-  const _EmptyTab(
-      {required this.icon, required this.label, required this.isDark});
+  const _EmptyTab({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -468,17 +517,24 @@ class _EmptyTab extends StatelessWidget {
     // the way ListView-based tabs already tolerate the same tight space.
     return Center(
       child: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
               size: 48,
-              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-          const SizedBox(height: 12),
-          Text(label,
-              style: GoogleFonts.lato(
-                  fontSize: 14,
-                  color:
-                      isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
-        ]),
+              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: AppFonts.ui(
+                fontSize: 14,
+                color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/book.dart';
 import '../../services/local_store.dart';
 import '../../theme/app_theme.dart';
@@ -54,7 +53,12 @@ List<_FlatPage> _buildFlatPages(
       case BookPageType.titlePage:
       case BookPageType.backCover:
         result.add(
-          _FlatPage(source: page, subIndex: 0, subTotal: 1, bodyText: page.content),
+          _FlatPage(
+            source: page,
+            subIndex: 0,
+            subTotal: 1,
+            bodyText: page.content,
+          ),
         );
         break;
 
@@ -67,14 +71,21 @@ List<_FlatPage> _buildFlatPages(
             ? 'Introduction'
             : (page.chapterTitle ?? '');
         final headingStyle = isChapter
-            ? GoogleFonts.playfairDisplay(
-                fontSize: 18, fontWeight: FontWeight.w700, height: 1.35)
-            : GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w700);
+            ? AppFonts.display(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              )
+            : AppFonts.display(fontSize: 22, fontWeight: FontWeight.w700);
         final bodyStyle = isChapter
-            ? GoogleFonts.lora(fontSize: 16, height: 1.85)
+            ? AppFonts.reading(fontSize: 16, height: 1.85)
             : (page.type == BookPageType.introduction
-                ? GoogleFonts.lora(fontSize: 15, fontStyle: FontStyle.italic, height: 1.8)
-                : GoogleFonts.lora(fontSize: 15, height: 1.8));
+                  ? AppFonts.reading(
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                      height: 1.8,
+                    )
+                  : AppFonts.reading(fontSize: 15, height: 1.8));
 
         final headingTp = TextPainter(
           text: TextSpan(text: heading, style: headingStyle),
@@ -82,7 +93,8 @@ List<_FlatPage> _buildFlatPages(
         )..layout(maxWidth: contentWidth > 0 ? contentWidth : 1);
         final headingSpacing = isChapter ? 28.0 : (8.0 + 2.0 + 24.0);
 
-        var availableHeight = fullContentHeight - headingTp.height - headingSpacing;
+        var availableHeight =
+            fullContentHeight - headingTp.height - headingSpacing;
         if (availableHeight < 80) availableHeight = 80;
 
         final subPages = paginateTextToFit(
@@ -91,12 +103,14 @@ List<_FlatPage> _buildFlatPages(
           Size(contentWidth, availableHeight),
         );
         for (var i = 0; i < subPages.length; i++) {
-          result.add(_FlatPage(
-            source: page,
-            subIndex: i,
-            subTotal: subPages.length,
-            bodyText: subPages[i],
-          ));
+          result.add(
+            _FlatPage(
+              source: page,
+              subIndex: i,
+              subTotal: subPages.length,
+              bodyText: subPages[i],
+            ),
+          );
         }
         break;
     }
@@ -256,14 +270,16 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: isDark
-            ? const Color(0xFF0F0A06)
-            : const Color(0xFFFAF7F2),
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
         body: LayoutBuilder(
           builder: (context, constraints) {
             final bodySize = Size(constraints.maxWidth, constraints.maxHeight);
             final safePadding = MediaQuery.of(context).padding;
-            final flat = _buildFlatPages(widget.book.pages, bodySize, safePadding);
+            final flat = _buildFlatPages(
+              widget.book.pages,
+              bodySize,
+              safePadding,
+            );
             final labels = _buildFlatLabels(flat);
             final total = flat.length;
             final currentIndex = _currentIndex.clamp(0, total - 1);
@@ -276,7 +292,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
               child: Stack(
                 children: [
                   // ── Page content ─────────────────────────────────────────
-                  PageView.builder(
+                  BookPageView(
                     controller: _pageController,
                     itemCount: total,
                     onPageChanged: (i) {
@@ -318,7 +334,10 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                         child: AnimatedOpacity(
                           duration: const Duration(milliseconds: 220),
                           opacity: _barsVisible ? 0 : 1,
-                          child: _PageNumberBadge(label: pageLabel, isDark: isDark),
+                          child: _PageNumberBadge(
+                            label: pageLabel,
+                            isDark: isDark,
+                          ),
                         ),
                       ),
                     ),
@@ -359,8 +378,8 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         return _TextPage(
           heading: fp.subIndex == 0
               ? (page.type == BookPageType.introduction
-                  ? 'Introduction'
-                  : (page.chapterTitle ?? ''))
+                    ? 'Introduction'
+                    : (page.chapterTitle ?? ''))
               : null,
           content: fp.bodyText,
           isDark: isDark,
@@ -415,6 +434,7 @@ class _TopBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Back',
             icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: text),
             onPressed: onBack,
           ),
@@ -422,7 +442,7 @@ class _TopBar extends StatelessWidget {
             child: Text(
               title,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: text,
@@ -450,7 +470,7 @@ class _TopBar extends StatelessWidget {
                       child: Text(
                         '$bookmarkCount',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -509,7 +529,7 @@ class _PageNumberBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: text,
@@ -587,7 +607,7 @@ class _BookmarksSheet extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'Bookmarks',
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: text,
@@ -601,7 +621,7 @@ class _BookmarksSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 child: Text(
                   'No bookmarks yet. Tap the bookmark icon while reading to save a page.',
-                  style: GoogleFonts.lato(fontSize: 13, color: muted),
+                  style: AppFonts.ui(fontSize: 13, color: muted),
                 ),
               )
             else
@@ -632,7 +652,7 @@ class _BookmarksSheet extends StatelessWidget {
                         sectionText,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: text,
@@ -641,13 +661,11 @@ class _BookmarksSheet extends StatelessWidget {
                       subtitle: label != null
                           ? Text(
                               'Page $label',
-                              style: GoogleFonts.lato(
-                                fontSize: 12,
-                                color: muted,
-                              ),
+                              style: AppFonts.ui(fontSize: 12, color: muted),
                             )
                           : null,
                       trailing: IconButton(
+                        tooltip: 'Remove bookmark',
                         icon: Icon(Icons.close_rounded, size: 18, color: muted),
                         onPressed: () => onRemove(flatIndex),
                       ),
@@ -732,7 +750,7 @@ class _CoverPage extends StatelessWidget {
             Text(
               book.title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 34,
                 fontWeight: FontWeight.w700,
                 color: book.coverTextColor,
@@ -745,7 +763,7 @@ class _CoverPage extends StatelessWidget {
               Text(
                 book.subtitle,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.lora(
+                style: AppFonts.reading(
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
                   color: book.coverTextColor.withValues(alpha: 0.75),
@@ -761,7 +779,7 @@ class _CoverPage extends StatelessWidget {
             const Spacer(flex: 2),
             Text(
               book.authorName,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: book.coverTextColor.withValues(alpha: 0.85),
@@ -780,7 +798,7 @@ class _CoverPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'swipe to open',
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     color: book.coverTextColor.withValues(alpha: 0.4),
                     letterSpacing: 1.5,
@@ -820,7 +838,7 @@ class _TitlePage extends StatelessWidget {
             Text(
               book.title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
                 color: text,
@@ -832,7 +850,7 @@ class _TitlePage extends StatelessWidget {
               Text(
                 book.subtitle,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.lora(
+                style: AppFonts.reading(
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
                   color: muted,
@@ -845,7 +863,7 @@ class _TitlePage extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               book.authorName,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: text,
@@ -892,7 +910,7 @@ class _TextPage extends StatelessWidget {
             if (heading != null) ...[
               Text(
                 heading!,
-                style: GoogleFonts.playfairDisplay(
+                style: AppFonts.display(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: text,
@@ -905,13 +923,13 @@ class _TextPage extends StatelessWidget {
             Text(
               content,
               style: isIntro
-                  ? GoogleFonts.lora(
+                  ? AppFonts.reading(
                       fontSize: 15,
                       fontStyle: FontStyle.italic,
                       color: body,
                       height: 1.8,
                     )
-                  : GoogleFonts.lora(fontSize: 15, color: body, height: 1.8),
+                  : AppFonts.reading(fontSize: 15, color: body, height: 1.8),
             ),
           ],
         ),
@@ -949,7 +967,7 @@ class _ChapterPage extends StatelessWidget {
             if (chapterTitle != null) ...[
               Text(
                 chapterTitle!,
-                style: GoogleFonts.playfairDisplay(
+                style: AppFonts.display(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: text,
@@ -960,7 +978,7 @@ class _ChapterPage extends StatelessWidget {
             ],
             Text(
               content,
-              style: GoogleFonts.lora(fontSize: 16, color: body, height: 1.85),
+              style: AppFonts.reading(fontSize: 16, color: body, height: 1.85),
             ),
           ],
         ),
@@ -1001,7 +1019,7 @@ class _BackCoverPage extends StatelessWidget {
               const Spacer(flex: 2),
               Text(
                 content,
-                style: GoogleFonts.lora(
+                style: AppFonts.reading(
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
                   color: book.coverTextColor.withValues(alpha: 0.85),
@@ -1011,7 +1029,7 @@ class _BackCoverPage extends StatelessWidget {
               const Spacer(flex: 3),
               Text(
                 book.authorName,
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: book.coverTextColor.withValues(alpha: 0.6),

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../models/post.dart';
@@ -200,9 +199,12 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
                           ),
                           actions: [
                             IconButton(
-                              icon: const Icon(Icons.add_circle_outline_rounded),
+                              icon: const Icon(
+                                Icons.add_circle_outline_rounded,
+                              ),
                               tooltip: 'Create',
-                              onPressed: () => showCreateChooser(context, isDark),
+                              onPressed: () =>
+                                  showCreateChooser(context, isDark),
                             ),
                             IconButton(
                               icon: const Icon(Icons.search_rounded),
@@ -315,9 +317,8 @@ class _AudioCategoryBar extends ConsumerWidget {
                     activeColor: activeColor,
                     activeBg: activeBg,
                     inactiveColor: inactiveColor,
-                    onTap: () =>
-                        ref.read(audioFilterProvider.notifier).state =
-                            AudioFilter.following,
+                    onTap: () => ref.read(audioFilterProvider.notifier).state =
+                        AudioFilter.following,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -328,9 +329,8 @@ class _AudioCategoryBar extends ConsumerWidget {
                     activeColor: activeColor,
                     activeBg: activeBg,
                     inactiveColor: inactiveColor,
-                    onTap: () =>
-                        ref.read(audioFilterProvider.notifier).state =
-                            AudioFilter.narrators,
+                    onTap: () => ref.read(audioFilterProvider.notifier).state =
+                        AudioFilter.narrators,
                   ),
                 ),
               ],
@@ -371,7 +371,7 @@ class _AudioCategoryBar extends ConsumerWidget {
                       ),
                       child: Text(
                         cat.label,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                           color: isSel
@@ -428,7 +428,7 @@ class _AudioFilterTab extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 14,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected ? activeColor : inactiveColor,
@@ -480,7 +480,7 @@ class _MiniPlayer extends ConsumerWidget {
                   child: Center(
                     child: Text(
                       post.title.isEmpty ? '?' : post.title[0].toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.accent,
@@ -498,7 +498,7 @@ class _MiniPlayer extends ConsumerWidget {
                         post.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: titleColor,
@@ -506,10 +506,7 @@ class _MiniPlayer extends ConsumerWidget {
                       ),
                       Text(
                         post.author.displayName,
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          color: mutedColor,
-                        ),
+                        style: AppFonts.ui(fontSize: 11, color: mutedColor),
                       ),
                     ],
                   ),
@@ -667,7 +664,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
             widget.post.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.playfairDisplay(
+            style: AppFonts.display(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: titleColor,
@@ -683,7 +680,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
                     widget.post.author.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: secondaryColor,
@@ -701,7 +698,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
                 const SizedBox(width: 6),
                 Text(
                   '· ${timeago.format(widget.post.createdAt)}',
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
                 ),
               ],
             ),
@@ -739,13 +736,13 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
               children: [
                 Text(
                   formatAudioTime(position),
-                  style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 10, color: mutedColor),
                 ),
                 Text(
                   duration > Duration.zero
                       ? formatAudioTime(duration)
                       : '--:--',
-                  style: GoogleFonts.lato(fontSize: 10, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 10, color: mutedColor),
                 ),
               ],
             ),
@@ -758,6 +755,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
+                tooltip: 'Previous',
                 icon: const Icon(Icons.skip_previous_rounded),
                 iconSize: 26,
                 color: secondaryColor,
@@ -793,6 +791,7 @@ class _FeaturedPlayerState extends ConsumerState<_FeaturedPlayer> {
               ),
               const SizedBox(width: 4),
               IconButton(
+                tooltip: 'Next',
                 icon: const Icon(Icons.skip_next_rounded),
                 iconSize: 26,
                 color: secondaryColor,
@@ -916,7 +915,7 @@ class _EngagementRow extends ConsumerWidget {
                 ),
                 child: Text(
                   'Support',
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: isDark ? AppColors.darkAccent : AppColors.accent,
@@ -1002,7 +1001,7 @@ class _EngBtnState extends State<_EngBtn> with SingleTickerProviderStateMixin {
                     const SizedBox(width: 4),
                     Text(
                       widget.label,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         color: widget.color,
                         fontWeight: FontWeight.w500,
@@ -1098,7 +1097,7 @@ class _AudioListItem extends ConsumerWidget {
                           post.title.isEmpty
                               ? '?'
                               : post.title[0].toUpperCase(),
-                          style: GoogleFonts.playfairDisplay(
+                          style: AppFonts.display(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                             color: AppColors.accent,
@@ -1145,7 +1144,7 @@ class _AudioListItem extends ConsumerWidget {
                           ),
                           child: Text(
                             '${post.category.emoji} ${post.category.label}',
-                            style: GoogleFonts.lato(
+                            style: AppFonts.ui(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: AppColors.accent,
@@ -1159,7 +1158,7 @@ class _AudioListItem extends ConsumerWidget {
                       post.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
+                      style: AppFonts.display(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: titleColor,
@@ -1170,7 +1169,7 @@ class _AudioListItem extends ConsumerWidget {
                       onTap: () => context.push('/user/${post.author.id}'),
                       child: Text(
                         post.author.displayName,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           color: secondaryColor,
                           fontWeight: FontWeight.w500,
@@ -1195,10 +1194,7 @@ class _AudioListItem extends ConsumerWidget {
                     ] else
                       Text(
                         '▶ Tap to play',
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          color: mutedColor,
-                        ),
+                        style: AppFonts.ui(fontSize: 11, color: mutedColor),
                       ),
                   ],
                 ),
@@ -1233,7 +1229,7 @@ class _Pill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: AppColors.accent,
@@ -1265,7 +1261,7 @@ class _LoadMoreButton extends StatelessWidget {
             ),
             child: Text(
               'Load more',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -1304,7 +1300,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             filtered ? 'No audio posts in "$label"' : 'No audio posts yet',
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 14,
               color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
             ),

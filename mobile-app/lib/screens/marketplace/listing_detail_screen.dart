@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/book.dart';
 import '../../models/marketplace.dart';
@@ -156,16 +155,19 @@ class ListingDetailScreen extends ConsumerWidget {
                 ? AppColors.darkBackground
                 : AppColors.background,
             leading: IconButton(
+              tooltip: 'Back',
               icon: const Icon(Icons.arrow_back_rounded),
               onPressed: () => context.pop(),
             ),
             actions: [
               IconButton(
+                tooltip: 'Share',
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () => showShareSheet(
                   context,
                   title: listing.title,
-                  link: 'https://literature.app/marketplace/${listing.id}',
+                  link:
+                      'https://literature.app/marketplace/listing/${listing.id}',
                 ),
               ),
             ],
@@ -211,7 +213,7 @@ class ListingDetailScreen extends ConsumerWidget {
                   // Title
                   Text(
                     listing.title,
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
@@ -242,7 +244,7 @@ class ListingDetailScreen extends ConsumerWidget {
                                   listing.authorName.isEmpty
                                       ? '?'
                                       : listing.authorName[0].toUpperCase(),
-                                  style: GoogleFonts.playfairDisplay(
+                                  style: AppFonts.display(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.accent,
@@ -254,7 +256,7 @@ class ListingDetailScreen extends ConsumerWidget {
                                 child: Text(
                                   listing.authorName,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.lato(
+                                  style: AppFonts.ui(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: isDark
@@ -314,7 +316,7 @@ class ListingDetailScreen extends ConsumerWidget {
                   if (listing.description.isNotEmpty)
                     Text(
                       listing.description,
-                      style: GoogleFonts.lora(
+                      style: AppFonts.reading(
                         fontSize: 14,
                         height: 1.75,
                         color: isDark
@@ -446,7 +448,7 @@ class _CoverHero extends StatelessWidget {
               child: Center(
                 child: Text(
                   listing.title.isEmpty ? '?' : listing.title[0],
-                  style: GoogleFonts.playfairDisplay(
+                  style: AppFonts.display(
                     fontSize: 160,
                     fontWeight: FontWeight.w900,
                     color: Colors.white.withValues(alpha: 0.08),
@@ -527,7 +529,7 @@ class _RatingRow extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           listing.rating.toStringAsFixed(1),
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
@@ -539,7 +541,7 @@ class _RatingRow extends StatelessWidget {
             '(${listing.reviewCount} reviews)',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+            style: AppFonts.ui(fontSize: 13, color: mutedColor),
           ),
         ),
       ],
@@ -629,7 +631,7 @@ class _PriceCartRow extends ConsumerWidget {
                       accessLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.accent,
@@ -645,23 +647,20 @@ class _PriceCartRow extends ConsumerWidget {
       );
     }
 
-    // accentOnFill (darker than accent) keeps the white label at WCAG AA
-    // contrast for the solid "Add to Cart" / "Buy Now" / "Claim" fills.
-    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
-    final outline = isDark ? AppColors.darkAccent : AppColors.accent;
-
     // Free/Swap — no cart, no Stripe. A single Claim button (or, once
     // someone else has claimed it, a disabled "Already Claimed" state).
     if (listing.offer != ListingOffer.sale) {
       if (listing.isSoldOut) {
-        final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+        final mutedColor = isDark
+            ? AppColors.darkTextMuted
+            : AppColors.textMuted;
         return Row(
           children: [
             Icon(Icons.check_circle_rounded, size: 18, color: mutedColor),
             const SizedBox(width: 8),
             Text(
               'Already claimed',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: mutedColor,
@@ -680,7 +679,7 @@ class _PriceCartRow extends ConsumerWidget {
         children: [
           Text(
             listing.price,
-            style: GoogleFonts.lato(
+            style: AppFonts.ui(
               fontSize: 28,
               fontWeight: FontWeight.w700,
               color: _offerAccentColor(listing.offer),
@@ -689,25 +688,12 @@ class _PriceCartRow extends ConsumerWidget {
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            child: GestureDetector(
-              onTap: claim,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: fill,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Text(
-                  listing.offer == ListingOffer.free
-                      ? 'Claim for Free'
-                      : 'Claim This Swap',
-                  style: GoogleFonts.lato(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
+            child: FilledButton(
+              onPressed: claim,
+              child: Text(
+                listing.offer == ListingOffer.free
+                    ? 'Claim for Free'
+                    : 'Claim This Swap',
               ),
             ),
           ),
@@ -726,7 +712,7 @@ class _PriceCartRow extends ConsumerWidget {
       children: [
         Text(
           listing.price,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 28,
             fontWeight: FontWeight.w700,
             color: AppColors.accent,
@@ -737,8 +723,8 @@ class _PriceCartRow extends ConsumerWidget {
           children: [
             // Add to cart / remove
             Expanded(
-              child: GestureDetector(
-                onTap: () {
+              child: OutlinedButton.icon(
+                onPressed: () {
                   if (inCart) {
                     ref.read(cartProvider.notifier).remove(listing.id);
                   } else {
@@ -751,64 +737,23 @@ class _PriceCartRow extends ConsumerWidget {
                     );
                   }
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: inCart ? Colors.transparent : Colors.transparent,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: outline, width: 1.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        inCart
-                            ? Icons.check_rounded
-                            : Icons.shopping_cart_outlined,
-                        size: 18,
-                        color: outline,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          inCart ? 'In Cart' : 'Add to Cart',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.lato(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: outline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                icon: Icon(
+                  inCart ? Icons.check_rounded : Icons.shopping_cart_outlined,
+                  size: 18,
+                ),
+                label: Text(
+                  inCart ? 'In Cart' : 'Add to Cart',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
             const SizedBox(width: 10),
             // Buy Now — completes the purchase immediately, no cart required.
             Expanded(
-              child: GestureDetector(
-                onTap: buyNow,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: fill,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Text(
-                    'Buy Now',
-                    style: GoogleFonts.lato(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              child: FilledButton(
+                onPressed: buyNow,
+                child: const Text('Buy Now'),
               ),
             ),
           ],
@@ -834,60 +779,15 @@ class _PrimaryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill;
-    final mutedBg = isDark
-        ? AppColors.darkSurfaceVariant
-        : AppColors.surfaceVariant;
-    final mutedFg = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: comingSoon ? mutedBg : fill,
-          borderRadius: BorderRadius.circular(28),
-          border: comingSoon ? Border.all(color: borderColor) : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: comingSoon ? mutedFg : Colors.white),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.lato(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: comingSoon ? mutedFg : Colors.white,
-                ),
-              ),
-            ),
-            if (comingSoon) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: borderColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'SOON',
-                  style: GoogleFonts.lato(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                    color: mutedFg,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+    // Content not wired up yet for this listing: a disabled button that says
+    // so, rather than one that looks live and does nothing.
+    return FilledButton.icon(
+      onPressed: comingSoon ? null : onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        comingSoon ? '$label soon' : label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -908,8 +808,18 @@ bool _hasDetails(MarketplaceListing l) =>
     (l.offer == ListingOffer.swap && l.swapWantedFor != null);
 
 const _detailsMonthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 class _DetailsSection extends StatelessWidget {
@@ -929,15 +839,13 @@ class _DetailsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
       if (listing.condition != null) ('Condition', listing.condition!.label),
-      if (listing.quantity != null) ('Quantity available', '${listing.quantity}'),
+      if (listing.quantity != null)
+        ('Quantity available', '${listing.quantity}'),
       if (listing.edition != null) ('Edition / Language', listing.edition!),
       if (listing.offer == ListingOffer.swap && listing.swapWantedFor != null)
         ('Wants in exchange', listing.swapWantedFor!),
       if (listing.shippingMethods.isNotEmpty)
-        (
-          'Shipping',
-          listing.shippingMethods.map((m) => m.label).join(', '),
-        ),
+        ('Shipping', listing.shippingMethods.map((m) => m.label).join(', ')),
       if (listing.pickupLocation != null)
         ('Pickup Location', listing.pickupLocation!),
       if (listing.pickupPhone != null && canAccess)
@@ -974,8 +882,7 @@ class _DetailsSection extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0)
-              Divider(height: 1, color: borderColor),
+            if (i > 0) Divider(height: 1, color: borderColor),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -983,7 +890,7 @@ class _DetailsSection extends StatelessWidget {
                 children: [
                   Text(
                     rows[i].$1,
-                    style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 13, color: mutedColor),
                   ),
                   Flexible(
                     child: Text(
@@ -991,7 +898,7 @@ class _DetailsSection extends StatelessWidget {
                       textAlign: TextAlign.right,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: textColor,
@@ -1012,10 +919,10 @@ class _DetailsSection extends StatelessWidget {
 // marketplace_screen.dart's _offerChipColors) so Free/Swap read the same
 // wherever they show up.
 Color _offerAccentColor(ListingOffer offer) => switch (offer) {
-      ListingOffer.sale => AppColors.accent,
-      ListingOffer.free => const Color(0xFF2E8B57),
-      ListingOffer.swap => const Color(0xFFD4870F),
-    };
+  ListingOffer.sale => AppColors.accent,
+  ListingOffer.free => const Color(0xFF2E8B57),
+  ListingOffer.swap => const Color(0xFFD4870F),
+};
 
 bool _hasUploadedContent(MarketplaceListing l) =>
     l.pdfFileName != null ||
@@ -1182,7 +1089,7 @@ class _ContentRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: textColor,
@@ -1192,7 +1099,7 @@ class _ContentRow extends StatelessWidget {
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
                 ),
               ],
             ),
@@ -1240,7 +1147,7 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
   static const _hPad = 24.0;
   static const _vPad = 24.0;
 
-  TextStyle get _baseStyle => GoogleFonts.lora(fontSize: 17, height: 1.7);
+  TextStyle get _baseStyle => AppFonts.reading(fontSize: 17, height: 1.7);
 
   @override
   void initState() {
@@ -1463,7 +1370,7 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
                 if (_pages.isEmpty) {
                   return const SizedBox.shrink();
                 }
-                return PageView.builder(
+                return BookPageView(
                   controller: _controller,
                   itemCount: _pages.length,
                   onPageChanged: (i) {
@@ -1517,6 +1424,7 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
+                tooltip: 'Previous page',
                 onPressed: _index > 0 ? () => _go(-1) : null,
                 icon: const Icon(Icons.chevron_left_rounded),
                 color: textColor,
@@ -1524,13 +1432,14 @@ class _EbookReadScreenState extends State<_EbookReadScreen> {
               ),
               Text(
                 'Page ${_index + 1} of $total',
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 13,
                   color: muted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               IconButton(
+                tooltip: 'Next page',
                 onPressed: _index < total - 1 ? () => _go(1) : null,
                 icon: const Icon(Icons.chevron_right_rounded),
                 color: textColor,
@@ -1575,7 +1484,7 @@ class _RatingBreakdown extends StatelessWidget {
           children: [
             Text(
               listing.rating.toStringAsFixed(1),
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 48,
                 fontWeight: FontWeight.w700,
                 color: isDark
@@ -1598,7 +1507,7 @@ class _RatingBreakdown extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${listing.reviewCount}',
-              style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+              style: AppFonts.ui(fontSize: 11, color: mutedColor),
             ),
           ],
         ),
@@ -1616,7 +1525,7 @@ class _RatingBreakdown extends StatelessWidget {
                   children: [
                     Text(
                       '$stars',
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 11,
                         color: mutedColor,
                         fontWeight: FontWeight.w600,
@@ -1649,10 +1558,7 @@ class _RatingBreakdown extends StatelessWidget {
                       width: 32,
                       child: Text(
                         '${(frac * listing.reviewCount).round()}',
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          color: mutedColor,
-                        ),
+                        style: AppFonts.ui(fontSize: 11, color: mutedColor),
                       ),
                     ),
                   ],
@@ -1706,7 +1612,7 @@ class _ReviewCard extends StatelessWidget {
                     : AppColors.surfaceVariant,
                 child: Text(
                   review.reviewer[0].toUpperCase(),
-                  style: GoogleFonts.playfairDisplay(
+                  style: AppFonts.display(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.accent,
@@ -1720,7 +1626,7 @@ class _ReviewCard extends StatelessWidget {
                   children: [
                     Text(
                       review.reviewer,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: textColor,
@@ -1728,7 +1634,7 @@ class _ReviewCard extends StatelessWidget {
                     ),
                     Text(
                       '${review.daysAgo}d ago',
-                      style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                      style: AppFonts.ui(fontSize: 11, color: mutedColor),
                     ),
                   ],
                 ),
@@ -1750,7 +1656,7 @@ class _ReviewCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             review.body,
-            style: GoogleFonts.lora(
+            style: AppFonts.reading(
               fontSize: 13,
               height: 1.65,
               color: isDark
@@ -1825,7 +1731,7 @@ class _AuthorListingCard extends StatelessWidget {
                     listing.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: titleColor,
@@ -1834,7 +1740,7 @@ class _AuthorListingCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     listing.price,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: mutedColor,
@@ -1869,7 +1775,7 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,

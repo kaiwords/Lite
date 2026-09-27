@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/auth_provider.dart';
@@ -25,9 +24,12 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Settings',
-            style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          'Settings',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
@@ -106,7 +108,6 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +142,10 @@ void _showChangeUsername(BuildContext context, WidgetRef ref) {
           await UsersRepository.updateProfile(updated);
         } catch (_) {
           if (context.mounted) {
-            _snack(context, "Saved locally — couldn't sync to server");
+            _snack(
+              context,
+              "Saved on this device. Couldn't sync to the server.",
+            );
           }
         }
       },
@@ -168,8 +172,9 @@ void _showChangeEmail(BuildContext context) {
       onSave: (v) async {
         final email = v.trim();
         try {
-          await SupabaseService.client.auth
-              .updateUser(UserAttributes(email: email));
+          await SupabaseService.client.auth.updateUser(
+            UserAttributes(email: email),
+          );
           if (context.mounted) {
             _snack(context, 'Verification sent to $email');
           }
@@ -191,11 +196,13 @@ void _showLogOutConfirm(BuildContext context, WidgetRef ref) {
   showDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text('Log Out',
-          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
+      title: Text(
+        'Log Out',
+        style: AppFonts.display(fontWeight: FontWeight.w700),
+      ),
       content: Text(
         'Are you sure you want to log out?',
-        style: GoogleFonts.lato(fontSize: 14),
+        style: AppFonts.ui(fontSize: 14),
       ),
       actions: [
         TextButton(
@@ -206,6 +213,24 @@ void _showLogOutConfirm(BuildContext context, WidgetRef ref) {
           style: FilledButton.styleFrom(backgroundColor: AppColors.like),
           onPressed: () async {
             Navigator.pop(dialogContext);
+            // Held before any await: once signed out, the router can dispose
+            // this screen (and its `ref`) while cleanup is still running.
+            final container = ProviderScope.containerOf(context, listen: false);
+            // Sign out first: if it fails, the user is still signed in and
+            // their local data must stay intact.
+            try {
+              await SupabaseService.client.auth.signOut();
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Couldn't log out. Check your connection."),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
             // Wipe this account's locally-persisted data (posts, cart,
             // purchases, listings, comments, profile, follows — everything
             // except the theme) so the next sign-in starts clean…
@@ -213,18 +238,17 @@ void _showLogOutConfirm(BuildContext context, WidgetRef ref) {
             // …and drop the in-memory copies those providers already hold.
             // `currentUserProvider` itself is nulled by the SIGNED_OUT auth
             // event listener in app.dart.
-            ref.invalidate(postsNotifierProvider);
-            ref.invalidate(commentsProvider);
-            ref.invalidate(cartProvider);
-            ref.invalidate(purchasesProvider);
-            ref.invalidate(salesProvider);
-            ref.invalidate(sellerStripeStatusProvider);
-            ref.invalidate(myListingsProvider);
-            ref.invalidate(followNotifierProvider);
-            ref.invalidate(visibleCategoriesProvider);
-            // The router's auth-driven redirect (see app_router.dart) takes
-            // it from here and bounces to `/login` once the session clears.
-            await SupabaseService.client.auth.signOut();
+            container.invalidate(postsNotifierProvider);
+            container.invalidate(commentsProvider);
+            container.invalidate(cartProvider);
+            container.invalidate(purchasesProvider);
+            container.invalidate(salesProvider);
+            container.invalidate(sellerStripeStatusProvider);
+            container.invalidate(myListingsProvider);
+            container.invalidate(followNotifierProvider);
+            container.invalidate(visibleCategoriesProvider);
+            // The router's auth-driven redirect (see app_router.dart)
+            // bounces to `/login` now that the session is cleared.
           },
           child: const Text('Log Out'),
         ),
@@ -243,15 +267,17 @@ void _showReportBug(BuildContext context) {
       maxLines: 4,
       validate: (v) =>
           v.trim().length < 5 ? 'Please add a little more detail' : null,
-      onSave: (v) => _snack(context, 'Thanks — your report was sent.'),
+      onSave: (v) => _snack(context, 'Thanks, your report was sent.'),
     ),
   );
 }
 
 void _openInfo(BuildContext context, String title, String body) {
-  Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => _InfoScreen(title: title, body: body),
-  ));
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => _InfoScreen(title: title, body: body),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -269,7 +295,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 6),
       child: Text(
         label.toUpperCase(),
-        style: GoogleFonts.lato(
+        style: AppFonts.ui(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.2,
@@ -300,8 +326,9 @@ class _Tile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     return ListTile(
       leading: Container(
         width: 36,
@@ -312,14 +339,19 @@ class _Tile extends StatelessWidget {
         ),
         child: Icon(icon, size: 18, color: iconColor),
       ),
-      title: Text(label,
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor)),
-      trailing: Icon(Icons.chevron_right_rounded,
-          size: 20,
-          color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+      title: Text(
+        label,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: textColor,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        size: 20,
+        color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+      ),
       onTap: onTap,
     );
   }
@@ -337,8 +369,9 @@ class _ThemeTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
     final iconColor = isDark ? AppColors.darkAccent : AppColors.accent;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final subColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     final modeLabel = switch (mode) {
@@ -357,13 +390,18 @@ class _ThemeTile extends ConsumerWidget {
         ),
         child: Icon(Icons.palette_outlined, size: 18, color: iconColor),
       ),
-      title: Text('Theme',
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor)),
-      subtitle: Text(modeLabel,
-          style: GoogleFonts.lato(fontSize: 11, color: subColor)),
+      title: Text(
+        'Theme',
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: textColor,
+        ),
+      ),
+      subtitle: Text(
+        modeLabel,
+        style: AppFonts.ui(fontSize: 11, color: subColor),
+      ),
       trailing: _ThemeSegmentedControl(isDark: isDark),
     );
   }
@@ -397,17 +435,19 @@ class _ThemeSegmentedControl extends ConsumerWidget {
               color: active
                   ? AppColors.accent
                   : (isDark
-                      ? AppColors.darkSurfaceVariant
-                      : AppColors.surfaceVariant),
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(ic,
-                size: 17,
-                color: active
-                    ? Colors.white
-                    : (isDark
+            child: Icon(
+              ic,
+              size: 17,
+              color: active
+                  ? Colors.white
+                  : (isDark
                         ? AppColors.darkTextSecondary
-                        : AppColors.textSecondary)),
+                        : AppColors.textSecondary),
+            ),
           ),
         );
       }).toList(),
@@ -433,21 +473,27 @@ class _VersionTile extends StatelessWidget {
           color: AppColors.accent.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(Icons.info_outline_rounded,
-            size: 18,
-            color: isDark ? AppColors.darkAccent : AppColors.accent),
+        child: Icon(
+          Icons.info_outline_rounded,
+          size: 18,
+          color: isDark ? AppColors.darkAccent : AppColors.accent,
+        ),
       ),
-      title: Text('Version',
-          style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: isDark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.textPrimary)),
-      trailing: Text('1.0.0',
-          style: GoogleFonts.lato(
-              fontSize: 13,
-              color: isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
+      title: Text(
+        'Version',
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+        ),
+      ),
+      trailing: Text(
+        '1.0.0',
+        style: AppFonts.ui(
+          fontSize: 13,
+          color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+        ),
+      ),
     );
   }
 }
@@ -473,7 +519,7 @@ TextField _styledField({
     maxLines: obscure ? 1 : maxLines,
     obscureText: obscure,
     keyboardType: keyboardType,
-    style: GoogleFonts.lato(fontSize: 14, color: textColor),
+    style: AppFonts.ui(fontSize: 14, color: textColor),
     decoration: InputDecoration(
       labelText: label,
       prefixText: prefix,
@@ -481,10 +527,13 @@ TextField _styledField({
       filled: true,
       fillColor: fill,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
       focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.accent)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.accent),
+      ),
     ),
   );
 }
@@ -549,8 +598,10 @@ class _InputDialogState extends State<_InputDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AlertDialog(
-      title: Text(widget.title,
-          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w700)),
+      title: Text(
+        widget.title,
+        style: AppFonts.display(fontWeight: FontWeight.w700),
+      ),
       content: _styledField(
         controller: _c,
         label: widget.label,
@@ -562,12 +613,14 @@ class _InputDialogState extends State<_InputDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor:
-                isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+            backgroundColor: isDark
+                ? AppColors.darkAccentOnFill
+                : AppColors.accentOnFill,
             foregroundColor: Colors.white,
           ),
           onPressed: _submit,
@@ -590,20 +643,24 @@ class _InfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     return Scaffold(
       appBar: AppBar(
         title: Text(title, style: Theme.of(context).appBarTheme.titleTextStyle),
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-        child: Text(body,
-            style: GoogleFonts.lato(fontSize: 14, height: 1.6, color: textColor)),
+        child: Text(
+          body,
+          style: AppFonts.ui(fontSize: 14, height: 1.6, color: textColor),
+        ),
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/supabase_service.dart';
@@ -44,7 +43,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isValidEmail(String v) =>
       RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v);
 
-  bool _isValidUsername(String v) => RegExp(r'^[a-zA-Z0-9_]{3,20}$').hasMatch(v);
+  bool _isValidUsername(String v) =>
+      RegExp(r'^[a-zA-Z0-9_]{3,20}$').hasMatch(v);
 
   Future<void> _submit() async {
     final displayName = _displayName.text.trim();
@@ -60,8 +60,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
     if (!_isValidUsername(username)) {
-      setState(() => _formError =
-          'Username must be 3-20 characters — letters, numbers, and underscores only.');
+      setState(
+        () => _formError =
+            'Username must be 3-20 characters: letters, numbers, and underscores only.',
+      );
       return;
     }
     if (!_isValidEmail(email)) {
@@ -129,12 +131,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go('/login'),
         ),
@@ -150,7 +155,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 Text(
                   'Create your account',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: AppFonts.display(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: textColor,
@@ -160,7 +165,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 Text(
                   'Join Literature to read, write, and share.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.lato(fontSize: 14, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 14, color: mutedColor),
                 ),
                 const SizedBox(height: 28),
                 if (_awaitingEmailConfirmation) ...[
@@ -179,12 +184,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () => context.go('/login'),
-                    child: Text('Go to Log In',
-                        style: GoogleFonts.lato(
-                            fontSize: 15, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      'Go to Log In',
+                      style: AppFonts.ui(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ] else ...[
                   if (_formError != null) ...[
@@ -245,7 +255,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: _submitting ? null : _submit,
                     child: _submitting
@@ -253,26 +264,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
-                        : Text('Sign Up',
-                            style: GoogleFonts.lato(
-                                fontSize: 15, fontWeight: FontWeight.w700)),
+                        : Text(
+                            'Sign Up',
+                            style: AppFonts.ui(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Already have an account?',
-                          style: GoogleFonts.lato(fontSize: 13, color: mutedColor)),
+                      Text(
+                        'Already have an account?',
+                        style: AppFonts.ui(fontSize: 13, color: mutedColor),
+                      ),
                       TextButton(
-                        onPressed: _submitting ? null : () => context.go('/login'),
+                        onPressed: _submitting
+                            ? null
+                            : () => context.go('/login'),
                         child: Text(
                           'Log In',
-                          style: GoogleFonts.lato(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.darkAccent : AppColors.accent,
+                            color: isDark
+                                ? AppColors.darkAccent
+                                : AppColors.accent,
                           ),
                         ),
                       ),

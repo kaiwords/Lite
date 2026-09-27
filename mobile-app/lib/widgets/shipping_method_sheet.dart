@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/marketplace.dart';
 import '../theme/app_theme.dart';
@@ -15,7 +14,9 @@ Future<Map<String, ShippingSelection>?> pickShippingMethods(
   List<MarketplaceListing> listings,
 ) async {
   final needsChoice = listings
-      .where((l) => l.type == ListingType.physical && l.shippingMethods.isNotEmpty)
+      .where(
+        (l) => l.type == ListingType.physical && l.shippingMethods.isNotEmpty,
+      )
       .toList();
   if (needsChoice.isEmpty) return const {};
 
@@ -92,10 +93,16 @@ class _ShippingMethodSheetState extends State<_ShippingMethodSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.surface;
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final labelColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final labelColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final surfaceVariant = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+    final surfaceVariant = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.surfaceVariant;
 
     return SafeArea(
       top: false,
@@ -133,7 +140,7 @@ class _ShippingMethodSheetState extends State<_ShippingMethodSheet> {
               const SizedBox(height: 4),
               Text(
                 'How would you like to get this from the seller?',
-                style: GoogleFonts.lato(fontSize: 13, color: labelColor),
+                style: AppFonts.ui(fontSize: 13, color: labelColor),
               ),
               const SizedBox(height: 20),
               for (var i = 0; i < widget.listings.length; i++) ...[
@@ -156,20 +163,13 @@ class _ShippingMethodSheetState extends State<_ShippingMethodSheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isDark
-                        ? AppColors.darkAccentOnFill
-                        : AppColors.accentOnFill,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
                   onPressed: _continue,
                   child: Text(
                     'Continue to Payment',
-                    style: GoogleFonts.lato(fontWeight: FontWeight.w700, fontSize: 15),
+                    style: AppFonts.ui(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ),
@@ -214,7 +214,7 @@ class _ListingShippingCard extends StatelessWidget {
           listing.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.lato(
+          style: AppFonts.ui(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: titleColor,
@@ -230,20 +230,31 @@ class _ListingShippingCard extends StatelessWidget {
               onTap: () => onSelect(m),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: sel ? AppColors.accent.withValues(alpha: 0.15) : Colors.transparent,
+                  color: sel
+                      ? AppColors.accent.withValues(alpha: 0.15)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: sel ? AppColors.accent : borderColor),
+                  border: Border.all(
+                    color: sel ? AppColors.accent : borderColor,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(m.icon, size: 14, color: sel ? AppColors.accent : labelColor),
+                    Icon(
+                      m.icon,
+                      size: 14,
+                      color: sel ? AppColors.accent : labelColor,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       m.label,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: sel ? AppColors.accent : labelColor,
@@ -265,20 +276,23 @@ class _ListingShippingCard extends StatelessWidget {
             ),
             child: TextField(
               controller: placeController,
-              style: GoogleFonts.lato(fontSize: 14, color: titleColor),
+              style: AppFonts.ui(fontSize: 14, color: titleColor),
               decoration: InputDecoration(
                 hintText: 'Suggest a place/time, e.g. "Sat 2pm, Main St Cafe"',
-                hintStyle: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                hintStyle: AppFonts.ui(fontSize: 13, color: mutedColor),
                 filled: false,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 2),
           Text(
-            "The seller confirms after you pay — you'll see its status in your Library.",
-            style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+            "The seller confirms after you pay. You'll see its status in your Library.",
+            style: AppFonts.ui(fontSize: 11, color: mutedColor),
           ),
         ],
       ],

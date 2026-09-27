@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/conversation.dart';
 import '../../providers/conversations_provider.dart';
 import '../../theme/app_theme.dart';
@@ -31,14 +30,20 @@ class MessagesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
-        title: Text('Messages', style: Theme.of(context).appBarTheme.titleTextStyle),
+        title: Text(
+          'Messages',
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _showNewMessage(context)),
+            tooltip: 'New message',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => _showNewMessage(context),
+          ),
         ],
       ),
       body: Column(
@@ -61,8 +66,9 @@ class MessagesScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor:
-            isDark ? AppColors.darkAccentOnFill : AppColors.accentOnFill,
+        backgroundColor: isDark
+            ? AppColors.darkAccentOnFill
+            : AppColors.accentOnFill,
         onPressed: () => _showNewMessage(context),
         child: const Icon(Icons.edit_rounded, color: Colors.white),
       ),
@@ -81,26 +87,31 @@ class _SearchBar extends StatelessWidget {
       child: GestureDetector(
         onTap: () => context.push('/search'),
         child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.search_rounded,
-                size: 18, color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-            const SizedBox(width: 8),
-            Text(
-              'Search messages',
-              style: GoogleFonts.lato(
-                fontSize: 14,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search_rounded,
+                size: 18,
                 color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                'Search messages',
+                style: AppFonts.ui(
+                  fontSize: 14,
+                  color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -122,7 +133,9 @@ class ConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final name = conversation.peerName;
     final last = conversation.lastMessage;
@@ -130,8 +143,8 @@ class ConversationTile extends StatelessWidget {
     final hasUnread = conversation.hasUnread;
 
     return InkWell(
-      onTap: () => context
-          .push('/messages/${Uri.encodeComponent(conversation.id)}'),
+      onTap: () =>
+          context.push('/messages/${Uri.encodeComponent(conversation.id)}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -140,11 +153,12 @@ class ConversationTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor:
-                      isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
+                  backgroundColor: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
                   child: Text(
                     name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.accent,
@@ -162,7 +176,9 @@ class ConversationTile extends StatelessWidget {
                         color: AppColors.accent,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDark ? AppColors.darkBackground : AppColors.background,
+                          color: isDark
+                              ? AppColors.darkBackground
+                              : AppColors.background,
                           width: 2,
                         ),
                       ),
@@ -182,19 +198,23 @@ class ConversationTile extends StatelessWidget {
                         child: Text(
                           name,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.lato(
+                          style: AppFonts.ui(
                             fontSize: 15,
-                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: hasUnread
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: textColor,
                           ),
                         ),
                       ),
                       Text(
                         time,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           color: hasUnread ? AppColors.accent : mutedColor,
-                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: hasUnread
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -203,15 +223,18 @@ class ConversationTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.auto_stories_rounded,
-                            size: 11, color: AppColors.accent),
+                        Icon(
+                          Icons.auto_stories_rounded,
+                          size: 11,
+                          color: AppColors.accent,
+                        ),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
                             conversation.contextLabel!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.lato(
+                            style: AppFonts.ui(
                               fontSize: 11,
                               color: AppColors.accent,
                               fontWeight: FontWeight.w600,
@@ -231,24 +254,29 @@ class ConversationTile extends StatelessWidget {
                               : '${last.fromMe ? 'You: ' : ''}${last.text}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.lato(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             color: hasUnread ? textColor : mutedColor,
-                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
+                            fontWeight: hasUnread
+                                ? FontWeight.w500
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
                       if (conversation.unreadCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.accent,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             '${conversation.unreadCount}',
-                            style: GoogleFonts.lato(
+                            style: AppFonts.ui(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,

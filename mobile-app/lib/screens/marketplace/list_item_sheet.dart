@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/marketplace.dart';
 import '../../models/post.dart';
@@ -477,7 +476,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
     if (!await synced) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("Saved locally — couldn't sync to server"),
+          content: Text("Saved on this device. Couldn't sync to the server."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -516,7 +515,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               _isEdit
                   ? 'Update your listing details'
                   : 'Your listing will appear in the marketplace',
-              style: GoogleFonts.lato(fontSize: 13, color: labelColor),
+              style: AppFonts.ui(fontSize: 13, color: labelColor),
             ),
             const SizedBox(height: 20),
 
@@ -599,7 +598,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                             const SizedBox(height: 4),
                             Text(
                               t.label,
-                              style: GoogleFonts.lato(
+                              style: AppFonts.ui(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: sel ? t.badgeColor : labelColor,
@@ -617,7 +616,8 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
 
             // Book details — ISBN, publisher, publication date. Relevant to
             // Physical and E-Book listings; a pure Audio listing skips them.
-            if (_type == ListingType.physical || _type == ListingType.ebook) ...[
+            if (_type == ListingType.physical ||
+                _type == ListingType.ebook) ...[
               _FieldLabel('ISBN', isDark: isDark),
               const SizedBox(height: 6),
               _TextField(
@@ -672,7 +672,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                       ),
                       child: Text(
                         c.label,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: sel ? AppColors.accent : labelColor,
@@ -704,7 +704,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               const SizedBox(height: 4),
               Text(
                 'How can buyers get this copy from you?',
-                style: GoogleFonts.lato(fontSize: 11, color: labelColor),
+                style: AppFonts.ui(fontSize: 11, color: labelColor),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -746,7 +746,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                           const SizedBox(width: 6),
                           Text(
                             m.label,
-                            style: GoogleFonts.lato(
+                            style: AppFonts.ui(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: sel ? AppColors.accent : labelColor,
@@ -865,7 +865,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                   if (_audioVolumes.isNotEmpty)
                     Text(
                       '${_audioVolumes.length} ${_audioVolumes.length == 1 ? 'volume' : 'volumes'}',
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 12,
                         color: isDark
                             ? AppColors.darkTextMuted
@@ -950,7 +950,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                             ),
                             child: Text(
                               '${cat.emoji} ${cat.label}',
-                              style: GoogleFonts.lato(
+                              style: AppFonts.ui(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: sel ? Colors.white : labelColor,
@@ -1000,7 +1000,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                               const SizedBox(height: 4),
                               Text(
                                 o.label,
-                                style: GoogleFonts.lato(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: sel ? AppColors.accent : labelColor,
@@ -1031,7 +1031,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
                 ),
                 prefix: Text(
                   '\$ ',
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontWeight: FontWeight.w700,
                     color: AppColors.accent,
                   ),
@@ -1074,7 +1074,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
             onPressed: _submit,
             child: Text(
               _isEdit ? 'Save Changes' : 'List for Sale',
-              style: GoogleFonts.lato(fontWeight: FontWeight.w700, fontSize: 15),
+              style: AppFonts.ui(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
         ),
@@ -1088,8 +1088,18 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 class _DatePickerField extends StatelessWidget {
@@ -1129,7 +1139,7 @@ class _DatePickerField extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 color: date == null ? mutedColor : textColor,
               ),
@@ -1189,7 +1199,7 @@ class _SourceToggle extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: selected ? AppColors.accent : labelColor,
@@ -1252,7 +1262,7 @@ class _FileUploadBox extends StatelessWidget {
                     fileName!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: textColor,
@@ -1260,7 +1270,7 @@ class _FileUploadBox extends StatelessWidget {
                   ),
                   Text(
                     attachedLabel,
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
                   ),
                 ],
               ),
@@ -1269,7 +1279,7 @@ class _FileUploadBox extends StatelessWidget {
               onPressed: onPick,
               child: Text(
                 'Replace',
-                style: GoogleFonts.lato(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppColors.accent,
@@ -1309,7 +1319,7 @@ class _FileUploadBox extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               emptyTitle,
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -1318,7 +1328,7 @@ class _FileUploadBox extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               emptyHint,
-              style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+              style: AppFonts.ui(fontSize: 11, color: mutedColor),
             ),
           ],
         ),
@@ -1379,7 +1389,7 @@ class _VolumeTile extends StatelessWidget {
               children: [
                 TextField(
                   controller: titleController,
-                  style: GoogleFonts.lato(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: textColor,
@@ -1389,7 +1399,7 @@ class _VolumeTile extends StatelessWidget {
                     isCollapsed: true,
                     border: InputBorder.none,
                     hintText: 'Volume $volumeNumber',
-                    hintStyle: GoogleFonts.lato(
+                    hintStyle: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: mutedColor,
@@ -1401,7 +1411,7 @@ class _VolumeTile extends StatelessWidget {
                   fileName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
                 ),
               ],
             ),
@@ -1410,7 +1420,7 @@ class _VolumeTile extends StatelessWidget {
             onPressed: onReplace,
             child: Text(
               'Replace',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -1455,7 +1465,7 @@ class _AddVolumeButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'Add another volume',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -1524,7 +1534,7 @@ class _ChaptersBox extends StatelessWidget {
                 children: [
                   Text(
                     hasContent ? 'Continue writing' : 'Write your book',
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: textColor,
@@ -1535,14 +1545,14 @@ class _ChaptersBox extends StatelessWidget {
                     hasContent
                         ? '${chapters.length} ${chapters.length == 1 ? 'chapter' : 'chapters'} · $_totalWords ${_totalWords == 1 ? 'word' : 'words'}'
                         : 'Build your book chapter by chapter',
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
                   ),
                 ],
               ),
             ),
             Text(
               hasContent ? 'Edit' : 'Open',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -1617,7 +1627,7 @@ class _CoverPicker extends StatelessWidget {
                         imagePath != null ? 'Replace photo' : 'Choose photo',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.lato(
+                        style: AppFonts.ui(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.accent,
@@ -1633,14 +1643,14 @@ class _CoverPicker extends StatelessWidget {
                   onTap: onRemovePhoto,
                   child: Text(
                     'Remove photo',
-                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 12, color: mutedColor),
                   ),
                 ),
               ],
               const SizedBox(height: 12),
               Text(
                 'Or design a cover',
-                style: GoogleFonts.lato(fontSize: 11, color: labelColor),
+                style: AppFonts.ui(fontSize: 11, color: labelColor),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -1721,9 +1731,7 @@ class _CoverPreview extends StatelessWidget {
         child: Stack(
           children: [
             if (coverImage != null)
-              Positioned.fill(
-                child: Image.file(coverImage, fit: BoxFit.cover),
-              ),
+              Positioned.fill(child: Image.file(coverImage, fit: BoxFit.cover)),
             if (coverImage != null)
               Positioned.fill(
                 child: DecoratedBox(
@@ -1754,7 +1762,7 @@ class _CoverPreview extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: AppFonts.display(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -1773,7 +1781,7 @@ class _CoverPreview extends StatelessWidget {
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
                         color: Colors.white.withValues(alpha: 0.85),
@@ -1908,7 +1916,7 @@ class _ChapterListScreenState extends State<_ChapterListScreen> {
             onPressed: _done,
             child: Text(
               'Done',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -1955,10 +1963,7 @@ class _ChapterListScreenState extends State<_ChapterListScreen> {
             icon: const Icon(Icons.add_rounded),
             label: Text(
               'Add chapter',
-              style: GoogleFonts.lato(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
+              style: AppFonts.ui(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
         ),
@@ -2019,7 +2024,7 @@ class _ChapterCard extends StatelessWidget {
                     chapter.title.isEmpty
                         ? 'Chapter ${index + 1}'
                         : chapter.title,
-                    style: GoogleFonts.lato(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: textColor,
@@ -2028,7 +2033,7 @@ class _ChapterCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$wordCount ${wordCount == 1 ? 'word' : 'words'}',
-                    style: GoogleFonts.lato(fontSize: 11, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
                   ),
                 ],
               ),
@@ -2064,7 +2069,7 @@ class _EmptyChapters extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'No chapters yet',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: mutedColor,
@@ -2074,7 +2079,7 @@ class _EmptyChapters extends StatelessWidget {
             Text(
               'Tap "Add chapter" to start writing.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+              style: AppFonts.ui(fontSize: 12, color: mutedColor),
             ),
           ],
         ),
@@ -2110,7 +2115,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
   int _index = 0;
   Size? _pageSize; // measured text area of one page
 
-  TextStyle get _baseStyle => GoogleFonts.lora(fontSize: 16, height: 1.6);
+  TextStyle get _baseStyle => AppFonts.reading(fontSize: 16, height: 1.6);
 
   @override
   void initState() {
@@ -2331,7 +2336,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
             onPressed: _save,
             child: Text(
               'Save',
-              style: GoogleFonts.lato(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: AppColors.accent,
@@ -2348,7 +2353,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _chapterTitleCtrl,
-              style: GoogleFonts.playfairDisplay(
+              style: AppFonts.display(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -2357,7 +2362,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
                 isDense: true,
                 border: InputBorder.none,
                 hintText: 'Chapter title',
-                hintStyle: GoogleFonts.playfairDisplay(
+                hintStyle: AppFonts.display(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: mutedColor,
@@ -2390,7 +2395,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
                       isDense: true,
                       isExpanded: true,
                       borderRadius: BorderRadius.circular(12),
-                      style: GoogleFonts.lato(
+                      style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: textColor,
@@ -2413,7 +2418,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
                 ),
                 Text(
                   ' of ${_pages.length}',
-                  style: GoogleFonts.lato(fontSize: 13, color: mutedColor),
+                  style: AppFonts.ui(fontSize: 13, color: mutedColor),
                 ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right_rounded),
@@ -2435,7 +2440,7 @@ class _WriteBookScreenState extends State<_WriteBookScreen> {
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.lato(fontSize: 12, color: mutedColor),
+                    style: AppFonts.ui(fontSize: 12, color: mutedColor),
                   ),
                 ),
               ],
@@ -2589,7 +2594,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.lato(
+      style: AppFonts.ui(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
@@ -2637,10 +2642,10 @@ class _TextField extends StatelessWidget {
               controller: controller,
               keyboardType: keyboardType,
               maxLines: maxLines,
-              style: GoogleFonts.lato(fontSize: 14, color: textColor),
+              style: AppFonts.ui(fontSize: 14, color: textColor),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: GoogleFonts.lato(
+                hintStyle: AppFonts.ui(
                   color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                 ),
                 filled: false,
