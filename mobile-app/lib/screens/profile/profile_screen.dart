@@ -15,7 +15,8 @@ import '../../providers/feed_provider.dart';
 import '../../services/local_store.dart';
 import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/audio_post_card.dart';
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// import '../../widgets/audio_post_card.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/edit_profile_sheet.dart';
 import '../../widgets/post_card.dart';
@@ -90,7 +91,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    // Audio tab disabled — Posts + Saved only (was 3 with Audio).
+    _tabs = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -109,14 +111,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final allPosts = ref.watch(postsNotifierProvider);
     final userPosts = allPosts.where((p) => p.author.id == user.id).toList();
-    final audioPosts = userPosts.where((p) => p.audioUrl != null).toList();
+    // Audio disabled:
+    // final audioPosts = userPosts.where((p) => p.audioUrl != null).toList();
     final savedPosts = allPosts.where((p) => p.isFavourited).toList();
 
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
 
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 4),
+      // Audio tab disabled — Profile moved from index 4 to 3.
+      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 3),
       // NestedScrollView lets the header scroll away with the content while
       // the tab bar stays pinned — so scrolling moves everything, not just
       // the post list.
@@ -127,7 +131,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               user: user,
               isDark: isDark,
               postCount: userPosts.length,
-              audioCount: audioPosts.length,
+              // audioCount: audioPosts.length, // Audio disabled
               savedCount: savedPosts.length,
             ),
           ),
@@ -138,7 +142,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               isDark: isDark,
               tabs: [
                 Tab(text: 'Posts (${userPosts.length})'),
-                Tab(text: 'Audio (${audioPosts.length})'),
+                // Tab(text: 'Audio (${audioPosts.length})'), // Audio disabled
                 Tab(text: 'Saved (${savedPosts.length})'),
               ],
             ),
@@ -148,7 +152,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           controller: _tabs,
           children: [
             _PostsTab(posts: userPosts, isDark: isDark),
-            _AudioTab(posts: audioPosts, isDark: isDark),
+            // _AudioTab(posts: audioPosts, isDark: isDark), // Audio disabled
             _SavedTab(posts: savedPosts, isDark: isDark),
           ],
         ),
@@ -165,14 +169,14 @@ class _ProfileHeader extends StatelessWidget {
   final LitUser user;
   final bool isDark;
   final int postCount;
-  final int audioCount;
+  // final int audioCount; // Audio disabled
   final int savedCount;
 
   const _ProfileHeader({
     required this.user,
     required this.isDark,
     required this.postCount,
-    required this.audioCount,
+    // required this.audioCount, // Audio disabled
     required this.savedCount,
   });
 
@@ -690,27 +694,28 @@ class _PostsTab extends ConsumerWidget {
   }
 }
 
-class _AudioTab extends StatelessWidget {
-  final List<Post> posts;
-  final bool isDark;
-  const _AudioTab({required this.posts, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    if (posts.isEmpty) {
-      return _EmptyTab(
-        icon: Icons.headphones_rounded,
-        label: 'No audio posts yet',
-        isDark: isDark,
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
-      itemCount: posts.length,
-      itemBuilder: (_, i) => AudioPostCard(post: posts[i]),
-    );
-  }
-}
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// class _AudioTab extends StatelessWidget {
+//   final List<Post> posts;
+//   final bool isDark;
+//   const _AudioTab({required this.posts, required this.isDark});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     if (posts.isEmpty) {
+//       return _EmptyTab(
+//         icon: Icons.headphones_rounded,
+//         label: 'No audio posts yet',
+//         isDark: isDark,
+//       );
+//     }
+//     return ListView.builder(
+//       padding: const EdgeInsets.only(top: 8, bottom: 24),
+//       itemCount: posts.length,
+//       itemBuilder: (_, i) => AudioPostCard(post: posts[i]),
+//     );
+//   }
+// }
 
 class _SavedTab extends ConsumerWidget {
   final List<Post> posts;

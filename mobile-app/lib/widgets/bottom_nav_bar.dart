@@ -11,12 +11,14 @@ const _tabs = [
     label: 'Home',
     path: '/',
   ),
-  _NavItem(
-    icon: Icons.headphones_outlined,
-    activeIcon: Icons.headphones_rounded,
-    label: 'Audio',
-    path: '/audio',
-  ),
+  // AUDIO DISABLED (2026-09-30): book/e-book only for now. Restore this item
+  // (and bump every screen's `currentIndex` back up by one) to re-enable.
+  // _NavItem(
+  //   icon: Icons.headphones_outlined,
+  //   activeIcon: Icons.headphones_rounded,
+  //   label: 'Audio',
+  //   path: '/audio',
+  // ),
   _NavItem(
     icon: Icons.storefront_outlined,
     activeIcon: Icons.storefront_rounded,
@@ -89,7 +91,6 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
     final inactiveColor = isDark
         ? AppColors.darkTextMuted
         : AppColors.textMuted;
-    final ribbonColor = isDark ? AppColors.darkBookmark : AppColors.bookmark;
 
     return Container(
       decoration: BoxDecoration(
@@ -132,64 +133,50 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
                     child: AnimatedBuilder(
                       animation: _popCtrl,
                       builder: (context, _) {
-                        // The active tab's ribbon bookmark drops down from
-                        // the top edge; the icon gets a springy
+                        // The active tab's icon gets a springy
                         // overshoot-then-settle so landing on a tab feels
                         // like it "arrives" rather than just appearing.
-                        final entrance = Curves.easeOut.transform(
-                          _popCtrl.value,
-                        );
                         final bounce = Curves.easeOutBack.transform(
                           _popCtrl.value,
                         );
                         final iconScale = isActive ? (0.6 + 0.4 * bounce) : 1.0;
 
-                        return Stack(
-                          alignment: Alignment.topCenter,
-                          children: [
-                            if (isActive)
-                              _Ribbon(
-                                color: ribbonColor,
-                                height: 12 * entrance,
-                              ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 14),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                    ),
-                                    child: Transform.scale(
-                                      scale: iconScale,
-                                      child: Icon(
-                                        isActive ? tab.activeIcon : tab.icon,
-                                        color: isActive
-                                            ? activeColor
-                                            : inactiveColor,
-                                        size: 24,
-                                      ),
-                                    ),
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                child: Transform.scale(
+                                  scale: iconScale,
+                                  child: Icon(
+                                    isActive ? tab.activeIcon : tab.icon,
+                                    color: isActive
+                                        ? activeColor
+                                        : inactiveColor,
+                                    size: 24,
                                   ),
-                                  const SizedBox(height: 2),
-                                  AnimatedDefaultTextStyle(
-                                    duration: const Duration(milliseconds: 200),
-                                    style: AppFonts.ui(
-                                      fontSize: 10,
-                                      fontWeight: isActive
-                                          ? FontWeight.w700
-                                          : FontWeight.w400,
-                                      color: isActive
-                                          ? activeColor
-                                          : inactiveColor,
-                                    ),
-                                    child: Text(tab.label),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 200),
+                                style: AppFonts.ui(
+                                  fontSize: 10,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: isActive
+                                      ? activeColor
+                                      : inactiveColor,
+                                ),
+                                child: Text(tab.label),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -202,39 +189,6 @@ class _LiteratureBottomNavBarState extends ConsumerState<LiteratureBottomNavBar>
       ),
     );
   }
-}
-
-/// A cloth ribbon bookmark with a notched tail, hanging from the top edge.
-class _Ribbon extends StatelessWidget {
-  final Color color;
-  final double height;
-  const _Ribbon({required this.color, required this.height});
-
-  @override
-  Widget build(BuildContext context) =>
-      CustomPaint(size: Size(14, height), painter: _RibbonPainter(color));
-}
-
-class _RibbonPainter extends CustomPainter {
-  final Color color;
-  _RibbonPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.height <= 0) return;
-    final notch = size.height * 0.3;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width / 2, size.height - notch)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_RibbonPainter old) => old.color != color;
 }
 
 class _NavItem {

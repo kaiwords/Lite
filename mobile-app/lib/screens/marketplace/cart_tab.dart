@@ -43,16 +43,9 @@ class _CartTab extends ConsumerWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             itemCount: cart.length,
-            // A faint (near-invisible) hairline between rows — matches
-            // Library/My Listings/Sales.
-            separatorBuilder: (_, _) => Divider(
-              height: 1,
-              color: (isDark ? AppColors.darkDivider : AppColors.divider)
-                  .withValues(alpha: 0.4),
-            ),
             itemBuilder: (_, i) => _CartListRow(
               listing: cart[i],
               coverColor: coverPalette[i % coverPalette.length],
@@ -60,35 +53,40 @@ class _CartTab extends ConsumerWidget {
             ),
           ),
         ),
-        // Checkout footer
+        // Checkout footer — a rounded sheet lifting off the list, with the
+        // total and the storefront's gold Checkout button.
         Container(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : AppColors.surface,
-            border: Border(
-              top: BorderSide(
-                color: isDark ? AppColors.darkDivider : AppColors.divider,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, -4),
               ),
-            ),
+            ],
           ),
           child: Column(
             children: [
               Row(
                 children: [
                   Text(
-                    'Subtotal',
-                    style: AppFonts.ui(
-                      fontSize: 14,
+                    'Total',
+                    style: AppFonts.display(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                       color: isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.textMuted,
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     '\$${total.toStringAsFixed(2)}',
                     style: AppFonts.ui(
-                      fontSize: 16,
+                      fontSize: 21,
                       fontWeight: FontWeight.w700,
                       color: isDark
                           ? AppColors.darkTextPrimary
@@ -100,7 +98,9 @@ class _CartTab extends ConsumerWidget {
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
+                height: 52,
                 child: FilledButton(
+                  style: mktFilledStyle(radius: 16),
                   onPressed: () async {
                     // One order, one Payment Sheet, for the whole cart —
                     // even when it spans multiple sellers (see
@@ -114,13 +114,7 @@ class _CartTab extends ConsumerWidget {
                       notifier.remove(item.id);
                     }
                   },
-                  child: Text(
-                    'Checkout',
-                    style: AppFonts.ui(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
+                  child: const Text('Checkout'),
                 ),
               ),
             ],
@@ -152,12 +146,19 @@ class _CartListRow extends ConsumerWidget {
         : AppColors.textPrimary;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
 
-    // Striped cover thumbnail (56×80) — same placeholder motif as the Books
-    // grid/list, so a listing reads consistently wherever it shows up.
+    // Rounded storefront card: cover thumbnail, details, and a trash button.
     return GestureDetector(
       onTap: () => context.push('/marketplace/listing/${listing.id}'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
+          ),
+        ),
         child: Row(
           children: [
             ListingCover(
@@ -165,14 +166,14 @@ class _CartListRow extends ConsumerWidget {
               fallbackColor: coverColor,
               width: 56,
               height: 80,
-              borderRadius: 7,
+              borderRadius: 8,
               showLabel: false,
             ),
 
             // Details
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+                padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -199,9 +200,9 @@ class _CartListRow extends ConsumerWidget {
                     Text(
                       listing.price,
                       style: AppFonts.ui(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accent,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: offerPriceColor(listing.offer, isDark),
                       ),
                     ),
                   ],
@@ -211,7 +212,11 @@ class _CartListRow extends ConsumerWidget {
 
             // Remove button
             IconButton(
-              icon: Icon(Icons.close_rounded, size: 20, color: mutedColor),
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                size: 20,
+                color: mutedColor,
+              ),
               tooltip: 'Remove',
               onPressed: () =>
                   ref.read(cartProvider.notifier).remove(listing.id),
@@ -249,13 +254,13 @@ class _EmptyCart extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: const Color(0xFFF7E6D2),
+                color: MktColors.goldFill.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.shopping_bag_outlined,
                 size: 28,
-                color: Color(0xFFB4692A),
+                color: MktColors.text(isDark),
               ),
             ),
             const SizedBox(height: 16),
@@ -276,6 +281,7 @@ class _EmptyCart extends StatelessWidget {
             if (onBrowseBooks != null) ...[
               const SizedBox(height: 18),
               FilledButton(
+                style: mktFilledStyle(),
                 onPressed: onBrowseBooks,
                 child: const Text('Browse Books'),
               ),

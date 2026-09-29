@@ -29,6 +29,8 @@ class PostsRepository {
       'cover_image_url': post.coverImageUrl,
       'linked_listing_id': post.linkedListingId,
       'book_id': post.bookId,
+      'show_table_of_contents': post.showTableOfContents,
+      'show_page_numbers': post.showPageNumbers,
     });
     if (post.pages.isNotEmpty) {
       await _client.from('post_pages').insert([
@@ -80,6 +82,9 @@ class PostsRepository {
       pages: pageRows
           .map((r) => PostPage(title: r['title'] as String?, content: r['content'] as String))
           .toList(),
+      showTableOfContents:
+          (row['show_table_of_contents'] as bool?) ?? false,
+      showPageNumbers: (row['show_page_numbers'] as bool?) ?? false,
     );
   }
 }

@@ -15,29 +15,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:literature/app.dart';
 import 'package:literature/models/marketplace.dart';
 import 'package:literature/models/user.dart';
-import 'package:literature/providers/audio_provider.dart';
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// import 'package:literature/providers/audio_provider.dart';
 import 'package:literature/providers/auth_provider.dart';
 import 'package:literature/router/app_router.dart';
-import 'package:literature/screens/audio/audiobook_player_screen.dart';
+// import 'package:literature/screens/audio/audiobook_player_screen.dart'; // Audio disabled
 import 'package:literature/screens/marketplace/list_item_sheet.dart';
 import 'package:literature/widgets/listing_buy_sheet.dart';
 import 'package:literature/widgets/tip_sheet.dart';
 
 import 'helpers/test_env.dart';
 
-/// Stands in for [AudioPlayerController] in tests: [AudiobookPlayerScreen]
-/// starts real playback in `initState`, and the real controller hits the
-/// network via `just_audio` — in the sandboxed test environment that
-/// connection attempt doesn't fail fast, it hangs for many minutes before
-/// timing out. Overriding `playQueue`/`stop` to no-ops keeps the test
-/// exercising real layout code without ever touching the network.
-class _NoopAudioController extends AudioPlayerController {
-  @override
-  Future<void> playQueue(List<AudioTrack> tracks, {int startIndex = 0}) async {}
-
-  @override
-  void stop() {}
-}
+// AUDIO DISABLED (2026-09-30):
+// /// Stands in for [AudioPlayerController] in tests: [AudiobookPlayerScreen]
+// /// starts real playback in `initState`, and the real controller hits the
+// /// network via `just_audio` — in the sandboxed test environment that
+// /// connection attempt doesn't fail fast, it hangs for many minutes before
+// /// timing out. Overriding `playQueue`/`stop` to no-ops keeps the test
+// /// exercising real layout code without ever touching the network.
+// class _NoopAudioController extends AudioPlayerController {
+//   @override
+//   Future<void> playQueue(List<AudioTrack> tracks, {int startIndex = 0}) async {}
+//
+//   @override
+//   void stop() {}
+// }
 
 const _sizes = {
   'iPhone SE (320x568)': Size(320, 568),
@@ -134,7 +136,7 @@ void main() {
       // matching the shapes app_router.dart expects.
       final routes = <String, Object?>{
         '/': null,
-        '/audio': null,
+        // '/audio': null, // Audio disabled — route is commented out
         '/marketplace': null,
         '/alerts': null,
         '/profile': null,
@@ -149,7 +151,7 @@ void main() {
         '/messages/u2': null,
         // Marketplace-context conversation — renders the "About: <listing>"
         // label row under the peer name (`contextLabel` in conversation.dart);
-        // 'sc2' has one of the longer labels ("Echoes in the Dark (Audio)").
+        // 'sc2' has one of the longer labels ("Echoes in the Dark (E-Book)").
         '/messages/sc2': null,
         '/marketplace/notifications': null,
         '/marketplace/messages': null,
@@ -157,8 +159,9 @@ void main() {
         '/marketplace/listing/m1': null,
         // E-book.
         '/marketplace/listing/m5': null,
-        // Audio book with a linked feed post.
-        '/marketplace/listing/m9': null,
+        // Audio disabled: the m9 audio listing is commented out of the demo
+        // data, so its detail route has nothing to render.
+        // '/marketplace/listing/m9': null,
         // E-book listed via the chapter-builder (has ebookChapters).
         '/marketplace/listing/mBook1': null,
         '/user/u1': null,
@@ -218,65 +221,64 @@ void main() {
       });
 
       // ── Audiobook player (audiobook_player_screen.dart) ──────────────────
-      // Volume rows now show both a seller-chosen title *and* the uploaded
-      // filename (two lines where there used to be one), alongside a
-      // duration label — a prime overflow candidate on narrow screens.
-      testWidgets('audiobook player has no overflow', (tester) async {
-        _setScreenSize(tester, size);
-        await _pumpApp(
-          tester,
-          overrides: [
-            audioPlayerProvider.overrideWith((ref) => _NoopAudioController()),
-          ],
-        );
+      // AUDIO DISABLED (2026-09-30): the player screen is commented out, so
+      // this test is too.
+      // testWidgets('audiobook player has no overflow', (tester) async {
+      //   _setScreenSize(tester, size);
+      //   await _pumpApp(
+      //     tester,
+      //     overrides: [
+      //       audioPlayerProvider.overrideWith((ref) => _NoopAudioController()),
+      //     ],
+      //   );
+      //
+      //   const listing = MarketplaceListing(
+      //     id: 'test-audiobook',
+      //     title: 'A Very Long Audiobook Title That Keeps Going',
+      //     authorName: 'Eleanor Voss',
+      //     price: '\$9.99',
+      //     type: ListingType.audio,
+      //     rating: 4.5,
+      //     reviewCount: 10,
+      //     audioVolumes: [
+      //       AudioVolume(
+      //         title: 'Volume One: The Extremely Long Chapter Name',
+      //         fileName: 'a-very-long-original-upload-filename-track-01.mp3',
+      //       ),
+      //       AudioVolume(title: 'Vol. 2', fileName: 'short.mp3'),
+      //     ],
+      //   );
+      //
+      //   final context = tester.element(find.byType(Scaffold).first);
+      //   // Note: deliberately not `await`ed — Navigator.push()'s Future only
+      //   // completes when the route is later popped (never, here), not when
+      //   // it's built; awaiting it would hang the test forever.
+      //   unawaited(
+      //     Navigator.of(context).push(
+      //       MaterialPageRoute<void>(
+      //         builder: (_) => const AudiobookPlayerScreen(listing: listing),
+      //       ),
+      //     ),
+      //   );
+      //   await tester.pump();
+      //   await tester.pump(const Duration(milliseconds: 300));
+      //   await tester.pump(const Duration(milliseconds: 300));
+      //
+      //   _expectNoOverflow(tester, 'audiobook player at $size');
+      //
+      //   // Pop before the test ends: AudiobookPlayerScreen.dispose() reads a
+      //   // provider (`ref.read(audioPlayerProvider.notifier).stop()`), which
+      //   // requires the ProviderScope to still be alive. If this screen is
+      //   // left on the stack, the *next* test's pumpWidget() tears down the
+      //   // whole tree (this screen + the ProviderScope) in the same pass,
+      //   // and dispose() can run after the ProviderScope element is already
+      //   // gone — throwing "Cannot use ref after the widget was disposed"
+      //   // and cascading a StateError into unrelated later tests.
+      //   Navigator.of(context).pop();
+      //   await tester.pump();
+      // });
 
-        const listing = MarketplaceListing(
-          id: 'test-audiobook',
-          title: 'A Very Long Audiobook Title That Keeps Going',
-          authorName: 'Eleanor Voss',
-          price: '\$9.99',
-          type: ListingType.audio,
-          rating: 4.5,
-          reviewCount: 10,
-          audioVolumes: [
-            AudioVolume(
-              title: 'Volume One: The Extremely Long Chapter Name',
-              fileName: 'a-very-long-original-upload-filename-track-01.mp3',
-            ),
-            AudioVolume(title: 'Vol. 2', fileName: 'short.mp3'),
-          ],
-        );
-
-        final context = tester.element(find.byType(Scaffold).first);
-        // Note: deliberately not `await`ed — Navigator.push()'s Future only
-        // completes when the route is later popped (never, here), not when
-        // it's built; awaiting it would hang the test forever.
-        unawaited(
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const AudiobookPlayerScreen(listing: listing),
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
-
-        _expectNoOverflow(tester, 'audiobook player at $size');
-
-        // Pop before the test ends: AudiobookPlayerScreen.dispose() reads a
-        // provider (`ref.read(audioPlayerProvider.notifier).stop()`), which
-        // requires the ProviderScope to still be alive. If this screen is
-        // left on the stack, the *next* test's pumpWidget() tears down the
-        // whole tree (this screen + the ProviderScope) in the same pass,
-        // and dispose() can run after the ProviderScope element is already
-        // gone — throwing "Cannot use ref after the widget was disposed"
-        // and cascading a StateError into unrelated later tests.
-        Navigator.of(context).pop();
-        await tester.pump();
-      });
-
-      // ── Sell flow: List a Book sheet, both E-Book and Audio types ────────
+      // ── Sell flow: List a Book sheet (Audio disabled 2026-09-30) ─────────
       testWidgets('list item sheet (ebook) has no overflow', (tester) async {
         _setScreenSize(tester, size);
         await _pumpApp(tester);
@@ -296,28 +298,27 @@ void main() {
         _expectNoOverflow(tester, 'list item sheet (ebook) at $size');
       });
 
-      testWidgets('list item sheet (audio) has no overflow', (tester) async {
-        _setScreenSize(tester, size);
-        await _pumpApp(tester);
+      // AUDIO DISABLED (2026-09-30): the audio sell flow is commented out.
+      // testWidgets('list item sheet (audio) has no overflow', (tester) async {
+      //   _setScreenSize(tester, size);
+      //   await _pumpApp(tester);
+      //
+      //   final context = tester.element(find.byType(Scaffold).first);
+      //   Navigator.of(context).push(
+      //     MaterialPageRoute<void>(
+      //       builder: (_) => const ListItemSheet(
+      //         isDark: false,
+      //         initialType: ListingType.audio,
+      //       ),
+      //     ),
+      //   );
+      //   await tester.pump();
+      //   await tester.pump(const Duration(milliseconds: 300));
+      //
+      //   _expectNoOverflow(tester, 'list item sheet (audio) at $size');
+      // });
 
-        final context = tester.element(find.byType(Scaffold).first);
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const ListItemSheet(
-              isDark: false,
-              initialType: ListingType.audio,
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-
-        _expectNoOverflow(tester, 'list item sheet (audio) at $size');
-      });
-
-      testWidgets('list item sheet (physical) has no overflow', (
-        tester,
-      ) async {
+      testWidgets('list item sheet (physical) has no overflow', (tester) async {
         _setScreenSize(tester, size);
         await _pumpApp(tester);
 
@@ -432,19 +433,15 @@ void main() {
         _expectNoOverflow(tester, 'write-book editor at $size');
       });
 
-      // ── Marketplace section screens (Books / Cart / My Library /
-      // My Listings / Sales) — these are pushed via Navigator from the
-      // section tiles on MarketplaceScreen rather than being GoRoutes, so
-      // the route-table loop above never reaches them. They're exactly the
+      // ── Marketplace section screens (Cart / My Library / My Listings /
+      // Sales) — these are pushed via Navigator from the storefront's
+      // quick-access pills on MarketplaceScreen rather than being GoRoutes,
+      // so the route-table loop above never reaches them. (The old "Books"
+      // section is gone: the storefront home *is* the book browse now, and
+      // the '/marketplace' route pump above covers it.) They're exactly the
       // tabs that were recently split into cart_tab.dart/library_tab.dart/
       // my_listings_tab.dart/sales_tab.dart, so worth covering directly.
-      for (final section in [
-        'Books',
-        'Cart',
-        'My Library',
-        'My Listings',
-        'Sales',
-      ]) {
+      for (final section in ['Cart', 'My Library', 'My Listings', 'Sales']) {
         testWidgets('marketplace "$section" section has no overflow', (
           tester,
         ) async {
@@ -452,20 +449,18 @@ void main() {
           await _pumpApp(tester);
           await _goTo(tester, '/marketplace');
 
-          // The section grid can need scrolling to reach later tiles (e.g.
-          // "Sales") on short screens — scroll it into view first instead of
-          // assuming it's already built/visible.
+          // The quick-access row scrolls horizontally — the pills are all
+          // built (non-lazy row), and scrollUntilVisible's ensureVisible
+          // reveals the later ones (e.g. "Sales") on narrow screens.
           await tester.scrollUntilVisible(
             find.text(section),
             200,
             scrollable: find.byType(Scrollable).first,
           );
-          // warnIfMissed: false — the tile can sit at the very edge of the
-          // scrolled grid viewport (e.g. "Sales", the 5th/last tile, right
-          // above the bottom nav bar on short screens), which makes the
+          // warnIfMissed: false — a pill can sit at the very edge of the
+          // horizontal viewport after ensureVisible, which makes the
           // computed tap offset occasionally straddle a neighboring
-          // render object even though the tile itself is fully visible and
-          // scrollUntilVisible() above already confirmed it's on-screen.
+          // render object even though the pill itself is visible.
           await tester.tap(find.text(section), warnIfMissed: false);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
@@ -478,28 +473,26 @@ void main() {
   }
 
   // Regression check for a bug that slipped past the narrow-phone sizes
-  // above: the Books grid tile's cover used AspectRatio(1), so its height
-  // scaled with the (fixed 3-column) cell width — but the grid itself uses
-  // a fixed mainAxisExtent. On screens wide enough that a square cell
-  // exceeded that budget, the tile's Column overflowed. Fixed by giving the
-  // cover a fixed height instead. One-off, not part of the `_sizes` matrix
-  // above, since it only needs to prove this specific width class is safe.
+  // above: a grid tile's cover used AspectRatio(1), so its height scaled
+  // with the cell width — but the grid itself uses a fixed mainAxisExtent.
+  // On screens wide enough that a square cell exceeded that budget, the
+  // tile's Column overflowed. Fixed by giving the cover a fixed height
+  // instead. The book grid now sits directly on the marketplace storefront
+  // ('/marketplace'), no tile tap needed. One-off, not part of the `_sizes`
+  // matrix above, since it only needs to prove this width class is safe.
   testWidgets(
-    'marketplace "Books" section grid has no overflow on a wide phone (430x932)',
+    'marketplace storefront book grid has no overflow on a wide phone (430x932)',
     (tester) async {
       _setScreenSize(tester, const Size(430, 932));
       await _pumpApp(tester);
       await _goTo(tester, '/marketplace');
-
-      await tester.tap(find.textContaining('titles to explore'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Confirms we actually reached the Books grid (not some other screen
-      // that just happened not to overflow) before trusting a clean result.
+      // Confirms the storefront grid actually rendered (not some other
+      // screen that just happened not to overflow) before trusting a clean
+      // result.
       expect(find.textContaining('Showing'), findsOneWidget);
-      _expectNoOverflow(tester, 'marketplace "Books" section at 430x932');
+      _expectNoOverflow(tester, 'marketplace storefront grid at 430x932');
     },
   );
 }

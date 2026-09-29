@@ -14,9 +14,9 @@ import 'my_listings_tab.dart';
 import 'sales_tab.dart';
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Marketplace landing — section tiles only.
-// Tapping a section opens a screen showing that section's content:
-// Books · Cart · My Library · My Listings · Sales
+// Marketplace — a storefront home. Search up top, quick-access pills for
+// Cart / My Library / My Listings / Sales, a featured "Popular" banner, the
+// genre/format/offer filter chips, then the full book grid (or list).
 // ═════════════════════════════════════════════════════════════════════════════
 
 class MarketplaceScreen extends ConsumerWidget {
@@ -27,71 +27,6 @@ class MarketplaceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-
-    final cart = ref.watch(cartProvider);
-    final purchases = ref.watch(purchasesProvider);
-    final myListings = ref.watch(myListingsProvider);
-    final sales = ref.watch(salesProvider);
-    final allListings = ref.watch(marketplaceListingsProvider);
-
-    void open(Widget screen) =>
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-
-    final sections = [
-      _SectionTileData(
-        label: 'Books',
-        subtitle: '${allListings.length} titles to explore',
-        icon: Icons.auto_stories_rounded,
-        color: const Color(0xFF6E51A6),
-        iconBg: const Color(0xFFECE6F5),
-        onTap: () => open(const _BooksSectionScreen()),
-      ),
-      _SectionTileData(
-        label: 'Cart',
-        subtitle: cart.isEmpty
-            ? 'Nothing here yet'
-            : '${cart.length} ${cart.length == 1 ? 'item' : 'items'}',
-        icon: Icons.shopping_cart_outlined,
-        color: const Color(0xFFB4692A),
-        iconBg: const Color(0xFFF7E6D2),
-        badge: cart.isEmpty ? null : '${cart.length}',
-        onTap: () => open(_CartSectionScreen(isDark: isDark)),
-      ),
-      _SectionTileData(
-        label: 'My Library',
-        subtitle: purchases.isEmpty
-            ? 'No purchases yet'
-            : '${purchases.length} ${purchases.length == 1 ? 'title' : 'titles'}',
-        icon: Icons.library_books_outlined,
-        color: const Color(0xFF47637E),
-        iconBg: const Color(0xFFE2E9EE),
-        onTap: () => open(_LibrarySectionScreen(isDark: isDark)),
-      ),
-      _SectionTileData(
-        label: 'My Listings',
-        subtitle: myListings.isEmpty
-            ? 'Nothing listed yet'
-            : '${myListings.length} active',
-        icon: Icons.storefront_outlined,
-        color: const Color(0xFF5A7A3C),
-        iconBg: const Color(0xFFE6EEDD),
-        onTap: () => open(_MyListingsSectionScreen(isDark: isDark)),
-      ),
-      _SectionTileData(
-        label: 'Sales',
-        subtitle: sales.isEmpty
-            ? 'No sales yet'
-            : '${sales.length} ${sales.length == 1 ? 'sale' : 'sales'}',
-        icon: Icons.bar_chart_rounded,
-        color: const Color(0xFF8A4468),
-        iconBg: const Color(0xFFF2E1E9),
-        onTap: () => open(_SalesSectionScreen(isDark: isDark)),
-      ),
-    ];
 
     return Scaffold(
       backgroundColor: bg,
@@ -99,231 +34,28 @@ class MarketplaceScreen extends ConsumerWidget {
         title: Text(
           'Marketplace',
           style: AppFonts.display(
-            color: textColor,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
             fontSize: 26,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.3,
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Search',
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () => context.push('/search'),
-          ),
+          _MktCartButton(isDark: isDark),
           _MktNotifButton(isDark: isDark),
           _MktMessageButton(isDark: isDark),
         ],
       ),
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 2),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'What would you like to do?',
-              style: AppFonts.display(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Browse books, manage your cart, library, listings and sales',
-              style: AppFonts.ui(fontSize: 14, color: mutedColor, height: 1.4),
-            ),
-            const SizedBox(height: 22),
-            Expanded(
-              // A fixed `mainAxisExtent` (rather than `childAspectRatio`)
-              // keeps each tile's height constant regardless of screen
-              // width — with an aspect ratio, tiles get shorter as the
-              // screen narrows even though their content (icon + label +
-              // subtitle + "View") doesn't, which overflowed on narrow
-              // phones.
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  // 168 was too tight for the tile's actual content (icon
-                  // chip + title + subtitle + "View" row + 18px padding on
-                  // all sides) and overflowed by ~14px on every phone width.
-                  mainAxisExtent: 190,
-                ),
-                itemCount: sections.length,
-                itemBuilder: (_, i) =>
-                    _SectionTile(data: sections[i], isDark: isDark),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Section tile
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionTileData {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final Color iconBg;
-  final String? badge;
-  final VoidCallback onTap;
-
-  const _SectionTileData({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.iconBg,
-    required this.onTap,
-    this.badge,
-  });
-}
-
-class _SectionTile extends StatelessWidget {
-  final _SectionTileData data;
-  final bool isDark;
-  const _SectionTile({required this.data, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final cardColor = isDark ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
-
-    // Plain card tile: surface, hairline border, rounded corners — icon
-    // chip, title, subtitle, "View →" pinned to the bottom.
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-      side: BorderSide(color: borderColor),
-    );
-    return Semantics(
-      button: true,
-      label: '${data.label}, ${data.subtitle}',
-      excludeSemantics: true,
-      child: Material(
-        color: cardColor,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: data.onTap,
-          customBorder: shape,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Stack(
-              children: [
-                // Badge
-                if (data.badge != null)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: data.color,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        data.badge!,
-                        style: AppFonts.ui(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Content — left-aligned, icon chip → title → subtitle → "View →"
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: data.iconBg,
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Icon(data.icon, size: 22, color: data.color),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      data.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppFonts.display(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      data.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppFonts.ui(fontSize: 13, color: mutedColor),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View',
-                          style: AppFonts.ui(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: data.color,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 14,
-                          color: data.color,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      // Audio tab disabled — Market moved from index 2 to 1.
+      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 1),
+      body: _StorefrontBody(isDark: isDark),
     );
   }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Section screens (pushed from tiles)
+// Section screens (pushed from the quick-access row / cart button)
 // ═════════════════════════════════════════════════════════════════════════════
-
-class _BooksSectionScreen extends StatelessWidget {
-  const _BooksSectionScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(body: _BooksBody(isDark: isDark));
-  }
-}
 
 class _CartSectionScreen extends StatelessWidget {
   final bool isDark;
@@ -336,9 +68,8 @@ class _CartSectionScreen extends StatelessWidget {
     ),
     body: CartTab(
       isDark: isDark,
-      onBrowseBooks: () => Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const _BooksSectionScreen()),
-      ),
+      // The storefront underneath *is* the book browse now — just go back.
+      onBrowseBooks: () => Navigator.of(context).pop(),
     ),
   );
 }
@@ -389,26 +120,30 @@ class _SalesSectionScreen extends StatelessWidget {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Books body — search bar + result count + a 3-column cover grid
+// Storefront body — search + quick access + featured + filters + book grid
 // ═════════════════════════════════════════════════════════════════════════════
 
-class _BooksBody extends ConsumerStatefulWidget {
+class _StorefrontBody extends ConsumerStatefulWidget {
   final bool isDark;
-  const _BooksBody({required this.isDark});
+  const _StorefrontBody({required this.isDark});
 
   @override
-  ConsumerState<_BooksBody> createState() => _BooksBodyState();
+  ConsumerState<_StorefrontBody> createState() => _StorefrontBodyState();
 }
 
 enum _BookLayout { grid, list }
 
-class _BooksBodyState extends ConsumerState<_BooksBody> {
+class _StorefrontBodyState extends ConsumerState<_StorefrontBody> {
   final _searchController = TextEditingController();
   String _query = '';
   Genre? _genre; // null = all genres
   ListingType? _format; // null = all formats
   ListingOffer? _offer; // null = all offers (Sale/Free/Swap)
   _BookLayout _layout = _BookLayout.grid;
+  // Whether the genre/format/offer chip rows are shown. Hiding them only
+  // collapses the rows — any filters already picked keep applying (the
+  // toggle row says how many are active).
+  bool _showFilters = true;
 
   @override
   void dispose() {
@@ -424,6 +159,12 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
     _offer = null;
   });
 
+  bool get _isFiltering =>
+      _query.trim().isNotEmpty ||
+      _genre != null ||
+      _format != null ||
+      _offer != null;
+
   // Genres that have at least one listing
   List<Genre> _availableGenres(List<MarketplaceListing> allListings) {
     final seen = <Genre>{};
@@ -433,11 +174,27 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
     return Genre.values.where(seen.contains).toList();
   }
 
+  /// The banner book: best-rated (most-reviewed on ties), preferring
+  /// listings that can still be bought/claimed.
+  MarketplaceListing? _featured(List<MarketplaceListing> allListings) {
+    if (allListings.isEmpty) return null;
+    final available = allListings.where((l) => !l.isSoldOut).toList();
+    final pool = available.isEmpty ? allListings : available;
+    return pool.reduce((a, b) {
+      if (a.rating != b.rating) return a.rating > b.rating ? a : b;
+      return a.reviewCount >= b.reviewCount ? a : b;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
     final allListings = ref.watch(marketplaceListingsProvider);
+    final cart = ref.watch(cartProvider);
+    final purchases = ref.watch(purchasesProvider);
+    final myListings = ref.watch(myListingsProvider);
+    final sales = ref.watch(salesProvider);
 
     final q = _query.trim().toLowerCase();
     final listings = allListings.where((l) {
@@ -452,66 +209,133 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
       return true;
     }).toList();
 
+    final featured = _featured(allListings);
+
+    void open(Widget screen) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
     return CustomScrollView(
       slivers: [
-        // floating+snap: hides the title/search as soon as the list scrolls
-        // down, and snaps them back the moment the user scrolls back up.
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          toolbarHeight: 44,
-          title: Text(
-            'Books',
-            style: AppFonts.display(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(64),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-              child: _SearchField(
-                controller: _searchController,
-                isDark: isDark,
-                onChanged: (v) => setState(() => _query = v),
-              ),
+        // ── Search bar ───────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+            child: _SearchField(
+              controller: _searchController,
+              isDark: isDark,
+              onChanged: (v) => setState(() => _query = v),
             ),
           ),
         ),
-        // pinned (not just a plain sliver): genre + format + offer stay on
-        // screen at all times, unlike the title/search bar above, which is
-        // allowed to scroll out of view.
+
+        // ── Quick access: Cart / Library / Listings / Sales ──────────
+        // Non-lazy (SingleChildScrollView, not ListView): only four pills,
+        // and having them all always built keeps text finders/semantics
+        // stable regardless of screen width.
+        SliverToBoxAdapter(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Row(
+              children: [
+                _QuickLink(
+                  label: 'Cart',
+                  subtitle: cart.isEmpty
+                      ? 'Empty'
+                      : '${cart.length} ${cart.length == 1 ? 'item' : 'items'}',
+                  icon: Icons.shopping_cart_outlined,
+                  badge: cart.isEmpty ? null : '${cart.length}',
+                  isDark: isDark,
+                  onTap: () => open(_CartSectionScreen(isDark: isDark)),
+                ),
+                _QuickLink(
+                  label: 'My Library',
+                  subtitle: purchases.isEmpty
+                      ? 'No purchases'
+                      : '${purchases.length} ${purchases.length == 1 ? 'title' : 'titles'}',
+                  icon: Icons.library_books_outlined,
+                  isDark: isDark,
+                  onTap: () => open(_LibrarySectionScreen(isDark: isDark)),
+                ),
+                _QuickLink(
+                  label: 'My Listings',
+                  subtitle: myListings.isEmpty
+                      ? 'Nothing listed'
+                      : '${myListings.length} active',
+                  icon: Icons.storefront_outlined,
+                  isDark: isDark,
+                  onTap: () => open(_MyListingsSectionScreen(isDark: isDark)),
+                ),
+                _QuickLink(
+                  label: 'Sales',
+                  subtitle: sales.isEmpty
+                      ? 'No sales yet'
+                      : '${sales.length} ${sales.length == 1 ? 'sale' : 'sales'}',
+                  icon: Icons.bar_chart_rounded,
+                  isDark: isDark,
+                  onTap: () => open(_SalesSectionScreen(isDark: isDark)),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Featured banner — hidden while searching/filtering ───────
+        if (!_isFiltering && featured != null)
+          SliverToBoxAdapter(
+            child: _FeaturedBanner(listing: featured, isDark: isDark),
+          ),
+
+        // pinned (not just a plain sliver): the filters toggle — and, when
+        // shown, the genre + format + offer rows — stay on screen at all
+        // times while the rest scrolls away.
         SliverPersistentHeader(
           pinned: true,
           delegate: _PinnedFiltersDelegate(
-            height: 116,
+            height: _showFilters ? 166 : 40,
             isDark: isDark,
             child: Column(
               children: [
-                const SizedBox(height: 10),
-                _GenreFilterRow(
-                  genres: _availableGenres(allListings),
-                  selected: _genre,
+                const SizedBox(height: 6),
+                _FiltersToggleRow(
+                  expanded: _showFilters,
+                  activeCount: [
+                    _genre,
+                    _format,
+                    _offer,
+                  ].whereType<Object>().length,
                   isDark: isDark,
-                  onChanged: (g) => setState(() => _genre = g),
+                  onTap: () => setState(() => _showFilters = !_showFilters),
                 ),
-                const SizedBox(height: 8),
-                _FormatFilterRow(
-                  selected: _format,
-                  isDark: isDark,
-                  onChanged: (t) => setState(() => _format = t),
-                ),
-                const SizedBox(height: 8),
-                _OfferFilterRow(
-                  selected: _offer,
-                  isDark: isDark,
-                  onChanged: (o) => setState(() => _offer = o),
-                ),
+                const SizedBox(height: 4),
+                if (_showFilters) ...[
+                  _GenreFilterRow(
+                    genres: _availableGenres(allListings),
+                    selected: _genre,
+                    isDark: isDark,
+                    onChanged: (g) => setState(() => _genre = g),
+                  ),
+                  const SizedBox(height: 8),
+                  _FormatFilterRow(
+                    selected: _format,
+                    isDark: isDark,
+                    onChanged: (t) => setState(() => _format = t),
+                  ),
+                  const SizedBox(height: 8),
+                  _OfferFilterRow(
+                    selected: _offer,
+                    isDark: isDark,
+                    onChanged: (o) => setState(() => _offer = o),
+                  ),
+                  const SizedBox(height: 6),
+                ],
               ],
             ),
           ),
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 12, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
             child: Row(
               children: [
                 Expanded(
@@ -547,18 +371,16 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 4,
-                // Fixed extent (not childAspectRatio) keeps each tile's
-                // height constant regardless of screen width — see
-                // library_tab.dart's identical grid for why. Must stay
-                // >= the cover's fixed height (below) + text block, or
-                // the tile's Column overflows.
-                mainAxisExtent: 250,
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                // Fixed extent (not childAspectRatio) keeps each card's
+                // height constant regardless of screen width; must cover
+                // the padded cover (166) + the text block below it.
+                mainAxisExtent: 264,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _BookGridTile(
+                (context, i) => _BookGridCard(
                   listing: listings[i],
                   coverColor: coverPalette[i % coverPalette.length],
                   isDark: isDark,
@@ -593,8 +415,265 @@ class _BooksBodyState extends ConsumerState<_BooksBody> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pinned genre/format filter header — stays on screen while everything else
-// (including the title/search SliverAppBar above it) scrolls away.
+// Quick-access pill
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickLink extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final String? badge;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _QuickLink({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.isDark,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(
+        color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Semantics(
+        button: true,
+        label: '$label, $subtitle',
+        excludeSemantics: true,
+        child: Material(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: shape,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: MktColors.goldFill.withValues(
+                            alpha: isDark ? 0.22 : 0.18,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 17,
+                          color: MktColors.text(isDark),
+                        ),
+                      ),
+                      if (badge != null)
+                        Positioned(
+                          top: -5,
+                          right: -5,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: MktColors.goldFill,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: AppFonts.ui(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: MktColors.onGold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 9),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: AppFonts.ui(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: AppFonts.ui(fontSize: 10.5, color: mutedColor),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Featured "Popular" banner — the storefront's hero card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FeaturedBanner extends StatelessWidget {
+  final MarketplaceListing listing;
+  final bool isDark;
+  const _FeaturedBanner({required this.listing, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(
+        color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: Semantics(
+        button: true,
+        label: 'Popular: ${listing.title} by ${listing.authorName}',
+        excludeSemantics: true,
+        child: Material(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.push('/marketplace/listing/${listing.id}'),
+            customBorder: shape,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: MktColors.goldFill,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.local_fire_department_rounded,
+                                size: 12,
+                                color: MktColors.onGold,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Popular',
+                                style: AppFonts.ui(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: MktColors.onGold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          listing.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.display(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          listing.authorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(fontSize: 13, color: mutedColor),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Text(
+                              'View book',
+                              style: AppFonts.ui(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: MktColors.text(isDark),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: MktColors.text(isDark),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  ListingCover(
+                    listing: listing,
+                    fallbackColor:
+                        listing.genre?.colors.first ?? coverPalette[0],
+                    width: 76,
+                    height: 110,
+                    borderRadius: 10,
+                    showLabel: false,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pinned genre/format/offer filter header — stays on screen while everything
+// else (search bar, quick access, banner) scrolls away.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PinnedFiltersDelegate extends SliverPersistentHeaderDelegate {
@@ -661,14 +740,88 @@ class _LayoutToggleButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.accent.withValues(alpha: 0.15)
+              ? MktColors.goldFill.withValues(alpha: 0.22)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
           size: 17,
-          color: selected ? AppColors.accent : mutedColor,
+          color: selected ? MktColors.text(isDark) : mutedColor,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filters toggle — hides/shows the three chip rows beneath it. Hidden
+// filters keep applying; the "N active" count keeps that visible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FiltersToggleRow extends StatelessWidget {
+  final bool expanded;
+  final int activeCount;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _FiltersToggleRow({
+    required this.expanded,
+    required this.activeCount,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final textColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+
+    return SizedBox(
+      height: 30,
+      child: Semantics(
+        button: true,
+        label:
+            '${expanded ? 'Hide' : 'Show'} filters'
+            '${activeCount > 0 ? ', $activeCount active' : ''}',
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, size: 14, color: textColor),
+                const SizedBox(width: 6),
+                Text(
+                  'Filters',
+                  style: AppFonts.ui(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                if (activeCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '· $activeCount active',
+                    style: AppFonts.ui(fontSize: 11.5, color: mutedColor),
+                  ),
+                ],
+                const Spacer(),
+                Icon(
+                  expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 18,
+                  color: mutedColor,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -695,7 +848,7 @@ class _GenreFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 30,
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -703,7 +856,6 @@ class _GenreFilterRow extends StatelessWidget {
           _FmtChip(
             label: 'All Genres',
             icon: Icons.auto_stories_rounded,
-            color: AppColors.accent,
             selected: selected == null,
             isDark: isDark,
             onTap: () => onChanged(null),
@@ -712,7 +864,6 @@ class _GenreFilterRow extends StatelessWidget {
             (g) => _FmtChip(
               label: g.label,
               emoji: g.emoji,
-              color: g.colors[0],
               selected: selected == g,
               isDark: isDark,
               onTap: () => onChanged(selected == g ? null : g),
@@ -725,7 +876,7 @@ class _GenreFilterRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Format filter row — Physical / Ebook / Audio
+// Format filter row — Physical / Ebook (Audio disabled 2026-09-30)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _FormatFilterRow extends StatelessWidget {
@@ -742,7 +893,7 @@ class _FormatFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 30,
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -750,21 +901,23 @@ class _FormatFilterRow extends StatelessWidget {
           _FmtChip(
             label: 'All',
             icon: Icons.apps_rounded,
-            color: AppColors.accent,
             selected: selected == null,
             isDark: isDark,
             onTap: () => onChanged(null),
           ),
-          ...ListingType.values.map(
-            (t) => _FmtChip(
-              label: t.label,
-              icon: t.icon,
-              color: t.badgeColor,
-              selected: selected == t,
-              isDark: isDark,
-              onTap: () => onChanged(selected == t ? null : t),
-            ),
-          ),
+          // Audio disabled: was `...ListingType.values.map(` — the Audio chip
+          // is skipped so only Physical / E-Book can be filtered.
+          ...ListingType.values
+              .where((t) => t != ListingType.audio)
+              .map(
+                (t) => _FmtChip(
+                  label: t.label,
+                  icon: t.icon,
+                  selected: selected == t,
+                  isDark: isDark,
+                  onTap: () => onChanged(selected == t ? null : t),
+                ),
+              ),
         ],
       ),
     );
@@ -775,12 +928,6 @@ class _FormatFilterRow extends StatelessWidget {
 // Offer filter row — For Sale / Free / Swap. Underneath the format row, so a
 // reader can browse straight to giveaways/swaps regardless of format.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const _offerChipColors = {
-  ListingOffer.sale: AppColors.accent,
-  ListingOffer.free: Color(0xFF2E8B57),
-  ListingOffer.swap: Color(0xFFD4870F),
-};
 
 class _OfferFilterRow extends StatelessWidget {
   final ListingOffer? selected;
@@ -796,7 +943,7 @@ class _OfferFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 30,
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -804,7 +951,6 @@ class _OfferFilterRow extends StatelessWidget {
           _FmtChip(
             label: 'All',
             icon: Icons.apps_rounded,
-            color: AppColors.accent,
             selected: selected == null,
             isDark: isDark,
             onTap: () => onChanged(null),
@@ -813,7 +959,6 @@ class _OfferFilterRow extends StatelessWidget {
             (o) => _FmtChip(
               label: o.label,
               icon: o.icon,
-              color: _offerChipColors[o]!,
               selected: selected == o,
               isDark: isDark,
               onTap: () => onChanged(selected == o ? null : o),
@@ -825,11 +970,12 @@ class _OfferFilterRow extends StatelessWidget {
   }
 }
 
+/// Filter chip in the storefront's single gold accent: solid gold with ink
+/// text when selected, a quiet hairline outline otherwise.
 class _FmtChip extends StatelessWidget {
   final String label;
   final IconData? icon;
   final String? emoji;
-  final Color color;
   final bool selected;
   final bool isDark;
   final VoidCallback onTap;
@@ -838,7 +984,6 @@ class _FmtChip extends StatelessWidget {
     required this.label,
     this.icon,
     this.emoji,
-    required this.color,
     required this.selected,
     required this.isDark,
     required this.onTap,
@@ -847,20 +992,23 @@ class _FmtChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final mutedColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final fg = selected ? MktColors.onGold : mutedColor;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? color : borderColor),
+            color: selected ? MktColors.goldFill : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? MktColors.goldFill : borderColor,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -868,14 +1016,14 @@ class _FmtChip extends StatelessWidget {
               if (emoji != null)
                 Text(emoji!, style: const TextStyle(fontSize: 11))
               else if (icon != null)
-                Icon(icon, size: 12, color: selected ? color : mutedColor),
+                Icon(icon, size: 12, color: fg),
               const SizedBox(width: 4),
               Text(
                 label,
                 style: AppFonts.ui(
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: selected ? color : mutedColor,
+                  color: fg,
                 ),
               ),
             ],
@@ -912,14 +1060,14 @@ class _SearchField extends StatelessWidget {
       onChanged: onChanged,
       style: AppFonts.ui(fontSize: 14, color: textColor),
       decoration: InputDecoration(
-        hintText: 'Search titles, authors...',
+        hintText: 'Search books, authors...',
         hintStyle: AppFonts.ui(fontSize: 14, color: mutedColor),
         prefixIcon: Icon(Icons.search_rounded, color: mutedColor),
         filled: true,
         fillColor: fill,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
       ),
@@ -928,14 +1076,14 @@ class _SearchField extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Book grid tile — cover placeholder, title, author, price
+// Book grid card — cover with rating + format tags, then title/author/price
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BookGridTile extends StatelessWidget {
+class _BookGridCard extends StatelessWidget {
   final MarketplaceListing listing;
   final Color coverColor;
   final bool isDark;
-  const _BookGridTile({
+  const _BookGridCard({
     required this.listing,
     required this.coverColor,
     required this.isDark,
@@ -950,61 +1098,123 @@ class _BookGridTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => context.push('/marketplace/listing/${listing.id}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // A fixed height (not AspectRatio-driven) keeps every tile's
-          // total height constant regardless of screen width — the grid
-          // above uses a fixed mainAxisExtent, and a width-relative square
-          // cover on wide screens grew taller than that budget, overflowing
-          // the column.
-          ListingCover(
-            listing: listing,
-            fallbackColor: coverColor,
-            width: double.infinity,
-            height: 150,
-            borderRadius: 8,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
           ),
-          const SizedBox(height: 8),
-          Text(
-            listing.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.display(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-              color: titleColor,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Stack(
+                children: [
+                  ListingCover(
+                    listing: listing,
+                    fallbackColor: coverColor,
+                    width: double.infinity,
+                    height: 150,
+                    borderRadius: 10,
+                  ),
+                  if (listing.rating > 0)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: RatingBadge(
+                        rating: listing.rating,
+                        isDark: isDark,
+                      ),
+                    ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: _TypeTag(type: listing.type, isDark: isDark),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            listing.authorName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.ui(fontSize: 11, color: mutedColor),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            listing.isSoldOut ? 'Claimed' : listing.price,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.ui(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: listing.isSoldOut
-                  ? mutedColor
-                  : (_offerChipColors[listing.offer] ?? AppColors.accent),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    listing.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.display(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    listing.authorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    listing.isSoldOut ? 'Claimed' : listing.price,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: listing.isSoldOut
+                          ? mutedColor
+                          : offerPriceColor(listing.offer, isDark),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small Physical/E-Book tag overlaid on grid covers — solid surface behind
+/// the colored label so it stays readable over cover photos.
+class _TypeTag extends StatelessWidget {
+  final ListingType type;
+  final bool isDark;
+  const _TypeTag({required this.type, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
+        ),
+      ),
+      child: Text(
+        type.label,
+        style: AppFonts.ui(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: type.badgeColor,
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Book list tile — thumbnail cover + title/author/price row
+// Book list tile — thumbnail cover + title/author/rating/price row
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BookListTile extends StatelessWidget {
@@ -1036,7 +1246,7 @@ class _BookListTile extends StatelessWidget {
               fallbackColor: coverColor,
               width: 56,
               height: 80,
-              borderRadius: 7,
+              borderRadius: 8,
               showLabel: false,
             ),
             const SizedBox(width: 14),
@@ -1062,17 +1272,44 @@ class _BookListTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppFonts.ui(fontSize: 12.5, color: mutedColor),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    listing.isSoldOut ? 'Claimed' : listing.price,
-                    style: AppFonts.ui(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: listing.isSoldOut
-                          ? mutedColor
-                          : (_offerChipColors[listing.offer] ??
-                                AppColors.accent),
-                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (listing.rating > 0) ...[
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 13,
+                          color: MktColors.star,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          listing.rating.toStringAsFixed(1),
+                          style: AppFonts.ui(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: mutedColor,
+                          ),
+                        ),
+                        Text(
+                          '  ·  ',
+                          style: AppFonts.ui(fontSize: 11, color: mutedColor),
+                        ),
+                      ],
+                      Flexible(
+                        child: Text(
+                          listing.isSoldOut ? 'Claimed' : listing.price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: listing.isSoldOut
+                                ? mutedColor
+                                : offerPriceColor(listing.offer, isDark),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1123,7 +1360,7 @@ class _EmptyBooks extends StatelessWidget {
               style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+                color: MktColors.text(isDark),
               ),
             ),
           ),
@@ -1140,6 +1377,53 @@ class _EmptyBooks extends StatelessWidget {
 // Notification counts use the same mock data as the notifications screen
 final _unreadNotifCount = 9; // mockMktNotifs has 3 unread (n1, n2, n3)
 final _unreadMsgCount = 2; // sc1, sc2
+
+class _MktCartButton extends ConsumerWidget {
+  final bool isDark;
+  const _MktCartButton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(cartProvider).length;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Cart',
+          icon: const Icon(Icons.shopping_cart_outlined),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _CartSectionScreen(isDark: isDark),
+            ),
+          ),
+        ),
+        if (count > 0)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: const BoxDecoration(
+                color: MktColors.goldFill,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: MktColors.onGold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 class _MktNotifButton extends StatelessWidget {
   final bool isDark;

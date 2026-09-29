@@ -842,6 +842,8 @@ components:
         cover_image_url: { type: string, nullable: true }
         linked_listing_id: { type: string, nullable: true }
         book_id: { type: string, nullable: true }
+        show_table_of_contents: { type: boolean, default: false, description: "Reader shows a tappable contents page listing the post's pages (only meaningful when post_pages rows exist)." }
+        show_page_numbers: { type: boolean, default: false, description: "Reader prints automatic page numbers (1, 2, 3…) at the foot of each page." }
 
     PostPage:
       type: object

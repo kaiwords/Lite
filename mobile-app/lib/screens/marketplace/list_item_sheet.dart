@@ -33,8 +33,8 @@ const _coverDesignColors = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Opens the "List a Book" screen. [initialType] pre-selects the listing
-/// format (e.g. E-Book or Audio) when launching from elsewhere, such as the
-/// Home upload action.
+/// format (e.g. E-Book) when launching from elsewhere, such as the
+/// Home upload action. (Audio disabled 2026-09-30.)
 void showListItemSheet(
   BuildContext context, {
   ListingType? initialType,
@@ -101,10 +101,11 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
   String? _pdfFileName;
   List<EbookChapter> _ebookChapters = [];
 
-  // Audio book source — one uploaded file per volume, each with an editable
-  // seller-chosen title.
-  List<AudioVolume> _audioVolumes = [];
-  final List<TextEditingController> _volumeTitleCtrls = [];
+  // AUDIO DISABLED (2026-09-30):
+  // // Audio book source — one uploaded file per volume, each with an editable
+  // // seller-chosen title.
+  // List<AudioVolume> _audioVolumes = [];
+  // final List<TextEditingController> _volumeTitleCtrls = [];
 
   bool get _isEdit => widget.existing != null;
 
@@ -147,10 +148,11 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
         EbookChapter(title: 'Chapter 1', content: e!.ebookContent!.trim()),
       ];
     }
-    _audioVolumes = List.of(e?.audioVolumes ?? const []);
-    _volumeTitleCtrls.addAll(
-      _audioVolumes.map((v) => TextEditingController(text: v.title)),
-    );
+    // AUDIO DISABLED (2026-09-30):
+    // _audioVolumes = List.of(e?.audioVolumes ?? const []);
+    // _volumeTitleCtrls.addAll(
+    //   _audioVolumes.map((v) => TextEditingController(text: v.title)),
+    // );
     // Pick the source tab that matches whatever was already provided
     _ebookSource = _ebookChapters.isNotEmpty
         ? _EbookSource.write
@@ -171,9 +173,10 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
     _meetupLocationCtrl.dispose();
     _meetupPhoneCtrl.dispose();
     _swapWantedForCtrl.dispose();
-    for (final c in _volumeTitleCtrls) {
-      c.dispose();
-    }
+    // AUDIO DISABLED (2026-09-30):
+    // for (final c in _volumeTitleCtrls) {
+    //   c.dispose();
+    // }
     super.dispose();
   }
 
@@ -216,32 +219,33 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
     }
   }
 
-  /// Picks an audio file from local storage. Appends it as a new volume, or
-  /// replaces the volume at [replaceIndex] when re-uploading (its title is
-  /// left untouched on replace — only the file changes).
-  Future<void> _pickAudioVolume({int? replaceIndex}) async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'],
-      withData: false,
-    );
-    if (!mounted) return;
-    if (result != null && result.files.isNotEmpty) {
-      final name = result.files.single.name;
-      setState(() {
-        if (replaceIndex != null && replaceIndex < _audioVolumes.length) {
-          _audioVolumes[replaceIndex] = AudioVolume(
-            title: _audioVolumes[replaceIndex].title,
-            fileName: name,
-          );
-        } else {
-          final title = 'Volume ${_audioVolumes.length + 1}';
-          _audioVolumes.add(AudioVolume(title: title, fileName: name));
-          _volumeTitleCtrls.add(TextEditingController(text: title));
-        }
-      });
-    }
-  }
+  // AUDIO DISABLED (2026-09-30):
+  // /// Picks an audio file from local storage. Appends it as a new volume, or
+  // /// replaces the volume at [replaceIndex] when re-uploading (its title is
+  // /// left untouched on replace — only the file changes).
+  // Future<void> _pickAudioVolume({int? replaceIndex}) async {
+  //   final result = await FilePicker.pickFiles(
+  //     type: FileType.custom,
+  //     allowedExtensions: ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'],
+  //     withData: false,
+  //   );
+  //   if (!mounted) return;
+  //   if (result != null && result.files.isNotEmpty) {
+  //     final name = result.files.single.name;
+  //     setState(() {
+  //       if (replaceIndex != null && replaceIndex < _audioVolumes.length) {
+  //         _audioVolumes[replaceIndex] = AudioVolume(
+  //           title: _audioVolumes[replaceIndex].title,
+  //           fileName: name,
+  //         );
+  //       } else {
+  //         final title = 'Volume ${_audioVolumes.length + 1}';
+  //         _audioVolumes.add(AudioVolume(title: title, fileName: name));
+  //         _volumeTitleCtrls.add(TextEditingController(text: title));
+  //       }
+  //     });
+  //   }
+  // }
 
   Future<void> _openChapters() async {
     final result = await Navigator.of(context).push<List<EbookChapter>>(
@@ -321,30 +325,31 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       return;
     }
 
-    // For Audio books, require at least one uploaded volume.
-    final isAudio = _type == ListingType.audio;
-    final audioVolumes = isAudio
-        ? [
-            for (var i = 0; i < _audioVolumes.length; i++)
-              AudioVolume(
-                title: _volumeTitleCtrls[i].text.trim().isEmpty
-                    ? 'Volume ${i + 1}'
-                    : _volumeTitleCtrls[i].text.trim(),
-                fileName: _audioVolumes[i].fileName,
-              ),
-          ]
-        : const <AudioVolume>[];
-    if (isAudio && audioVolumes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Upload at least one audio volume to list an Audio book.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+    // AUDIO DISABLED (2026-09-30):
+    // // For Audio books, require at least one uploaded volume.
+    // final isAudio = _type == ListingType.audio;
+    // final audioVolumes = isAudio
+    //     ? [
+    //         for (var i = 0; i < _audioVolumes.length; i++)
+    //           AudioVolume(
+    //             title: _volumeTitleCtrls[i].text.trim().isEmpty
+    //                 ? 'Volume ${i + 1}'
+    //                 : _volumeTitleCtrls[i].text.trim(),
+    //             fileName: _audioVolumes[i].fileName,
+    //           ),
+    //       ]
+    //     : const <AudioVolume>[];
+    // if (isAudio && audioVolumes.isEmpty) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(
+    //       content: Text(
+    //         'Upload at least one audio volume to list an Audio book.',
+    //       ),
+    //       behavior: SnackBarBehavior.floating,
+    //     ),
+    //   );
+    //   return;
+    // }
 
     // Physical-only quantity, validated only when a value was actually typed
     // (it's optional — sellers who don't set it just aren't tracked for stock).
@@ -454,7 +459,7 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
       // listing is edited through this sheet it's saved in the new format.
       ebookContent: null,
       ebookChapters: chapters,
-      audioVolumes: audioVolumes,
+      // audioVolumes: audioVolumes, // Audio disabled — defaults to const []
       coverImageUrl: _coverImagePath,
       coverColor: _coverColor?.toARGB32(),
     );
@@ -569,7 +574,11 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
             _FieldLabel('Type', isDark: isDark),
             const SizedBox(height: 8),
             Row(
-              children: ListingType.values.map((t) {
+              // Audio disabled: was `ListingType.values.map(` — the Audio
+              // option is skipped so only Physical / E-Book can be listed.
+              children: ListingType.values
+                  .where((t) => t != ListingType.audio)
+                  .map((t) {
                 final sel = _type == t;
                 return Expanded(
                   child: Padding(
@@ -853,63 +862,64 @@ class _ListItemSheetState extends ConsumerState<ListItemSheet> {
               const SizedBox(height: 16),
             ],
 
-            // Audio book — upload one file per volume (1 is fine, add more)
-            if (_type == ListingType.audio) ...[
-              Row(
-                children: [
-                  _FieldLabel(
-                    _audioVolumes.length > 1 ? 'Audio Volumes' : 'Audio File',
-                    isDark: isDark,
-                  ),
-                  const Spacer(),
-                  if (_audioVolumes.isNotEmpty)
-                    Text(
-                      '${_audioVolumes.length} ${_audioVolumes.length == 1 ? 'volume' : 'volumes'}',
-                      style: AppFonts.ui(
-                        fontSize: 12,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.textMuted,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_audioVolumes.isEmpty)
-                _FileUploadBox(
-                  fileName: null,
-                  isDark: isDark,
-                  onPick: () => _pickAudioVolume(),
-                  onClear: () {},
-                  fileIcon: Icons.audiotrack_rounded,
-                  fileIconColor: ListingType.audio.badgeColor,
-                  emptyTitle: 'Tap to upload audio',
-                  emptyHint: 'MP3, M4A, AAC, WAV, OGG or FLAC',
-                  attachedLabel: 'Audio attached',
-                )
-              else ...[
-                for (var i = 0; i < _audioVolumes.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _VolumeTile(
-                      volumeNumber: i + 1,
-                      titleController: _volumeTitleCtrls[i],
-                      fileName: _audioVolumes[i].fileName,
-                      isDark: isDark,
-                      onReplace: () => _pickAudioVolume(replaceIndex: i),
-                      onRemove: () => setState(() {
-                        _audioVolumes.removeAt(i);
-                        _volumeTitleCtrls.removeAt(i).dispose();
-                      }),
-                    ),
-                  ),
-                _AddVolumeButton(
-                  isDark: isDark,
-                  onTap: () => _pickAudioVolume(),
-                ),
-              ],
-              const SizedBox(height: 16),
-            ],
+            // AUDIO DISABLED (2026-09-30):
+            // // Audio book — upload one file per volume (1 is fine, add more)
+            // if (_type == ListingType.audio) ...[
+            //   Row(
+            //     children: [
+            //       _FieldLabel(
+            //         _audioVolumes.length > 1 ? 'Audio Volumes' : 'Audio File',
+            //         isDark: isDark,
+            //       ),
+            //       const Spacer(),
+            //       if (_audioVolumes.isNotEmpty)
+            //         Text(
+            //           '${_audioVolumes.length} ${_audioVolumes.length == 1 ? 'volume' : 'volumes'}',
+            //           style: AppFonts.ui(
+            //             fontSize: 12,
+            //             color: isDark
+            //                 ? AppColors.darkTextMuted
+            //                 : AppColors.textMuted,
+            //           ),
+            //         ),
+            //     ],
+            //   ),
+            //   const SizedBox(height: 8),
+            //   if (_audioVolumes.isEmpty)
+            //     _FileUploadBox(
+            //       fileName: null,
+            //       isDark: isDark,
+            //       onPick: () => _pickAudioVolume(),
+            //       onClear: () {},
+            //       fileIcon: Icons.audiotrack_rounded,
+            //       fileIconColor: ListingType.audio.badgeColor,
+            //       emptyTitle: 'Tap to upload audio',
+            //       emptyHint: 'MP3, M4A, AAC, WAV, OGG or FLAC',
+            //       attachedLabel: 'Audio attached',
+            //     )
+            //   else ...[
+            //     for (var i = 0; i < _audioVolumes.length; i++)
+            //       Padding(
+            //         padding: const EdgeInsets.only(bottom: 8),
+            //         child: _VolumeTile(
+            //           volumeNumber: i + 1,
+            //           titleController: _volumeTitleCtrls[i],
+            //           fileName: _audioVolumes[i].fileName,
+            //           isDark: isDark,
+            //           onReplace: () => _pickAudioVolume(replaceIndex: i),
+            //           onRemove: () => setState(() {
+            //             _audioVolumes.removeAt(i);
+            //             _volumeTitleCtrls.removeAt(i).dispose();
+            //           }),
+            //         ),
+            //       ),
+            //     _AddVolumeButton(
+            //       isDark: isDark,
+            //       onTap: () => _pickAudioVolume(),
+            //     ),
+            //   ],
+            //   const SizedBox(height: 16),
+            // ],
 
             // Category
             _FieldLabel('Category', isDark: isDark),
@@ -1338,145 +1348,147 @@ class _FileUploadBox extends StatelessWidget {
 }
 
 // ── Audiobook volume tile + add-volume button ───────────────────────────────
+// AUDIO DISABLED (2026-09-30): book/e-book only for now — both widgets below
+// are commented out along with the rest of the audio sell flow.
 
-class _VolumeTile extends StatelessWidget {
-  final int volumeNumber;
-  final TextEditingController titleController;
-  final String fileName;
-  final bool isDark;
-  final VoidCallback onReplace;
-  final VoidCallback onRemove;
-  const _VolumeTile({
-    required this.volumeNumber,
-    required this.titleController,
-    required this.fileName,
-    required this.isDark,
-    required this.onReplace,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    final audioColor = ListingType.audio.badgeColor;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: audioColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(Icons.audiotrack_rounded, size: 18, color: audioColor),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: titleController,
-                  style: AppFonts.ui(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                    hintText: 'Volume $volumeNumber',
-                    hintStyle: AppFonts.ui(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: mutedColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  fileName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.ui(fontSize: 11, color: mutedColor),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onReplace,
-            child: Text(
-              'Replace',
-              style: AppFonts.ui(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.close_rounded, size: 18, color: mutedColor),
-            tooltip: 'Remove volume',
-            visualDensity: VisualDensity.compact,
-            onPressed: onRemove,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AddVolumeButton extends StatelessWidget {
-  final bool isDark;
-  final VoidCallback onTap;
-  const _AddVolumeButton({required this.isDark, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add_rounded, size: 20, color: AppColors.accent),
-            const SizedBox(width: 6),
-            Text(
-              'Add another volume',
-              style: AppFonts.ui(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// class _VolumeTile extends StatelessWidget {
+//   final int volumeNumber;
+//   final TextEditingController titleController;
+//   final String fileName;
+//   final bool isDark;
+//   final VoidCallback onReplace;
+//   final VoidCallback onRemove;
+//   const _VolumeTile({
+//     required this.volumeNumber,
+//     required this.titleController,
+//     required this.fileName,
+//     required this.isDark,
+//     required this.onReplace,
+//     required this.onRemove,
+//   });
+// 
+//   @override
+//   Widget build(BuildContext context) {
+//     final bg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+//     final textColor = isDark
+//         ? AppColors.darkTextPrimary
+//         : AppColors.textPrimary;
+//     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+//     final audioColor = ListingType.audio.badgeColor;
+// 
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+//       decoration: BoxDecoration(
+//         color: bg,
+//         borderRadius: BorderRadius.circular(12),
+//         border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+//       ),
+//       child: Row(
+//         children: [
+//           Container(
+//             width: 34,
+//             height: 34,
+//             decoration: BoxDecoration(
+//               color: audioColor.withValues(alpha: 0.15),
+//               borderRadius: BorderRadius.circular(9),
+//             ),
+//             child: Icon(Icons.audiotrack_rounded, size: 18, color: audioColor),
+//           ),
+//           const SizedBox(width: 10),
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 TextField(
+//                   controller: titleController,
+//                   style: AppFonts.ui(
+//                     fontSize: 13,
+//                     fontWeight: FontWeight.w700,
+//                     color: textColor,
+//                   ),
+//                   decoration: InputDecoration(
+//                     isDense: true,
+//                     isCollapsed: true,
+//                     border: InputBorder.none,
+//                     hintText: 'Volume $volumeNumber',
+//                     hintStyle: AppFonts.ui(
+//                       fontSize: 13,
+//                       fontWeight: FontWeight.w700,
+//                       color: mutedColor,
+//                     ),
+//                   ),
+//                 ),
+//                 const SizedBox(height: 2),
+//                 Text(
+//                   fileName,
+//                   maxLines: 1,
+//                   overflow: TextOverflow.ellipsis,
+//                   style: AppFonts.ui(fontSize: 11, color: mutedColor),
+//                 ),
+//               ],
+//             ),
+//           ),
+//           TextButton(
+//             onPressed: onReplace,
+//             child: Text(
+//               'Replace',
+//               style: AppFonts.ui(
+//                 fontSize: 12,
+//                 fontWeight: FontWeight.w700,
+//                 color: AppColors.accent,
+//               ),
+//             ),
+//           ),
+//           IconButton(
+//             icon: Icon(Icons.close_rounded, size: 18, color: mutedColor),
+//             tooltip: 'Remove volume',
+//             visualDensity: VisualDensity.compact,
+//             onPressed: onRemove,
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
+// 
+// class _AddVolumeButton extends StatelessWidget {
+//   final bool isDark;
+//   final VoidCallback onTap;
+//   const _AddVolumeButton({required this.isDark, required this.onTap});
+// 
+//   @override
+//   Widget build(BuildContext context) {
+//     return GestureDetector(
+//       onTap: onTap,
+//       child: Container(
+//         width: double.infinity,
+//         padding: const EdgeInsets.symmetric(vertical: 12),
+//         decoration: BoxDecoration(
+//           borderRadius: BorderRadius.circular(12),
+//           border: Border.all(
+//             color: AppColors.accent.withValues(alpha: 0.5),
+//             width: 1.5,
+//           ),
+//         ),
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             const Icon(Icons.add_rounded, size: 20, color: AppColors.accent),
+//             const SizedBox(width: 6),
+//             Text(
+//               'Add another volume',
+//               style: AppFonts.ui(
+//                 fontSize: 13,
+//                 fontWeight: FontWeight.w700,
+//                 color: AppColors.accent,
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _ChaptersBox extends StatelessWidget {
   final List<EbookChapter> chapters;

@@ -119,7 +119,8 @@ final mockConversations = <Conversation>[
     peerId: 'luna_reads',
     messages: [
       Message(
-        text: 'I listen to your audio readings when I can\'t sleep',
+        // Audio disabled: text: 'I listen to your audio readings when I can\'t sleep',
+        text: 'I read your late-night poems when I can\'t sleep',
         fromMe: false,
         sentAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
       ),
@@ -135,7 +136,8 @@ final mockConversations = <Conversation>[
         isRead: true,
       ),
       Message(
-        text: 'Your audio reading was so peaceful.',
+        // Audio disabled: text: 'Your audio reading was so peaceful.',
+        text: 'Your latest post was so peaceful.',
         fromMe: false,
         sentAt: DateTime.now().subtract(const Duration(days: 1)),
       ),
@@ -198,7 +200,8 @@ final mockConversations = <Conversation>[
   Conversation(
     id: 'sc2',
     peerId: 'luna_reads',
-    contextLabel: 'Echoes in the Dark (Audio)',
+    // Audio disabled: contextLabel: 'Echoes in the Dark (Audio)',
+    contextLabel: 'Echoes in the Dark (E-Book)',
     hasUnread: true,
     unreadCount: 1,
     messages: [

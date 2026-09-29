@@ -101,11 +101,8 @@ class _LibraryTabState extends ConsumerState<_LibraryTab> {
                 );
               }
               final l = filtered[i - 1].listing;
-              final label = l.type == ListingType.audio
-                  ? 'Play'
-                  : l.type == ListingType.ebook
-                  ? 'Read'
-                  : 'View';
+              // Audio disabled: was `l.type == ListingType.audio ? 'Play' : …`
+              final label = l.type == ListingType.ebook ? 'Read' : 'View';
               return BookListRow(
                 listing: l,
                 isDark: isDark,

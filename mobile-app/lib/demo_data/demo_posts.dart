@@ -18,8 +18,8 @@ final mockPosts = [
     commentsCount: 18,
     sharesCount: 42,
     isLiked: true,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    linkedListingId: 'm9', // Audio Book in Marketplace
+    // Audio disabled: audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    // Audio disabled: linkedListingId: 'm9', // Audio Book in Marketplace
   ),
   Post(
     id: 'p2',
@@ -32,8 +32,8 @@ final mockPosts = [
     likesCount: 891,
     commentsCount: 67,
     sharesCount: 203,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    linkedListingId: 'm10', // Audio Book in Marketplace
+    // Audio disabled: audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    // Audio disabled: linkedListingId: 'm10', // Audio Book in Marketplace
   ),
   Post(
     id: 'p3',
@@ -48,7 +48,7 @@ final mockPosts = [
     sharesCount: 512,
     isLiked: true,
     isFavourited: true,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    // Audio disabled: audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
   ),
   Post(
     id: 'p4',
@@ -61,8 +61,8 @@ final mockPosts = [
     likesCount: 567,
     commentsCount: 33,
     sharesCount: 88,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    linkedListingId: 'm12', // Audio Book in Marketplace
+    // Audio disabled: audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    // Audio disabled: linkedListingId: 'm12', // Audio Book in Marketplace
   ),
   Post(
     id: 'p7',
@@ -107,6 +107,6 @@ final mockPosts = [
     likesCount: 723,
     commentsCount: 45,
     sharesCount: 134,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+    // Audio disabled: audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
   ),
 ];

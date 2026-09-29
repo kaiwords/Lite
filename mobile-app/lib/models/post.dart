@@ -87,6 +87,11 @@ class Post {
   final String? linkedListingId;
   final String? bookId; // links to a Book in the reader
   final List<PostPage> pages; // additional pages beyond title/content
+  // Reading aids the writer can switch on for a multi-page post: a tappable
+  // contents page in the reader, and printed page numbers (numbered
+  // automatically — 1, 2, 3… — never typed per page).
+  final bool showTableOfContents;
+  final bool showPageNumbers;
 
   const Post({
     required this.id,
@@ -105,6 +110,8 @@ class Post {
     this.linkedListingId,
     this.bookId,
     this.pages = const [],
+    this.showTableOfContents = false,
+    this.showPageNumbers = false,
   });
 
   Post copyWith({
@@ -131,6 +138,8 @@ class Post {
         linkedListingId: linkedListingId,
         bookId: bookId,
         pages: pages,
+        showTableOfContents: showTableOfContents,
+        showPageNumbers: showPageNumbers,
       );
 
   Map<String, dynamic> toJson() => {
@@ -150,6 +159,8 @@ class Post {
         'linkedListingId': linkedListingId,
         'bookId': bookId,
         'pages': pages.map((p) => p.toJson()).toList(),
+        'showTableOfContents': showTableOfContents,
+        'showPageNumbers': showPageNumbers,
       };
 
   factory Post.fromJson(Map<String, dynamic> j) => Post(
@@ -172,6 +183,8 @@ class Post {
                 ?.map((p) => PostPage.fromJson((p as Map).cast<String, dynamic>()))
                 .toList() ??
             const [],
+        showTableOfContents: (j['showTableOfContents'] as bool?) ?? false,
+        showPageNumbers: (j['showPageNumbers'] as bool?) ?? false,
       );
 }
 

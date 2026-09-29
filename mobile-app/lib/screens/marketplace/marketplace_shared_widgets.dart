@@ -13,6 +13,99 @@ import '../../theme/app_theme.dart';
 // per-file — anything referenced from more than one tab file must be public.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Marketplace gold accent ─────────────────────────────────────────────────
+// The storefront's "gilded" accent — warm gold instead of the app-wide
+// fountain-pen blue, so the marketplace reads like a bookshop. Every pair
+// here keeps ≥4.5:1 contrast: [gold] on the cream background, [darkGold] on
+// the lamplight surfaces, and [onGold] ink on the [goldFill] buttons/chips.
+
+class MktColors {
+  /// Solid fill for buttons and selected chips (both themes).
+  static const goldFill = Color(0xFFE2B33C);
+
+  /// Ink on top of [goldFill].
+  static const onGold = Color(0xFF2A231C);
+
+  /// Gold for text/icons on the light (cream) background.
+  static const gold = Color(0xFF7C5A16);
+
+  /// Gold for text/icons on the dark background.
+  static const darkGold = Color(0xFFDDB552);
+
+  /// Star-rating yellow (same value the detail screen has always used).
+  static const star = Color(0xFFF4C430);
+
+  static Color text(bool isDark) => isDark ? darkGold : gold;
+}
+
+/// Gold pill button — the marketplace's primary action look (Buy Now,
+/// Checkout, Claim). Ink text on a gold fill, rounded like the storefront's
+/// cards rather than the app's square book corners.
+ButtonStyle mktFilledStyle({double radius = 14}) => FilledButton.styleFrom(
+  backgroundColor: MktColors.goldFill,
+  foregroundColor: MktColors.onGold,
+  minimumSize: const Size(48, 48),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+  textStyle: AppFonts.ui(fontSize: 15, fontWeight: FontWeight.w700),
+);
+
+/// Matching secondary (outlined) style for the action next to a gold button.
+ButtonStyle mktOutlinedStyle(bool isDark, {double radius = 14}) =>
+    OutlinedButton.styleFrom(
+      foregroundColor: MktColors.text(isDark),
+      side: BorderSide(color: MktColors.text(isDark).withValues(alpha: 0.65)),
+      minimumSize: const Size(48, 48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      textStyle: AppFonts.ui(fontSize: 15, fontWeight: FontWeight.w700),
+    );
+
+/// Small "★ 4.9" pill, overlaid on covers in the storefront grid and shown
+/// on the detail screen's related-book cards.
+class RatingBadge extends StatelessWidget {
+  final double rating;
+  final bool isDark;
+  const RatingBadge({super.key, required this.rating, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 12, color: MktColors.star),
+          const SizedBox(width: 3),
+          Text(
+            rating.toStringAsFixed(1),
+            style: AppFonts.ui(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Price/offer color for a listing wherever its price is printed: gold for a
+/// normal sale, and the same green/amber Free and Swap have always used.
+Color offerPriceColor(ListingOffer offer, bool isDark) => switch (offer) {
+  ListingOffer.sale => MktColors.text(isDark),
+  ListingOffer.free => const Color(0xFF2E8B57),
+  ListingOffer.swap => const Color(0xFFD4870F),
+};
+
 // ── Book list row — used in Library and My Listings ─────────────────────────
 // Minimal by design: cover on the left, the book's title only — no type
 // chip, author, price, or sold count. Whatever trailing action the tab

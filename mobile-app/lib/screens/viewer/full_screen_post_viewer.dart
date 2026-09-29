@@ -84,10 +84,30 @@ class _PostFullPage extends ConsumerStatefulWidget {
   ConsumerState<_PostFullPage> createState() => _PostFullPageState();
 }
 
+/// One page of the reading view: its running-header title, body text, and
+/// (when the writer turned page numbers on) the printed number at the foot
+/// of the page. The contents page has no text of its own — it lists the
+/// other pages instead.
+class _ViewerPage {
+  final String? title;
+  final String text;
+  final int? number;
+  final bool isContents;
+  const _ViewerPage({
+    required this.title,
+    this.text = '',
+    this.number,
+    this.isContents = false,
+  });
+}
+
+/// Vertical space reserved at the foot of a page for its printed number.
+const double _pageNumberFooterHeight = 26;
+
 class _PostFullPageState extends ConsumerState<_PostFullPage> {
   final PageController _hController = PageController();
   late int _pageIndex;
-  List<String> _pages = const [];
+  List<_ViewerPage> _pages = const [];
   Size? _bodySize;
   Size? _pendingSize;
   Timer? _reflowTimer;
@@ -113,27 +133,65 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
     super.dispose();
   }
 
-  List<String> _computePages(Size bodySize) {
+  List<_ViewerPage> _computePages(Size bodySize) {
     final post = widget.post;
+    final numbered = post.showPageNumbers;
+
+    List<String> texts;
+    List<String?> titles;
     // Author-defined pages (added while writing) are shown as-is, one per
-    // swipe, ahead of any auto-pagination of a single long page.
+    // swipe, ahead of any auto-pagination of a single long page. Page one
+    // carries the post's main title; each authored page carries its own
+    // (which may be null if the writer chose to hide it).
     if (post.pages.isNotEmpty) {
-      return [post.content, ...post.pages.map((p) => p.content)];
+      texts = [post.content, ...post.pages.map((p) => p.content)];
+      titles = [post.title, ...post.pages.map((p) => p.title)];
+    } else if (post.category == ContentCategory.joke) {
+      texts = [post.content.trim()];
+      titles = [post.title];
+    } else if (_isPoetic) {
+      texts = paginatePost(post); // one stanza per page
+      titles = List.filled(texts.length, post.title);
+    } else {
+      // Printed page numbers take a strip at the foot of each page, so the
+      // text is flowed into a correspondingly shorter page.
+      final fitSize = numbered
+          ? Size(bodySize.width, bodySize.height - _pageNumberFooterHeight)
+          : bodySize;
+      texts = paginateTextToFit(post.content, _bodyStyle, fitSize);
+      titles = List.filled(texts.length, post.title);
     }
-    if (post.category == ContentCategory.joke) return [post.content.trim()];
-    if (_isPoetic) return paginatePost(post); // one stanza per page
-    return paginateTextToFit(post.content, _bodyStyle, bodySize);
+
+    final pages = [
+      // Numbering is automatic: page one is 1, and every page after is one
+      // higher than the page before it.
+      for (var i = 0; i < texts.length; i++)
+        _ViewerPage(
+          title: titles[i],
+          text: texts[i],
+          number: numbered ? i + 1 : null,
+        ),
+    ];
+    if (post.showTableOfContents && post.pages.isNotEmpty) {
+      pages.insert(0, const _ViewerPage(title: 'Contents', isContents: true));
+    }
+    return pages;
   }
 
-  /// The title to show for the page currently in view — the post's main
-  /// title on page one, otherwise that authored page's own title (which may
-  /// be null if the writer chose to hide it).
+  /// The title to show for the page currently in view.
   String? get _currentPageTitle {
-    final post = widget.post;
-    if (post.pages.isEmpty || _pageIndex == 0) return post.title;
-    final pageAuthorIndex = _pageIndex - 1;
-    if (pageAuthorIndex >= post.pages.length) return post.title;
-    return post.pages[pageAuthorIndex].title;
+    if (_pages.isEmpty) return widget.post.title;
+    return _pages[_pageIndex.clamp(0, _pages.length - 1)].title;
+  }
+
+  /// From the contents page: turn to the given page of the post's text
+  /// (0-based over the text pages, which sit after the contents page).
+  void _openFromContents(int textPageIndex) {
+    _hController.animateToPage(
+      textPageIndex + 1,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   void _applyPages(Size size) {
@@ -210,11 +268,22 @@ class _PostFullPageState extends ConsumerState<_PostFullPage> {
                           i,
                         );
                       },
-                      itemBuilder: (_, i) => _BodyPage(
-                        text: _pages[i],
-                        isPoetic: _isPoetic,
-                        isDark: widget.isDark,
-                      ),
+                      itemBuilder: (_, i) {
+                        final page = _pages[i];
+                        if (page.isContents) {
+                          return _ContentsPage(
+                            post: widget.post,
+                            isDark: widget.isDark,
+                            onEntryTap: _openFromContents,
+                          );
+                        }
+                        return _BodyPage(
+                          text: page.text,
+                          pageNumber: page.number,
+                          isPoetic: _isPoetic,
+                          isDark: widget.isDark,
+                        );
+                      },
                     );
                   },
                 ),
@@ -291,11 +360,13 @@ class _PostHeader extends StatelessWidget {
 
 class _BodyPage extends StatelessWidget {
   final String text;
+  final int? pageNumber;
   final bool isPoetic;
   final bool isDark;
 
   const _BodyPage({
     required this.text,
+    required this.pageNumber,
     required this.isPoetic,
     required this.isDark,
   });
@@ -314,14 +385,109 @@ class _BodyPage extends StatelessWidget {
           )
         : AppFonts.reading(fontSize: 16, height: 1.85, color: bodyColor);
 
+    final body = Text.rich(
+      TextSpan(
+        children: buildFormattedSpans(
+          text,
+          bodyStyle,
+          accent: isDark ? AppColors.darkAccent : AppColors.accent,
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(26, 20, 26, 16),
-      child: Text.rich(
-        TextSpan(
-          children: buildFormattedSpans(
-            text,
-            bodyStyle,
-            accent: isDark ? AppColors.darkAccent : AppColors.accent,
+      child: pageNumber == null
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: body),
+                // The folio: the page's printed number, centered at the foot
+                // of the page like a printed book's.
+                SizedBox(
+                  height: _pageNumberFooterHeight,
+                  child: Center(
+                    child: Text(
+                      '$pageNumber',
+                      style: AppFonts.ui(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contents page — lists every page of the post; tapping an entry turns
+// straight to that page.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ContentsPage extends StatelessWidget {
+  final Post post;
+  final bool isDark;
+  final void Function(int textPageIndex) onEntryTap;
+
+  const _ContentsPage({
+    required this.post,
+    required this.isDark,
+    required this.onEntryTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+
+    // Entry k is text page k: the post's main title/content first, then
+    // each authored page (falling back to its book-style number when the
+    // writer hid its title).
+    final labels = [
+      post.title,
+      for (var i = 0; i < post.pages.length; i++)
+        post.pages[i].title ?? 'Page ${i + 2}',
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(26, 20, 26, 16),
+      itemCount: labels.length,
+      itemBuilder: (context, i) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onEntryTap(i),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  labels[i],
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.reading(
+                    fontSize: 16,
+                    height: 1.4,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (post.showPageNumbers)
+                Text(
+                  '${i + 1}',
+                  style: AppFonts.ui(fontSize: 13, color: mutedColor),
+                ),
+            ],
           ),
         ),
       ),

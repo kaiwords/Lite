@@ -6,7 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/audio/audio_screen.dart';
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// import '../screens/audio/audio_screen.dart';
 import '../screens/marketplace/marketplace_screen.dart';
 import '../screens/alerts/alerts_screen.dart';
 import '../screens/profile/earnings_screen.dart';
@@ -66,10 +67,12 @@ final appRouter = GoRouter(
     GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
     GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
     GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
-    GoRoute(
-      path: '/audio',
-      builder: (_, state) => AudioScreen(initialPostId: state.extra as String?),
-    ),
+    // AUDIO DISABLED (2026-09-30):
+    // GoRoute(
+    //   path: '/audio',
+    //   builder: (_, state) =>
+    //       AudioScreen(initialPostId: state.extra as String?),
+    // ),
     GoRoute(
       path: '/marketplace',
       builder: (_, state) =>
@@ -95,7 +98,10 @@ final appRouter = GoRouter(
       builder: (_, state) {
         final extra = state.extra;
         if (extra is PostScreenArgs) return PostScreen.fromArgs(extra);
-        return PostScreen(startWithAudio: extra == true);
+        // AUDIO DISABLED (2026-09-30): `extra == true` used to open the
+        // editor in audio mode.
+        // return PostScreen(startWithAudio: extra == true);
+        return const PostScreen();
       },
     ),
     GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),

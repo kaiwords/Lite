@@ -14,8 +14,10 @@ import '../../utils/marketplace_lookup.dart';
 import '../../utils/post_paginator.dart';
 import '../../utils/purchase_flow.dart';
 import '../../widgets/share_sheet.dart';
-import '../audio/audiobook_player_screen.dart';
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// import '../audio/audiobook_player_screen.dart';
 import '../reader/book_reader_screen.dart';
+import 'marketplace_shared_widgets.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock reviews
@@ -124,23 +126,25 @@ class ListingDetailScreen extends ConsumerWidget {
       }
     }
 
+    // AUDIO DISABLED (2026-09-30): the player and the /audio route are
+    // commented out, so any (legacy) audio listing just gets the snackbar.
     void openListen() {
-      if (listing.audioVolumes.isNotEmpty) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AudiobookPlayerScreen(listing: listing),
-          ),
-        );
-      } else if (listing.linkedPostId != null) {
-        context.push('/audio', extra: listing.linkedPostId);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Audio playback is coming soon.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      // if (listing.audioVolumes.isNotEmpty) {
+      //   Navigator.of(context).push(
+      //     MaterialPageRoute(
+      //       builder: (_) => AudiobookPlayerScreen(listing: listing),
+      //     ),
+      //   );
+      // } else if (listing.linkedPostId != null) {
+      //   context.push('/audio', extra: listing.linkedPostId);
+      // } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Audio playback is coming soon.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // }
     }
 
     return Scaffold(
@@ -149,7 +153,7 @@ class ListingDetailScreen extends ConsumerWidget {
         slivers: [
           // ── Hero cover + app bar ─────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 300,
             pinned: true,
             backgroundColor: isDark
                 ? AppColors.darkBackground
@@ -285,8 +289,8 @@ class ListingDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Rating row
-                  _RatingRow(listing: listing, isDark: isDark),
+                  // Rating / format / condition stat strip
+                  _StatStrip(listing: listing, isDark: isDark),
                   const SizedBox(height: 20),
 
                   // Price + cart / Read·Listen
@@ -423,128 +427,160 @@ class _CoverHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final coverImage = coverImageFile(listing.coverImageUrl);
     final coverColor = listing.coverColor != null
         ? Color(listing.coverColor!)
         : listing.type.badgeColor;
 
+    // Storefront-style hero: a quiet wash of the page-edge color with the
+    // book's cover floating centered on it, like a display table.
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [coverColor, coverColor.withValues(alpha: 0.4)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
+      alignment: Alignment.center,
+      child: Padding(
+        // Keep the cover clear of the (transparent) toolbar area above.
+        padding: EdgeInsets.only(
+          top: MediaQuery.paddingOf(context).top * 0.5 + 24,
         ),
-      ),
-      child: Stack(
-        children: [
-          // Seller-picked cover photo, if any, full-bleed behind the icon.
-          if (coverImage != null)
-            Positioned.fill(child: Image.file(coverImage, fit: BoxFit.cover)),
-          // Background pattern (subtle large initial) — skipped over a real
-          // photo, which already carries the book's identity.
-          if (coverImage == null)
-            Positioned.fill(
-              child: Center(
-                child: Text(
-                  listing.title.isEmpty ? '?' : listing.title[0],
-                  style: AppFonts.display(
-                    fontSize: 160,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white.withValues(alpha: 0.08),
+        child: Container(
+          width: 150,
+          height: 212,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.28),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: coverImage != null
+              ? Image.file(coverImage, fit: BoxFit.cover)
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [coverColor, coverColor.withValues(alpha: 0.55)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Text(
+                          listing.title.isEmpty ? '?' : listing.title[0],
+                          style: AppFonts.display(
+                            fontSize: 84,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white.withValues(alpha: 0.25),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 10,
+                        right: 10,
+                        child: Icon(
+                          listing.type.icon,
+                          size: 20,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          // Type icon
-          Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: coverImage != null ? 0.3 : 0.2,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(listing.type.icon, size: 40, color: Colors.white),
-            ),
-          ),
-          // Bottom gradient fade
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 60,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.25),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rating row (stars + count)
+// Stat strip — Rating | Format | Condition/Chapters/Genre, one segmented card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _RatingRow extends StatelessWidget {
+class _StatStrip extends StatelessWidget {
   final MarketplaceListing listing;
   final bool isDark;
-  const _RatingRow({required this.listing, required this.isDark});
+  const _StatStrip({required this.listing, required this.isDark});
+
+  List<(String, String)> get _cells {
+    final cells = <(String, String)>[
+      (
+        'Rating',
+        listing.rating > 0 ? '★ ${listing.rating.toStringAsFixed(1)}' : 'New',
+      ),
+      ('Format', listing.type.label),
+    ];
+    // Third cell: the most useful remaining fact for this format.
+    (String, String)? third;
+    if (listing.type == ListingType.physical && listing.condition != null) {
+      third = ('Condition', listing.condition!.label);
+    } else if (listing.type == ListingType.ebook &&
+        listing.ebookChapters.isNotEmpty) {
+      third = ('Chapters', '${listing.ebookChapters.length}');
+    }
+    third ??= listing.genre != null ? ('Genre', listing.genre!.label) : null;
+    if (third != null) cells.add(third);
+    return cells;
+  }
 
   @override
   Widget build(BuildContext context) {
     final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
-    return Row(
-      children: [
-        // Stars
-        Row(
-          children: List.generate(5, (i) {
-            final full = i < listing.rating.floor();
-            final half =
-                !full && i < listing.rating && (listing.rating - i) >= 0.5;
-            return Icon(
-              full
-                  ? Icons.star_rounded
-                  : half
-                  ? Icons.star_half_rounded
-                  : Icons.star_border_rounded,
-              size: 20,
-              color: const Color(0xFFF4C430),
-            );
-          }),
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final cells = _cells;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder,
         ),
-        const SizedBox(width: 8),
-        Text(
-          listing.rating.toStringAsFixed(1),
-          style: AppFonts.ui(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            '(${listing.reviewCount} reviews)',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.ui(fontSize: 13, color: mutedColor),
-          ),
-        ),
-      ],
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < cells.length; i++) ...[
+            if (i > 0)
+              Container(
+                width: 1,
+                height: 28,
+                color: isDark ? AppColors.darkDivider : AppColors.divider,
+              ),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    cells[i].$1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(fontSize: 11, color: mutedColor),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    cells[i].$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppFonts.ui(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -614,16 +650,16 @@ class _PriceCartRow extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.12),
+                color: MktColors.goldFill.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.check_circle_rounded,
                     size: 16,
-                    color: AppColors.accent,
+                    color: MktColors.text(isDark),
                   ),
                   const SizedBox(width: 6),
                   Flexible(
@@ -634,7 +670,7 @@ class _PriceCartRow extends ConsumerWidget {
                       style: AppFonts.ui(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accent,
+                        color: MktColors.text(isDark),
                       ),
                     ),
                   ),
@@ -688,7 +724,9 @@ class _PriceCartRow extends ConsumerWidget {
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
+            height: 50,
             child: FilledButton(
+              style: mktFilledStyle(),
               onPressed: claim,
               child: Text(
                 listing.offer == ListingOffer.free
@@ -715,7 +753,7 @@ class _PriceCartRow extends ConsumerWidget {
           style: AppFonts.ui(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: AppColors.accent,
+            color: MktColors.text(isDark),
           ),
         ),
         const SizedBox(height: 14),
@@ -724,6 +762,7 @@ class _PriceCartRow extends ConsumerWidget {
             // Add to cart / remove
             Expanded(
               child: OutlinedButton.icon(
+                style: mktOutlinedStyle(isDark),
                 onPressed: () {
                   if (inCart) {
                     ref.read(cartProvider.notifier).remove(listing.id);
@@ -752,6 +791,7 @@ class _PriceCartRow extends ConsumerWidget {
             // Buy Now — completes the purchase immediately, no cart required.
             Expanded(
               child: FilledButton(
+                style: mktFilledStyle(),
                 onPressed: buyNow,
                 child: const Text('Buy Now'),
               ),
@@ -782,6 +822,7 @@ class _PrimaryAction extends StatelessWidget {
     // Content not wired up yet for this listing: a disabled button that says
     // so, rather than one that looks live and does nothing.
     return FilledButton.icon(
+      style: mktFilledStyle(),
       onPressed: comingSoon ? null : onTap,
       icon: Icon(icon, size: 18),
       label: Text(
@@ -1014,18 +1055,19 @@ class _ContentInfo extends StatelessWidget {
         ),
       );
     }
-    for (var i = 0; i < listing.audioVolumes.length; i++) {
-      final volume = listing.audioVolumes[i];
-      rows.add(
-        _ContentRow(
-          icon: Icons.audiotrack_rounded,
-          iconColor: ListingType.audio.badgeColor,
-          title: volume.title.isEmpty ? 'Volume ${i + 1}' : volume.title,
-          subtitle: volume.fileName,
-          isDark: isDark,
-        ),
-      );
-    }
+    // AUDIO DISABLED (2026-09-30): audio volume rows are no longer shown.
+    // for (var i = 0; i < listing.audioVolumes.length; i++) {
+    //   final volume = listing.audioVolumes[i];
+    //   rows.add(
+    //     _ContentRow(
+    //       icon: Icons.audiotrack_rounded,
+    //       iconColor: ListingType.audio.badgeColor,
+    //       title: volume.title.isEmpty ? 'Volume ${i + 1}' : volume.title,
+    //       subtitle: volume.fileName,
+    //       isDark: isDark,
+    //     ),
+    //   );
+    // }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1547,7 +1589,7 @@ class _RatingBreakdown extends StatelessWidget {
                           backgroundColor: trackColor,
                           valueColor: AlwaysStoppedAnimation(
                             frac > 0.4
-                                ? AppColors.accent
+                                ? MktColors.goldFill
                                 : trackColor.withValues(alpha: 0.5),
                           ),
                         ),
@@ -1693,37 +1735,44 @@ class _AuthorListingCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/marketplace/listing/${listing.id}'),
       child: Container(
-        width: 120,
+        width: 122,
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: borderColor),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
-              ),
-              child: Container(
-                height: 90,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      listing.type.badgeColor.withValues(alpha: 0.8),
-                      listing.type.badgeColor.withValues(alpha: 0.3),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            // Cover — the seller's real cover art when there is one, with
+            // the storefront's rating badge overlaid.
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: Stack(
+                children: [
+                  ListingCover(
+                    listing: listing,
+                    fallbackColor:
+                        listing.genre?.colors.first ?? listing.type.badgeColor,
+                    width: double.infinity,
+                    height: 88,
+                    borderRadius: 9,
+                    showLabel: false,
                   ),
-                ),
-                child: Icon(listing.type.icon, size: 32, color: Colors.white),
+                  if (listing.rating > 0)
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: RatingBadge(
+                        rating: listing.rating,
+                        isDark: isDark,
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1739,11 +1788,13 @@ class _AuthorListingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    listing.price,
+                    listing.isSoldOut ? 'Claimed' : listing.price,
                     style: AppFonts.ui(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: mutedColor,
+                      color: listing.isSoldOut
+                          ? mutedColor
+                          : offerPriceColor(listing.offer, isDark),
                     ),
                   ),
                 ],

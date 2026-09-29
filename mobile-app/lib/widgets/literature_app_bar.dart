@@ -106,7 +106,8 @@ void showCreateChooser(BuildContext context, bool isDark) {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'Share writing or audio to your feed',
+                // Audio disabled: 'Share writing or audio to your feed',
+                'Share your writing to your feed',
                 style: AppFonts.ui(fontSize: 13, color: mutedColor),
               ),
             ),
@@ -122,17 +123,18 @@ void showCreateChooser(BuildContext context, bool isDark) {
                 context.push('/post/new');
               },
             ),
-            _CreateOption(
-              icon: Icons.mic_rounded,
-              color: const Color(0xFF9B5C8A),
-              title: 'Audio',
-              subtitle: 'Share an audio recording',
-              isDark: isDark,
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.push('/post/new', extra: true);
-              },
-            ),
+            // AUDIO DISABLED (2026-09-30): book/e-book only for now.
+            // _CreateOption(
+            //   icon: Icons.mic_rounded,
+            //   color: const Color(0xFF9B5C8A),
+            //   title: 'Audio',
+            //   subtitle: 'Share an audio recording',
+            //   isDark: isDark,
+            //   onTap: () {
+            //     Navigator.pop(sheetContext);
+            //     context.push('/post/new', extra: true);
+            //   },
+            // ),
             const SizedBox(height: 12),
           ],
         ),

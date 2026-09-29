@@ -13,42 +13,43 @@ import '../../theme/app_theme.dart';
 /// pre-populate the editor — used by the Home "Upload from device" flow to
 /// land the user on the post screen with their file already attached.
 class PostScreenArgs {
-  final bool startWithAudio;
+  // AUDIO DISABLED (2026-09-30): book/e-book only for now.
+  // final bool startWithAudio;
   final String? initialTitle;
   final String? initialContent;
   final String? uploadedFileName;
-  final String? uploadedAudioName;
+  // final String? uploadedAudioName; // Audio disabled
   const PostScreenArgs({
-    this.startWithAudio = false,
+    // this.startWithAudio = false, // Audio disabled
     this.initialTitle,
     this.initialContent,
     this.uploadedFileName,
-    this.uploadedAudioName,
+    // this.uploadedAudioName, // Audio disabled
   });
 }
 
 class PostScreen extends ConsumerStatefulWidget {
-  final bool startWithAudio;
+  // final bool startWithAudio; // Audio disabled
   final String? initialTitle;
   final String? initialContent;
   final String? uploadedFileName;
-  final String? uploadedAudioName;
+  // final String? uploadedAudioName; // Audio disabled
 
   const PostScreen({
     super.key,
-    this.startWithAudio = false,
+    // this.startWithAudio = false, // Audio disabled
     this.initialTitle,
     this.initialContent,
     this.uploadedFileName,
-    this.uploadedAudioName,
+    // this.uploadedAudioName, // Audio disabled
   });
 
   factory PostScreen.fromArgs(PostScreenArgs args) => PostScreen(
-    startWithAudio: args.startWithAudio,
+    // startWithAudio: args.startWithAudio, // Audio disabled
     initialTitle: args.initialTitle,
     initialContent: args.initialContent,
     uploadedFileName: args.uploadedFileName,
-    uploadedAudioName: args.uploadedAudioName,
+    // uploadedAudioName: args.uploadedAudioName, // Audio disabled
   );
 
   @override
@@ -60,11 +61,15 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _contentFocus = FocusNode();
-  bool _hasAudio = false;
-  String? _audioFileName;
+  // bool _hasAudio = false; // Audio disabled
+  // String? _audioFileName; // Audio disabled
   String? _coverFileName;
   List<String> _tags = [];
   final List<_PageDraft> _extraPages = [];
+  // Reading aids: a contents page listing every page, and automatic page
+  // numbers (1, 2, 3… — each page numbered one higher than the last).
+  bool _showToc = false;
+  bool _showPageNumbers = false;
 
   @override
   void initState() {
@@ -78,16 +83,17 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     if (widget.uploadedFileName != null) {
       _coverFileName = widget.uploadedFileName;
     }
-    if (widget.uploadedAudioName != null) {
-      _audioFileName = widget.uploadedAudioName;
-      _hasAudio = true;
-    }
-    // Entering via the "Audio" option → prompt to pick an audio file straight away.
-    if (widget.startWithAudio && widget.uploadedAudioName == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _pickAudio();
-      });
-    }
+    // AUDIO DISABLED (2026-09-30):
+    // if (widget.uploadedAudioName != null) {
+    //   _audioFileName = widget.uploadedAudioName;
+    //   _hasAudio = true;
+    // }
+    // // Entering via the "Audio" option → prompt to pick an audio file straight away.
+    // if (widget.startWithAudio && widget.uploadedAudioName == null) {
+    //   WidgetsBinding.instance.addPostFrameCallback((_) {
+    //     if (mounted) _pickAudio();
+    //   });
+    // }
     // Live word count / reading-time caption below the content field.
     _contentController.addListener(() => setState(() {}));
   }
@@ -228,25 +234,26 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     _contentFocus.requestFocus();
   }
 
-  Future<void> _pickAudio() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'],
-      withData: false,
-    );
-    if (!mounted) return;
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        _audioFileName = result.files.single.name;
-        _hasAudio = true;
-      });
-    }
-  }
-
-  void _removeAudio() => setState(() {
-    _audioFileName = null;
-    _hasAudio = false;
-  });
+  // AUDIO DISABLED (2026-09-30):
+  // Future<void> _pickAudio() async {
+  //   final result = await FilePicker.pickFiles(
+  //     type: FileType.custom,
+  //     allowedExtensions: ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'],
+  //     withData: false,
+  //   );
+  //   if (!mounted) return;
+  //   if (result != null && result.files.isNotEmpty) {
+  //     setState(() {
+  //       _audioFileName = result.files.single.name;
+  //       _hasAudio = true;
+  //     });
+  //   }
+  // }
+  //
+  // void _removeAudio() => setState(() {
+  //   _audioFileName = null;
+  //   _hasAudio = false;
+  // });
 
   Future<void> _pickCover() async {
     final result = await FilePicker.pickFiles(
@@ -262,7 +269,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   void _removeCover() => setState(() => _coverFileName = null);
 
   // Pick any file from device storage and fold its contents into the editor.
-  // .txt → read into title (filename) + body. Audio → attached as audio.
+  // .txt → read into title (filename) + body.
   // Anything else (PDF, image, doc) → attached as a cover/file reference.
   // file.path is null on web, so we silently skip text reading there.
   Future<void> _pickAndFillFromFile() async {
@@ -278,7 +285,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         ? name.substring(0, name.lastIndexOf('.'))
         : name;
 
-    const audioExts = {'mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'};
+    // const audioExts = {'mp3', 'm4a', 'aac', 'wav', 'ogg', 'flac'}; // Audio disabled
 
     String? textContent;
     if (ext == 'txt' && file.path != null) {
@@ -297,10 +304,12 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       if (textContent != null && _contentController.text.trim().isEmpty) {
         _contentController.text = textContent;
       }
-      if (audioExts.contains(ext)) {
-        _audioFileName = name;
-        _hasAudio = true;
-      } else if (ext != 'txt') {
+      // AUDIO DISABLED (2026-09-30): audio files are no longer attachable.
+      // if (audioExts.contains(ext)) {
+      //   _audioFileName = name;
+      //   _hasAudio = true;
+      // } else if (ext != 'txt') {
+      if (ext != 'txt') {
         _coverFileName = name;
       }
     });
@@ -335,6 +344,17 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       );
       return;
     }
+    final pages = _extraPages
+        .map(
+          (p) => PostPage(
+            title: p.showTitle && p.titleController.text.trim().isNotEmpty
+                ? p.titleController.text.trim()
+                : null,
+            content: p.contentController.text.trim(),
+          ),
+        )
+        .where((p) => p.content.isNotEmpty)
+        .toList();
     final newPost = Post(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       author: author,
@@ -342,21 +362,15 @@ class _PostScreenState extends ConsumerState<PostScreen> {
       content: _contentController.text.trim(),
       category: _selectedCategory,
       createdAt: DateTime.now(),
-      audioUrl: _hasAudio
-          ? (_audioFileName ?? 'audio/user_recording.mp3')
-          : null,
+      // AUDIO DISABLED (2026-09-30):
+      // audioUrl: _hasAudio
+      //     ? (_audioFileName ?? 'audio/user_recording.mp3')
+      //     : null,
       coverImageUrl: _coverFileName,
-      pages: _extraPages
-          .map(
-            (p) => PostPage(
-              title: p.showTitle && p.titleController.text.trim().isNotEmpty
-                  ? p.titleController.text.trim()
-                  : null,
-              content: p.contentController.text.trim(),
-            ),
-          )
-          .where((p) => p.content.isNotEmpty)
-          .toList(),
+      pages: pages,
+      // A contents page only makes sense once there are pages to list.
+      showTableOfContents: _showToc && pages.isNotEmpty,
+      showPageNumbers: _showPageNumbers,
     );
     // Capture the (root) messenger before popping so the sync-failure snack
     // can still be shown after this screen is gone.
@@ -365,7 +379,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     context.pop();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(_hasAudio ? 'Audio posted! 🎙️' : 'Post published! ✨'),
+        // Audio disabled: content: Text(_hasAudio ? 'Audio posted! 🎙️' : 'Post published! ✨'),
+        content: const Text('Post published! ✨'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -394,7 +409,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          widget.startWithAudio ? 'New Audio' : 'New Post',
+          // Audio disabled: widget.startWithAudio ? 'New Audio' : 'New Post',
+          'New Post',
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
         actions: [
@@ -516,12 +532,12 @@ class _PostScreenState extends ConsumerState<PostScreen> {
             Text('Attachments', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             _AttachmentRow(
-              hasAudio: _hasAudio,
-              audioFileName: _audioFileName,
+              // hasAudio: _hasAudio, // Audio disabled
+              // audioFileName: _audioFileName, // Audio disabled
               coverFileName: _coverFileName,
               tagCount: _tags.length,
               isDark: isDark,
-              onAudioTap: _hasAudio ? _removeAudio : _pickAudio,
+              // onAudioTap: _hasAudio ? _removeAudio : _pickAudio, // Audio disabled
               onCoverTap: _coverFileName != null ? _removeCover : _pickCover,
               onTagsTap: _editTags,
               onUploadTap: _pickAndFillFromFile,
@@ -540,6 +556,45 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                 ),
               ],
             ),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (_extraPages.isNotEmpty)
+                  _AttachmentChip(
+                    icon: _showToc
+                        ? Icons.check_circle_rounded
+                        : Icons.toc_rounded,
+                    label: 'Contents page',
+                    active: _showToc,
+                    isDark: isDark,
+                    onTap: () => setState(() => _showToc = !_showToc),
+                  ),
+                _AttachmentChip(
+                  icon: _showPageNumbers
+                      ? Icons.check_circle_rounded
+                      : Icons.format_list_numbered_rounded,
+                  label: 'Page numbers',
+                  active: _showPageNumbers,
+                  isDark: isDark,
+                  onTap: () =>
+                      setState(() => _showPageNumbers = !_showPageNumbers),
+                ),
+              ],
+            ),
+            if (_showPageNumbers)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Pages are numbered automatically — each page one higher '
+                  'than the last.',
+                  style: AppFonts.ui(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                  ),
+                ),
+              ),
             for (var i = 0; i < _extraPages.length; i++)
               _PageEditor(
                 index: i,
@@ -843,23 +898,23 @@ class _FormatButton extends StatelessWidget {
 }
 
 class _AttachmentRow extends StatelessWidget {
-  final bool hasAudio;
-  final String? audioFileName;
+  // final bool hasAudio; // Audio disabled
+  // final String? audioFileName; // Audio disabled
   final String? coverFileName;
   final int tagCount;
   final bool isDark;
-  final VoidCallback onAudioTap;
+  // final VoidCallback onAudioTap; // Audio disabled
   final VoidCallback onCoverTap;
   final VoidCallback onTagsTap;
   final VoidCallback onUploadTap;
 
   const _AttachmentRow({
-    required this.hasAudio,
-    required this.audioFileName,
+    // required this.hasAudio, // Audio disabled
+    // required this.audioFileName, // Audio disabled
     required this.coverFileName,
     required this.tagCount,
     required this.isDark,
-    required this.onAudioTap,
+    // required this.onAudioTap, // Audio disabled
     required this.onCoverTap,
     required this.onTagsTap,
     required this.onUploadTap,
@@ -879,13 +934,14 @@ class _AttachmentRow extends StatelessWidget {
           isDark: isDark,
           onTap: onUploadTap,
         ),
-        _AttachmentChip(
-          icon: hasAudio ? Icons.check_circle_rounded : Icons.mic_rounded,
-          label: hasAudio ? (audioFileName ?? 'Audio added') : 'Add audio',
-          active: hasAudio,
-          isDark: isDark,
-          onTap: onAudioTap,
-        ),
+        // AUDIO DISABLED (2026-09-30):
+        // _AttachmentChip(
+        //   icon: hasAudio ? Icons.check_circle_rounded : Icons.mic_rounded,
+        //   label: hasAudio ? (audioFileName ?? 'Audio added') : 'Add audio',
+        //   active: hasAudio,
+        //   isDark: isDark,
+        //   onTap: onAudioTap,
+        // ),
         _AttachmentChip(
           icon: hasCover ? Icons.check_circle_rounded : Icons.image_outlined,
           label: hasCover ? (coverFileName ?? 'Cover added') : 'Add cover',

@@ -9,7 +9,8 @@ import '../../providers/follow_provider.dart';
 import '../../services/users_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sync_feedback.dart';
-import '../../widgets/audio_post_card.dart';
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// import '../../widgets/audio_post_card.dart';
 import '../../widgets/post_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +37,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    // Audio tab disabled — Posts only (was 2 with Audio).
+    _tabs = TabController(length: 1, vsync: this);
   }
 
   @override
@@ -70,7 +72,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final allPosts = ref.watch(postsNotifierProvider);
     final userPosts = allPosts.where((p) => p.author.id == user.id).toList();
-    final audioPosts = userPosts.where((p) => p.audioUrl != null).toList();
+    // Audio disabled:
+    // final audioPosts = userPosts.where((p) => p.audioUrl != null).toList();
 
     final bg = isDark ? AppColors.darkBackground : AppColors.background;
     final divColor = isDark ? AppColors.darkDivider : AppColors.divider;
@@ -89,7 +92,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
             user: user,
             isDark: isDark,
             postCount: userPosts.length,
-            audioCount: audioPosts.length,
+            // audioCount: audioPosts.length, // Audio disabled
             tabs: _tabs,
           ),
           Divider(height: 1, color: divColor),
@@ -98,7 +101,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               controller: _tabs,
               children: [
                 _PostsTab(posts: userPosts, isDark: isDark),
-                _AudioTab(posts: audioPosts, isDark: isDark),
+                // _AudioTab(posts: audioPosts, isDark: isDark), // Audio disabled
               ],
             ),
           ),
@@ -116,14 +119,14 @@ class _UserHeader extends ConsumerWidget {
   final LitUser user;
   final bool isDark;
   final int postCount;
-  final int audioCount;
+  // final int audioCount; // Audio disabled
   final TabController tabs;
 
   const _UserHeader({
     required this.user,
     required this.isDark,
     required this.postCount,
-    required this.audioCount,
+    // required this.audioCount, // Audio disabled
     required this.tabs,
   });
 
@@ -268,7 +271,7 @@ class _UserHeader extends ConsumerWidget {
               : AppColors.textMuted,
           tabs: [
             Tab(text: 'Posts ($postCount)'),
-            Tab(text: 'Audio ($audioCount)'),
+            // Tab(text: 'Audio ($audioCount)'), // Audio disabled
           ],
         ),
         Divider(height: 1, color: divColor),
@@ -476,27 +479,28 @@ class _PostsTab extends StatelessWidget {
   }
 }
 
-class _AudioTab extends StatelessWidget {
-  final List<Post> posts;
-  final bool isDark;
-  const _AudioTab({required this.posts, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    if (posts.isEmpty) {
-      return _EmptyTab(
-        icon: Icons.headphones_rounded,
-        label: 'No audio posts yet',
-        isDark: isDark,
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
-      itemCount: posts.length,
-      itemBuilder: (_, i) => AudioPostCard(post: posts[i]),
-    );
-  }
-}
+// AUDIO DISABLED (2026-09-30): book/e-book only for now.
+// class _AudioTab extends StatelessWidget {
+//   final List<Post> posts;
+//   final bool isDark;
+//   const _AudioTab({required this.posts, required this.isDark});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     if (posts.isEmpty) {
+//       return _EmptyTab(
+//         icon: Icons.headphones_rounded,
+//         label: 'No audio posts yet',
+//         isDark: isDark,
+//       );
+//     }
+//     return ListView.builder(
+//       padding: const EdgeInsets.only(top: 8, bottom: 24),
+//       itemCount: posts.length,
+//       itemBuilder: (_, i) => AudioPostCard(post: posts[i]),
+//     );
+//   }
+// }
 
 class _EmptyTab extends StatelessWidget {
   final IconData icon;

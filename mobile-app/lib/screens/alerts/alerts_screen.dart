@@ -138,7 +138,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 3),
+      // Audio tab disabled — Alerts moved from index 3 to 2.
+      bottomNavigationBar: const LiteratureBottomNavBar(currentIndex: 2),
       body: Builder(
         builder: (context) {
           if (_items.isEmpty) {

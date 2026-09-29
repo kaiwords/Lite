@@ -80,14 +80,17 @@ final visibleCategoriesProvider =
 });
 final feedCategoryProvider = StateProvider<FeedCategory>((ref) => FeedCategory.all);
 
-/// Separate category filter for the Audio tab — does not affect the home feed.
-final audioCategoryProvider = StateProvider<FeedCategory>((ref) => FeedCategory.all);
-
-/// Following / Narrators filter for the Audio tab.
-enum AudioFilter { following, narrators }
-
-final audioFilterProvider =
-    StateProvider<AudioFilter>((ref) => AudioFilter.following);
+// AUDIO DISABLED (2026-09-30): book/e-book only for now. These fed the Audio
+// tab (screens/audio/audio_screen.dart), which is also commented out.
+// /// Separate category filter for the Audio tab — does not affect the home feed.
+// final audioCategoryProvider =
+//     StateProvider<FeedCategory>((ref) => FeedCategory.all);
+//
+// /// Following / Narrators filter for the Audio tab.
+// enum AudioFilter { following, narrators }
+//
+// final audioFilterProvider =
+//     StateProvider<AudioFilter>((ref) => AudioFilter.following);
 
 class PostsNotifier extends StateNotifier<List<Post>> {
   PostsNotifier(super.initial);

@@ -34,5 +34,10 @@ final marketplaceListingsProvider = Provider<List<MarketplaceListing>>((ref) {
   final myListings = ref.watch(myListingsProvider);
   final catalogueIds = catalogue.map((l) => l.id).toSet();
   final ownOnly = myListings.where((l) => !catalogueIds.contains(l.id));
-  return [...catalogue, ...ownOnly];
+  // AUDIO DISABLED (2026-09-30): hide audio listings (older rows may still
+  // exist in the DB) so Browse/Search only surface books and e-books.
+  // return [...catalogue, ...ownOnly];
+  return [...catalogue, ...ownOnly]
+      .where((l) => l.type != ListingType.audio)
+      .toList();
 });
